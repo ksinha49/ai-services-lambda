@@ -45,9 +45,10 @@ _handler.setFormatter(
 )
 logger.addHandler(_handler)
 
+# Initialize the S3 client once at module load time and reuse it
 s3_client = boto3.client("s3")
 
-def upload_to_s3(pdf_bytes: bytes, file_name: str, bucket_name: str) -> Optional[dict]:
+def upload_to_s3(pdf_bytes: bytes, file_name: str, bucket_name: str, s3_client=s3_client) -> Optional[dict]:
     """
     Upload a PDF to S3.
 
@@ -60,7 +61,6 @@ def upload_to_s3(pdf_bytes: bytes, file_name: str, bucket_name: str) -> Optional
         dict: A dictionary containing the result of the upload operation. 
               If an error occurs, returns None.
     """
-    s3_client = boto3.client("s3")
     try:
         bucket_file_name = f"{file_name}"
         response = s3_client.put_object(
@@ -73,7 +73,7 @@ def upload_to_s3(pdf_bytes: bytes, file_name: str, bucket_name: str) -> Optional
         raise ValueError(f"Failed to upload PDF to S3")
 
 
-def assemble_files(event: dict, context) -> Optional[dict]:
+def assemble_files(event: dict, context, s3_client=s3_client) -> Optional[dict]:
     """
     Assemble the original and summary PDFs from S3.
 
@@ -107,7 +107,7 @@ def assemble_files(event: dict, context) -> Optional[dict]:
         logger.info(f"Merging PDFs: {merged_file_key}")
         merged_pdf_bytes = merge_pdfs(summary_file_content, organic_file_content)
         #s3_client.put_object(Body='', Bucket=organic_bucket_name, Key=f"merged_files/{file_names[1]}", ACL='private')
-        final_response = upload_to_s3(merged_pdf_bytes, merged_file_key, organic_bucket_name)
+        final_response = upload_to_s3(merged_pdf_bytes, merged_file_key, organic_bucket_name, s3_client)
         return final_response
     except Exception as e:
         logger.error(f"Error assembling files: {str(e)}")
@@ -165,7 +165,7 @@ def lambda_handler(event: dict, context) -> Optional[dict]:
 
     logger.info("Starting Lambda function...")
     try:
-        final_response = assemble_files(event, context)
+        final_response = assemble_files(event, context, s3_client)
         return _response(200, final_response)
     except Exception as e:
         logger.error(f"Error in Lambda handler: {str(e)}")
