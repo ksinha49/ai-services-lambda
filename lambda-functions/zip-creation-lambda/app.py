@@ -36,7 +36,9 @@ _handler.setFormatter(
 )
 logger.addHandler(_handler)
 
+# Initialize boto3 clients once
 ssm = boto3.client('ssm')
+s3_client = boto3.client('s3')
 
 def get_values_from_ssm(ssm_key: str) -> str:
     """
@@ -135,7 +137,7 @@ def extract_dynamic_path(path):
     else:
         return "Path does not have enough segments."
     
-def assemble_zip_files(event):
+def assemble_zip_files(event, s3_client=s3_client):
     """
     Assemble zip files from S3 objects.
 
@@ -151,8 +153,6 @@ def assemble_zip_files(event):
     logger.info(f"zip_file_name:{zip_file_name}")
     zip_file_name = f"curated/{zip_file_name}"
 
-    # Initialize S3 client
-    s3 = boto3.client('s3')
     pdf_files = [file['pdffile'] for file in event.get('pdfFiles', [])]
     xml_files = event.get('xmlFiles', [])
     # Create a zip file
@@ -163,7 +163,6 @@ def assemble_zip_files(event):
 
     with zipfile.ZipFile(output_zip_stream, 'w', zipfile.ZIP_DEFLATED) as output_zip:
         for xml_file in xml_files:
-            s3_client = boto3.client('s3')
             bucket_name, file_key, file_name = parse_s3_uri(xml_file)
             response = s3_client.get_object(Bucket=bucket_name, Key=f"{file_key}/{file_name}")
             file_name = extract_dynamic_path(file_name)
@@ -188,7 +187,6 @@ def assemble_zip_files(event):
                   output_zip.writestr(file_name, response['Body'].read())
 
         for pdf_file in pdf_files:
-            s3_client = boto3.client('s3')
             bucket_name, file_key, file_name = parse_s3_uri(pdf_file)
             parts = file_name.split("/")
             parts = parts[-1].split(".", 1)
@@ -260,4 +258,4 @@ def lambda_handler(event: dict, context) -> dict:
         dict: A dictionary with the status of the assembly process.
     """
 
-    return assemble_zip_files(event)
+    return assemble_zip_files(event, s3_client)
