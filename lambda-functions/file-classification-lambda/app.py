@@ -8,9 +8,10 @@ Description:
   2. Starts an execution of a Step Function state machine.
 
 
-Version: 1.0.1
+Version: 1.0.2
 Created: 2025-05-05
-Last Modified: 2025-05-06
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 """
 
 from __future__ import annotations
@@ -18,11 +19,15 @@ from __future__ import annotations
 import logging
 import boto3
 import json
-from botocore.config import Config
+from common_utils.get_ssm import (
+    get_values_from_ssm,
+    get_environment_prefix,
+)
 
 # Module Metadata
 __author__ = "Balakrishna"  # Author name (please fill this in)
-__version__ = "1.0.1"  # Version number of the module
+__version__ = "1.0.2"  # Version number of the module
+__modified_by__ = "Koushik Sinha"
 
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
@@ -36,55 +41,10 @@ _handler.setFormatter(
 logger.addHandler(_handler)
 
 
-# Proxy configuration for SSM
-proxy_definitions = {
-    'http': 'http://proxy.ameritas.com:8080',
-    'https': 'http://proxy.ameritas.com:8080'
-}
-
-proxy_config = Config(
-    proxies=proxy_definitions
-)
-
 # Create a new client for Step Functions
-#step_functions = boto3.client('stepfunctions', config=proxy_config)
 step_functions = boto3.client('stepfunctions')
-#ssm = boto3.client('ssm', config=proxy_config)
 ssm = boto3.client('ssm')
 
-def get_values_from_ssm(ssm_key: str) -> str:
-    """
-    Retrieves the value of an SSM parameter using the proxy configuration.
-
-    Args:
-        ssm_key (str): The name of the SSM parameter to retrieve.
-
-    Returns:
-        str: The value of the SSM parameter, or None if it's not found.
-    """
-
-    try:
-        response = ssm.get_parameter(
-            Name=ssm_key,
-            WithDecryption=False
-        )
-
-        if response['Parameter']['Value']:
-            logger.info(f"Parameter Value for {ssm_key}: {response['Parameter']['Value']}")
-            return response['Parameter']['Value']
-        else:
-            logger.warning(f"No value found for parameter: {ssm_key}")
-            return None
-
-    except Exception as e:
-        logger.error(f"Error occurred while retrieving parameter: {e}")
-        raise
-
-
-# Get the environment variable from SSM
-environment_value = get_values_from_ssm("/parameters/aio/ameritasAI/SERVER_ENV")
-
-ssm_key  = f"/parameters/aio/ameritasAI/{environment_value}"
 
 
 def lambda_handler(event: dict, context) -> dict:
@@ -100,7 +60,8 @@ def lambda_handler(event: dict, context) -> dict:
     """
 
     input_json = json.dumps(event)
-    state_machine_arn = get_values_from_ssm(f"{ssm_key}/STEP_FUNCTION_ARN")
+    prefix = get_environment_prefix()
+    state_machine_arn = get_values_from_ssm(f"{prefix}/STEP_FUNCTION_ARN")
     #state_machine_arn ="arn:aws:states:us-east-2:528757830986:stateMachine:zip-processing-sf"
     # Start the task execution using the Lambda function as a trigger
     try:

@@ -10,9 +10,10 @@ Description:
 Pre- and post-conditions are documented on the main handler.
 
 
-Version: 1.0.1
+Version: 1.0.2
 Created: 2025-05-05
-Last Modified: 2025-05-06
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 
 """
 
@@ -23,6 +24,11 @@ import boto3
 from PyPDF2 import PdfReader, PdfWriter
 import io
 from typing import Optional
+
+# Module Metadata
+__author__ = "Balakrishna"
+__version__ = "1.0.2"
+__modified_by__ = "Koushik Sinha"
 
 """
 Logging Configuration:

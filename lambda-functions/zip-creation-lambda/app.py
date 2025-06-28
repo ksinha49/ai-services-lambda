@@ -7,9 +7,10 @@ Description:
   AWS Lambda to zip the metadata and summarized pdf files and save the zip file to the outbound folder
 
 
-Version: 1.0.1
+Version: 1.0.2
 Created: 2025-05-12
-Last Modified: 2025-05-12
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 """
 import boto3
 import zipfile
@@ -22,6 +23,11 @@ import logging
 # ─── Logging Configuration ─────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Module Metadata
+__author__ = "Balakrishna"
+__version__ = "1.0.2"
+__modified_by__ = "Koushik Sinha"
 
 # Create a custom logger formatter with timestamp, level, and log message
 _handler = logging.StreamHandler()

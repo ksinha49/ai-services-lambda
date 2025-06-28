@@ -12,9 +12,10 @@ Description:
 Pre- and post-conditions are documented on the main handler.
 
 
-Version: 1.0.1
+Version: 1.0.2
 Created: 2025-05-05
-Last Modified: 2025-05-06
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 """
 
 from __future__ import annotations
@@ -28,16 +29,19 @@ from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 
 import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError
 import httpx
 from httpx import Timeout, HTTPStatusError
+from common_utils.get_ssm import (
+    get_values_from_ssm,
+    get_environment_prefix,
+)
 from fpdf import FPDF
 from unidecode import unidecode
 
 # Module Metadata
 __author__ = "Balakrishna"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
+__modified_by__ = "Koushik Sinha"
 
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
@@ -50,62 +54,7 @@ _handler.setFormatter(logging.Formatter(
 ))
 logger.addHandler(_handler)
 
-
-_ssm_client = boto3.client("ssm")
 _s3_client = boto3.client("s3")
-
-# In-memory cache for SSM parameters
-_ssm_cache: Dict[str, str] = {}
-
-# CA bundle for verifying HTTPS calls
-CLIENT_CERT = "AMERITASISSUING1-CA.crt"
-
-# Paths to JSON files
-SYSTEM_PROMPT_PATH = 'system_prompt.json'
-USER_PROMPTS_PATH = 'aps_prompts.json'
-
-def get_ssm_param(name: str, decrypt: bool = True) -> Optional[str]:
-    """
-    Fetch a parameter from SSM Parameter Store, with in-memory caching.
-
-    Args:
-        name: Full SSM parameter name.
-        decrypt: Whether to decrypt SecureString parameters.
-
-    Returns:
-        The parameter value, or None if missing or on error.
-    """
-    if name in _ssm_cache:
-        logger.debug("SSM cache hit: %s", name)
-        return _ssm_cache[name]
-
-    try:
-        resp = _ssm_client.get_parameter(Name=name, WithDecryption=decrypt)
-        val = resp["Parameter"]["Value"]
-        _ssm_cache[name] = val
-        logger.debug("SSM cache miss: fetched %s", name)
-        return val
-    except ClientError as e:
-        code = e.response["Error"]["Code"]
-        if code == "ParameterNotFound":
-            logger.error("SSM parameter not found: %s", name)
-        else:
-            logger.exception("Error retrieving SSM parameter %s", name)
-        return None
-
-
-def get_environment_prefix() -> str:
-    """
-    Compute the SSM key prefix based on the SERVER_ENV parameter.
-
-    Raises:
-        RuntimeError: If SERVER_ENV is not set.
-    """
-    env = get_ssm_param("/parameters/aio/ameritasAI/SERVER_ENV")
-    if not env:
-        raise RuntimeError("SERVER_ENV not set in SSM")
-    return f"/parameters/aio/ameritasAI/{env}"
-
 
 def get_token() -> Dict[str, Any]:
     """
@@ -116,8 +65,8 @@ def get_token() -> Dict[str, Any]:
         HTTPStatusError: On non-2xx HTTP responses.
     """
     prefix = get_environment_prefix()
-    user = get_ssm_param(f"{prefix}/FILE_PROCESSING_FUNCTIONAL_USER")
-    url = get_ssm_param(f"{prefix}/AMERITAS_CHAT_TOKEN_URL")
+    user = get_values_from_ssm(f"{prefix}/FILE_PROCESSING_FUNCTIONAL_USER")
+    url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_TOKEN_URL")
     if not user or not url:
         raise RuntimeError("Missing functional user or token URL")
 
@@ -178,7 +127,7 @@ def chat_with_collection(
         RuntimeError: On missing summarization URL.
     """
     prefix = get_environment_prefix()
-    url = get_ssm_param(f"{prefix}/AMERITAS_CHAT_SUMMARIZATION_URL")
+    url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_SUMMARIZATION_URL")
     if not url:
         raise RuntimeError("Summarization URL missing in SSM")
 
@@ -310,7 +259,7 @@ def render_table(
     line_h = pdf.font_size*1.5
     # Header row
     prefix = get_environment_prefix()
-    font_size = get_ssm_param(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
+    font_size = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
     pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
     pdf.set_font("DejaVu", size=int(font_size))
     #pdf.set_font("Times", size=10)
@@ -347,8 +296,8 @@ def create_summary_pdf(summaries: List[str]) -> BytesIO:
         BytesIO buffer of the PDF (cursor at 0).
     """
     prefix = get_environment_prefix()
-    font_size = get_ssm_param(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
-    font_size_bold = get_ssm_param(f"{prefix}/SUMMARY_PDF_FONT_SIZE_BOLD")
+    font_size = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
+    font_size_bold = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE_BOLD")
     pdf = FPDF(unit="mm", format="A4")
     pdf.set_margins(20, 20)
     buf = BytesIO()
@@ -488,7 +437,9 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         system_prompt = None
         system_prompt = system_msg.get("system_prompt","")
         summaries: List[str] = []
-        model = get_ssm_param(f"{get_environment_prefix()}/AMERITAS_CHAT_SUMMARY_MODEL") or ""
+        model = get_values_from_ssm(
+            f"{get_environment_prefix()}/AMERITAS_CHAT_SUMMARY_MODEL"
+        ) or ""
         for p in prompts:
             raw_query = p.get("query", "")
             title = p.get("Title", "")
