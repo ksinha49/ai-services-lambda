@@ -19,8 +19,13 @@ import httpx
 from httpx import Timeout, HTTPError, TimeoutException
 import logging
 from botocore.config import Config
-import json 
+import json
 from io import BytesIO
+from common_utils.get_ssm import (
+    get_values_from_ssm,
+    get_environment_prefix,
+    parse_s3_uri,
+)
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
@@ -32,43 +37,7 @@ _handler.setFormatter(
 logger.addHandler(_handler)
 
 client_cert = "AMERITASISSUING1-CA.crt"
-ssm = boto3.client('ssm')
 _s3_client = boto3.client("s3")
-def get_values_from_ssm(ssm_key: str) -> str:
-    """
-    Retrieves the value of an SSM parameter using the proxy configuration.
-
-    Args:
-        ssm_key (str): The name of the SSM parameter to retrieve.
-
-    Returns:
-        str: The value of the SSM parameter, or None if it's not found.
-    """
-    try:
-        response = ssm.get_parameter(
-            Name=ssm_key,
-            WithDecryption=False
-        )
-        if response['Parameter']['Value']:
-            logger.info(f"Parameter Value for {ssm_key}: {response['Parameter']['Value']}")
-            return response['Parameter']['Value']
-        else:
-            logger.warning(f"No value found for parameter: {ssm_key}")
-            return None
-    except Exception as e:
-        raise ValueError(f"Error occurred while retrieving parameter: {e}")
-
-def get_environment_prefix() -> str:
-    """
-    Compute the SSM key prefix based on the SERVER_ENV parameter.
-
-    Raises:
-        RuntimeError: If SERVER_ENV is not set.
-    """
-    env = get_values_from_ssm("/parameters/aio/ameritasAI/SERVER_ENV")
-    if not env:
-        raise RuntimeError("SERVER_ENV not set in SSM")
-    return f"/parameters/aio/ameritasAI/{env}"
 
 def get_token() -> dict:
     """
@@ -140,21 +109,6 @@ def invoke_file_process_api(api_token: str, file_stream: bytes, bucket_key: str)
         logger.error(f"Timeout occurred while waiting for API response: {e}")
         raise
 
-def parse_s3_uri(s3_uri):
-    """
-    Utility function to parse the S3 URI into bucket name and file key.
-
-    Args:
-        s3_uri (str): The S3 URI to parse.
-
-    Returns:
-        tuple: A tuple containing the bucket name and file key.
-    """
-    assert s3_uri.startswith("s3://"), "Invalid S3 URI"
-    parts = s3_uri[5:].split("/", 1)
-    bucket_name = parts[0]
-    file_key = parts[1]
-    return bucket_name, file_key
 
 def process_files(event: dict, context) -> dict:
     """

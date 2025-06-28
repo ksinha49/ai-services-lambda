@@ -16,8 +16,11 @@ from __future__ import annotations
 import boto3
 import json
 import requests
-from botocore.config import Config
 import logging
+from common_utils.get_ssm import (
+    get_values_from_ssm,
+    get_environment_prefix,
+)
 
 # Module Metadata
 __author__ = "Balakrishna"  # Author name (please fill this in)
@@ -33,53 +36,7 @@ _handler.setFormatter(
 )
 logger.addHandler(_handler)
 
-# Proxy configuration for SSM
-proxy_definitions = {
-    "http": "http://proxy.ameritas.com:8080",
-    "https": "http://proxy.ameritas.com:8080",
-}
-
-#ssm = boto3.client("ssm", config=proxy_config)
-
-proxy_config = Config(proxies=proxy_definitions)
-
-ssm = boto3.client("ssm")
-
-
-def get_values_from_ssm(ssm_key: str) -> str:
-    """
-    Retrieves the value of an SSM parameter using the proxy configuration.
-
-    Args:
-        ssm_key (str): The name of the SSM parameter to retrieve.
-
-    Returns:
-        str: The value of the SSM parameter, or None if it's not found.
-    """
-
-    try:
-        response = ssm.get_parameter(
-            Name=ssm_key,
-            WithDecryption=False
-        )
-
-        if response["Parameter"]["Value"]:
-            logger.info(f"Parameter Value for {ssm_key}: {response['Parameter']['Value']}")
-            return response["Parameter"]["Value"]
-        else:
-            logger.warning(f"No value found for parameter: {ssm_key}")
-            return None
-
-    except Exception as e:
-        logger.error(f"Error occurred while retrieving parameter: {e}")
-        return None
-
-
-# Get the environment variable from SSM
-environment_value = get_values_from_ssm("/parameters/aio/ameritasAI/SERVER_ENV")
-
-# Construct the SSM key for the functional user and token URL
-ssm_key = f"/parameters/aio/ameritasAI/{environment_value}"
+# No proxy configuration is required for SSM access when running within AWS.
 
 
 def get_token() -> dict:
@@ -91,12 +48,12 @@ def get_token() -> dict:
     """
 
     headers = {"Content-type": "application/json"}
-
-    functional_user = get_values_from_ssm(f"{ssm_key}/FILE_PROCESSING_FUNCTIONAL_USER")
+    prefix = get_environment_prefix()
+    functional_user = get_values_from_ssm(f"{prefix}/FILE_PROCESSING_FUNCTIONAL_USER")
 
     try:
         # Construct the token URL
-        token_url = get_values_from_ssm(f"{ssm_key}/AMERITAS_CHAT_TOKEN_URL")
+        token_url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_TOKEN_URL")
         token_url = f"{token_url}?userId={functional_user}"
 
         headers = {"Content-type": "application/json"}
@@ -131,12 +88,13 @@ def check_file_upload_status(input_data: dict) -> dict:
         dict: The JSON response from the API, or an empty dictionary if it fails.
     """
 
+    prefix = get_environment_prefix()
     headers = {
         "Authorization": f"Bearer {get_token()}",
         "Content-Type": "application/json"
     }
 
-    status_url = get_values_from_ssm(f"{ssm_key}/AMERITAS_CHAT_FILESTTAUS_URL") + input_data["task_id"] + "?fileid=" + input_data["fileid"]
+    status_url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_FILESTTAUS_URL") + input_data["task_id"] + "?fileid=" + input_data["fileid"]
     
     try:
        response = requests.get(status_url, headers=headers, verify="AMERITASISSUING1-CA.crt")

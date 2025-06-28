@@ -31,43 +31,6 @@ logger.addHandler(_handler)
 
 # Initialize S3 client
 s3_client: boto3.client = boto3.client('s3')
-ssm = boto3.client('ssm')
-
-def get_values_from_ssm(ssm_key: str) -> str:
-    """
-    Retrieves the value of an SSM parameter using the proxy configuration.
-
-    Args:
-        ssm_key (str): The name of the SSM parameter to retrieve.
-
-    Returns:
-        str: The value of the SSM parameter, or None if it's not found.
-    """
-    try:
-        response = ssm.get_parameter(
-            Name=ssm_key,
-            WithDecryption=False
-        )
-        if response['Parameter']['Value']:
-            logger.info(f"Parameter Value for {ssm_key}: {response['Parameter']['Value']}")
-            return response['Parameter']['Value']
-        else:
-            logger.warning(f"No value found for parameter: {ssm_key}")
-            return None
-    except Exception as e:
-        raise ValueError(f"Error occurred while retrieving parameter: {e}")
-
-def get_environment_prefix() -> str:
-    """
-    Compute the SSM key prefix based on the SERVER_ENV parameter.
-
-    Raises:
-        RuntimeError: If SERVER_ENV is not set.
-    """
-    env = get_values_from_ssm("/parameters/aio/ameritasAI/SERVER_ENV")
-    if not env:
-        raise RuntimeError("SERVER_ENV not set in SSM")
-    return f"/parameters/aio/ameritasAI/{env}"
 
 
 def zip_has_any_folder(zip_file_content: str) -> bool:
