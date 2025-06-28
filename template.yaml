@@ -1,0 +1,536 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template with separate Lambda and Layer resources and dynamic names to generate the APS zip files summarization. 
+
+Globals:
+  Function:
+    Timeout: 3
+    Tracing: Active
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+    LoggingConfig:
+      LogFormat: JSON
+
+Parameters:
+  AWSAccountName:
+    Type: String
+    Description: AWS Account Name
+
+  LambdaSubnet1ID:
+    Type: String
+    Description: Subnet ID for Lambda function
+
+  LambdaSubnet2ID:
+    Type: String
+    Description: Subnet ID for Lambda function
+
+  LambdaSecurityGroupID1:
+    Type: String
+    Description: Security Group ID for Lambda functions
+  LambdaSecurityGroupID2:
+    Type: String
+    Description: Security Group ID for Lambda functions
+  LambdaIAMRoleARN:
+    Type: String
+    Description: IAM Role ARN for Lambda functions
+  
+  EventBridgeIAMRoleARN:
+    Type: String
+    Description: IAM Role ARN for event bridge rules
+ 
+  FileuploadS3bucketName:
+    Type: String
+    Description: File upload s3 bucket name
+
+  FileProcessingStepFunctionIAMRole:
+    Type: String
+    Description: IAM role ARN for step functions
+  
+  FileProcessingEmailId:
+    Type: String
+    Description: IAM role ARN for step functions
+
+Resources:
+  # Layers - each defined separately
+  FileAssembleLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-assemble-lambda-layer'
+      Description: Layer for file assemble Lambda
+      ContentUri: layers/file-assemble-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  FileClassificationLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-classification-lambda-layer'
+      Description: Layer for file classification Lambda
+      ContentUri: layers/file-classification-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  FileProcessingLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing-layer'
+      Description: Layer for file processing Lambda
+      ContentUri: layers/file-processing-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  FileProcessingStatusLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing-status-layer'
+      Description: Layer for file processing status Lambda
+      ContentUri: layers/file-processing-status-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  FileSummaryLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-summary-layer'
+      Description: Layer for file summary Lambda
+      ContentUri: layers/file-summary-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  ZipExtractLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-zip-extract-layer'
+      Description: Layer for zip extract Lambda
+      ContentUri: layers/zip-extract-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  ZipfileCreationLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-zipfile-creation-layer'
+      Description: Layer for zipfile creation Lambda
+      ContentUri: layers/zip-creation-lambda-layer/
+      RetentionPolicy: Delete
+      CompatibleRuntimes:
+        - python3.13
+
+  # Lambdas - each defined separately
+  FileAssembleLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-assemble'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/file-assemble-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 600                      
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref FileAssembleLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+
+  FileClassificationLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-classification'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/file-classification-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 60                     
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref FileClassificationLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FileUploadFIFOQueue.Arn
+
+  FileProcessingLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/file-processing-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 720                      
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref FileProcessingLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+
+  FileProcessingStatusLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing-status'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/file-processing-status-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 480                      
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref FileProcessingStatusLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+
+  FileSummaryLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-summary'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/file-summary-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 720                      
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref FileSummaryLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+
+  ZipExtractLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-zip-extract'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/zip-extract-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 720                      
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref ZipExtractLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+
+  ZipfileCreationLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-zipfile-creation'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: lambda-functions/zip-creation-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 1024                
+      Timeout: 720                      
+      EphemeralStorage:
+        Size: 2068  
+      Layers:
+        - !Ref ZipfileCreationLambdaLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+  # SQS Queue for file upload events
+  FileUploadFIFOQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-queue.fifo'
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      VisibilityTimeout: 90
+      
+  # SQS Dead letter Queue for unprocessed file upload events
+  FileUploadDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-dead-letter-queue'
+ 
+  FileUploadEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-event-rule'
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref FileuploadS3bucketName
+          object:
+            key:
+              - prefix: "landing/ftp/"
+      Targets:
+        - Arn: !GetAtt FileUploadFIFOQueue.Arn
+          Id: FileUploadFIFOQueueTarget
+          RoleArn: !Ref EventBridgeIAMRoleARN
+          DeadLetterConfig:
+            Arn: !GetAtt FileUploadDeadLetterQueue.Arn
+          SqsParameters:
+            MessageGroupId: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-msg-id'
+
+  FileProcessingNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${AWSAccountName}-${AWS::StackName}-SNS-TOPIC
+      Subscription:
+        - Endpoint: !Ref FileProcessingEmailId
+          Protocol: email
+
+  FileProcessingStepFunction:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Definition:
+        Comment: A description of my state machine
+        StartAt: file_processing
+        States:
+          file_processing:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt FileProcessingLambdaFunction.Arn
+              Payload: '{% $states.input %}'
+            Retry:
+              - ErrorEquals:
+                  - States.TaskFailed
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 1
+                MaxAttempts: 3
+                BackoffRate: 2
+                JitterStrategy: FULL
+            Next: Wait
+          Wait:
+            Type: Wait
+            Seconds: 200
+            Next: FileUploadStatus
+          FileUploadStatus:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt FileProcessingStatusLambdaFunction.Arn
+              Payload: '{% $states.input %}'
+            Retry:
+              - ErrorEquals:
+                  - States.TaskFailed
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 1
+                MaxAttempts: 3
+                BackoffRate: 2
+                JitterStrategy: FULL
+            Next: Choice
+          Choice:
+            Type: Choice
+            Choices:
+              - Next: Wait
+                Condition: '{% $not(($states.input.fileupload_status) = ("COMPLETE")) %}'
+            Default: file_summary
+          file_summary:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt FileSummaryLambdaFunction.Arn
+              Payload: '{% $states.input %}'
+            Retry:
+              - ErrorEquals:
+                  - States.TaskFailed
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 1
+                MaxAttempts: 3
+                BackoffRate: 2
+                JitterStrategy: FULL
+            Next: file_assemble
+          file_assemble:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt FileAssembleLambdaFunction.Arn
+              Payload: '{% $states.input %}'
+            Retry:
+              - ErrorEquals:
+                  - States.TaskFailed
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+                IntervalSeconds: 1
+                MaxAttempts: 3
+                BackoffRate: 2
+                JitterStrategy: FULL
+            End: true
+        QueryLanguage: JSONata
+      Name: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing-sf'
+      Type: STANDARD
+      Role: !Ref FileProcessingStepFunctionIAMRole
+      Logging:
+        Level: 'OFF'
+        IncludeExecutionData: false
+  ZipFileProcessingStepFunction:
+    Type: AWS::Serverless::StateMachine
+    DependsOn: FileProcessingNotificationTopic
+    Properties:
+      Definition:
+        Comment: >-
+          Orchestrate ZIP → extract PDFs → per-file processing (with error
+          handling) → re-zip
+        StartAt: ExtractZip
+        States:
+          ExtractZip:
+            Type: Task
+            Resource: !GetAtt ZipExtractLambdaFunction.Arn
+            ResultPath: $
+            Next: CheckZipExtractStatus
+          CheckZipExtractStatus:
+            Type: Choice
+            Choices:
+              - Next: AssembleZip
+                Not:
+                  Variable: $.statusCode
+                  NumericEquals: 200
+            Default: ProcessAllPdfs
+          ProcessAllPdfs:
+            Type: Map
+            ItemsPath: $.pdfFiles
+            ResultPath: $.files
+            MaxConcurrency: 5
+            Iterator:
+              StartAt: ProcessSinglePdf
+              States:
+                ProcessSinglePdf:
+                  Type: Task
+                  Resource: arn:aws:states:::states:startExecution.sync
+                  Parameters:
+                    StateMachineArn: !GetAtt FileProcessingStepFunction.Arn
+                    Input.$: $
+                  ResultPath: $.processedFiles
+                  Catch:
+                    - ErrorEquals:
+                        - States.ALL
+                      ResultPath: $.processedFiles
+                      Next: HandleFileError
+                  End: true
+                HandleFileError:
+                  Type: Pass
+                  End: true
+            Next: AssembleZip
+          AssembleZip:
+            Next: CheckZipFileProcessingStatus
+            Resource: !GetAtt ZipfileCreationLambdaFunction.Arn
+            Type: Task
+          CheckZipFileProcessingStatus:
+            Type: Choice
+            Choices:
+              - Next: FormatMessage
+                Not:
+                  Variable: $.status
+                  StringEquals: '200'
+            Default: Pass
+          FormatMessage:
+            Parameters:
+              Message.$: States.Format('{}', $.unprocessedFiles)
+            Type: Pass
+            Next: SendToSNS
+          SendToSNS:
+            Parameters:
+              Message.$: $.Message
+              Subject: APS - Summary Failure Report
+              TopicArn: !GetAtt FileProcessingNotificationTopic.TopicArn
+            Resource: arn:aws:states:::sns:publish
+            Type: Task
+            End: true
+          Pass:
+            Type: Pass
+            End: true
+      Name: !Sub '${AWSAccountName}-${AWS::StackName}-zip-file-processing-sf'
+      Type: STANDARD
+      Role: !Ref FileProcessingStepFunctionIAMRole
+      Logging:
+        Level: 'OFF'
+        IncludeExecutionData: false
+ 

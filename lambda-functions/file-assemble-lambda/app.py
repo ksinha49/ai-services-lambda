@@ -1,0 +1,165 @@
+# ------------------------------------------------------------------------------
+# app.py
+# ------------------------------------------------------------------------------
+"""
+Module: app.py
+Description:
+  1. Fetch the original and summary PDF from S3, merge summary pages before the original.
+  2. Upload the merged PDF back to S3.
+
+Pre- and post-conditions are documented on the main handler.
+
+
+Version: 1.0.1
+Created: 2025-05-05
+Last Modified: 2025-05-06
+
+"""
+
+from __future__ import annotations
+import json
+import logging
+import boto3
+from PyPDF2 import PdfReader, PdfWriter
+import io
+from typing import Optional
+
+"""
+Logging Configuration:
+    * Set the logger level to INFO
+    * Create a stream handler with a custom format
+    * Add the stream handler to the logger
+"""
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+)
+logger.addHandler(_handler)
+
+s3_client = boto3.client("s3")
+
+def upload_to_s3(pdf_bytes: bytes, file_name: str, bucket_name: str) -> Optional[dict]:
+    """
+    Upload a PDF to S3.
+
+    Args:
+        pdf_bytes (bytes): The contents of the PDF.
+        file_name (str): The name of the PDF file.
+        bucket_name (str): The name of the S3 bucket.
+
+    Returns:
+        dict: A dictionary containing the result of the upload operation. 
+              If an error occurs, returns None.
+    """
+    s3_client = boto3.client("s3")
+    try:
+        bucket_file_name = f"{file_name}"
+        response = s3_client.put_object(
+            Bucket=bucket_name, Key=bucket_file_name, Body=pdf_bytes, ContentType="application/pdf"
+        )
+        logger.info(f"Uploaded file {bucket_file_name} to S3 successfully.")
+        return {"summarized_file": f"s3://{bucket_name}/{bucket_file_name}"}
+    except Exception as e:
+        logger.error(f"Error uploading to S3: {str(e)}")
+        raise ValueError(f"Failed to upload PDF to S3")
+
+
+def assemble_files(event: dict, context) -> Optional[dict]:
+    """
+    Assemble the original and summary PDFs from S3.
+
+    Args:
+        event (dict): The Lambda event.
+        context: The Lambda context.
+
+    Returns:
+        dict: A dictionary containing the result of the assembly operation. 
+              If an error occurs, raises a ValueError.
+    """
+    final_response = {}
+    try:
+        organic_bucket_name = event["organic_bucket"]
+        organic_bucket_key = event["organic_bucket_key"]
+        summary_bucket_name = event["summary_bucket_name"]
+        summary_bucket_key = event["summary_bucket_key"]
+        logger.info(f"Getting file details from S3: {organic_bucket_name}/{organic_bucket_key}")
+        organic_response = s3_client.get_object(Bucket=organic_bucket_name, Key=organic_bucket_key)
+        logger.info(f"GOT THE FILE DETAILS FROM THE S3: {organic_bucket_name}/{organic_bucket_key}")
+        organic_file_content = organic_response["Body"].read()
+        summary_response = s3_client.get_object(Bucket=summary_bucket_name, Key=summary_bucket_key)
+        logger.info(f"GOT THE FILE DETAILS FROM THE S3: {summary_bucket_name}/{summary_bucket_key}")
+        summary_file_content = summary_response["Body"].read()
+
+        organic_file_key = event['organic_bucket_key']
+        organic_bucket_name = event['organic_bucket']
+        merged_file_key = organic_file_key.replace('extracted', 'merged')
+       
+        logger.info(f"Merging PDFs: {merged_file_key}")
+        merged_pdf_bytes = merge_pdfs(summary_file_content, organic_file_content)
+        #s3_client.put_object(Body='', Bucket=organic_bucket_name, Key=f"merged_files/{file_names[1]}", ACL='private')
+        final_response = upload_to_s3(merged_pdf_bytes, merged_file_key, organic_bucket_name)
+        return final_response
+    except Exception as e:
+        logger.error(f"Error assembling files: {str(e)}")
+        raise ValueError(f"Failed to assemble PDFs")
+
+
+def merge_pdfs(summary_file_content: bytes, organic_file_content: bytes) -> Optional[bytes]:
+    """
+    Merge the summary and original PDFs.
+
+    Args:
+        summary_file_content (bytes): The contents of the summary PDF.
+        organic_file_content (bytes): The contents of the original PDF.
+
+    Returns:
+        bytes: The merged PDF contents. If an error occurs, returns None.
+    """
+    try:
+        summary_pdf_reader = PdfReader(io.BytesIO(summary_file_content))
+        organic_pdf_reader = PdfReader(io.BytesIO(organic_file_content))
+        pdf_writer = PdfWriter()
+
+        for page_num in range(len(summary_pdf_reader.pages)):
+            pdf_writer.add_page(summary_pdf_reader.pages[page_num])
+
+        for page_num in range(len(organic_pdf_reader.pages)):
+            pdf_writer.add_page(organic_pdf_reader.pages[page_num])
+        
+        merge_pdf = io.BytesIO()
+        pdf_writer.write(merge_pdf)
+        merge_pdf.seek(0)
+        return merge_pdf.read()
+    except Exception as e:
+        logger.error(f"Error merging PDFs: {str(e)}")
+        raise ValueError(f"Failed to merge PDFs")
+
+
+def lambda_handler(event: dict, context) -> Optional[dict]:
+    """
+    The main Lambda handler.
+
+    Args:
+        event (dict): The Lambda event.
+        context: The Lambda context.
+
+    Returns:
+        dict: A dictionary containing the result of the assembly operation. 
+              If an error occurs, returns a suitable response for the caller.
+    """
+
+    logger.info("Starting Lambda function...")
+    try:
+        final_response = assemble_files(event, context)
+        return final_response
+    except Exception as e:
+        logger.error(f"Error in Lambda handler: {str(e)}")
+        response_body = f"Error occurred: {str(e)}"
+        return {
+            "statusCode": 500,
+            "body": response_body,
+            "headers": {"Content-Type": "application/json"},
+        }
