@@ -167,10 +167,10 @@ def assemble_zip_files(event):
         for file in event.get("files", []):
             summary_file = file.get("processedFiles")
             if "Output" in summary_file:
-                summary_file = summary_file["Output"]
-                if "summarized_file" in summary_file:
-                  summary_file = json.loads(summary_file)["summarized_file"]
-                  bucket_name, file_key, file_name = parse_s3_uri(summary_file)
+                summary_json = json.loads(summary_file["Output"])
+                summarized = summary_json.get("body", {}).get("summarized_file")
+                if summarized:
+                  bucket_name, file_key, file_name = parse_s3_uri(summarized)
                   parts = file_name.split("/")
                   parts = parts[-1].split(".", 1)
                   processedFiles.append(parts[0])

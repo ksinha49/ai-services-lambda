@@ -158,25 +158,31 @@ def check_file_processing_status(event: dict, context) -> dict:
         dict: The updated event with the file processing status and collection name.
     """
 
-    task_id = event["task_id"]
+    event_body = event.get("body", event)
+    task_id = event_body["task_id"]
 
     if task_id:
 
-        response = check_file_upload_status(event)
+        response = check_file_upload_status(event_body)
 
         if "meta" in response:
             logger.info("File processing completed")
             collection_name = response['meta']["collection_name"]
-            event["collection_name"] = collection_name
-            event["fileupload_status"] = "COMPLETE"
-            event["statusMessage"] = "File processing completed"
+            event_body["collection_name"] = collection_name
+            event_body["fileupload_status"] = "COMPLETE"
+            event_body["statusMessage"] = "File processing completed"
 
-            return event
+            return event_body
 
         else:
-            event["fileupload_status"] = response['file_status']
+            event_body["fileupload_status"] = response['file_status']
 
-            return event
+            return event_body
+
+
+def _response(status: int, body: dict) -> dict:
+    """Helper to build a consistent Lambda response."""
+    return {"statusCode": status, "body": body}
 
 
 def lambda_handler(event: dict, context) -> dict:
@@ -193,8 +199,10 @@ def lambda_handler(event: dict, context) -> dict:
 
     logger.info("Starting Lambda function...")
 
-    final_response = check_file_processing_status(event, context)
-
-    logger.info(f"Returning final response: {final_response}")
-
-    return final_response
+    try:
+        body = check_file_processing_status(event, context)
+        logger.info(f"Returning final response: {body}")
+        return _response(200, body)
+    except Exception as e:
+        logger.exception("lambda_handler failed")
+        return _response(500, {"statusMessage": str(e)})

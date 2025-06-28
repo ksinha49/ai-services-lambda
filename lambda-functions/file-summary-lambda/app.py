@@ -459,14 +459,16 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     On failure:
       Returns {"statusCode":500, "statusMessage":<error>}.
     """
+    event_body = event.get("body", event)
+
     required = {"collection_name", "statusCode", "organic_bucket", "organic_bucket_key"}
-    if not required.issubset(event):
+    if not required.issubset(event_body):
         msg = f"Missing required event keys: {required}"
         logger.error(msg)
         return {"statusCode": 400, "statusMessage": msg}
 
-    if event["statusCode"] != 200:
-        upstream = event.get("statusMessage", "")
+    if event_body["statusCode"] != 200:
+        upstream = event_body.get("statusMessage", "")
         msg = f"Upstream error: {upstream}"
         logger.error(msg)
         return {"statusCode": 500, "statusMessage": msg}
@@ -490,7 +492,7 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for p in prompts:
             raw_query = p.get("query", "")
             title = p.get("Title", "")
-            resp = chat_with_collection(token, model, raw_query,system_prompt, event["collection_name"])
+            resp = chat_with_collection(token, model, raw_query, system_prompt, event_body["collection_name"])
             for choice in resp.get("choices", []):
                 content = choice.get("message", {}).get("content", "")
                 summaries.append((title,content))
@@ -498,15 +500,15 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Build, merge, and upload PDFs
         summary_buf = create_summary_pdf(summaries)
 
-        organic_file_key = event['organic_bucket_key']
-        organic_bucket_name = event['organic_bucket']
+        organic_file_key = event_body['organic_bucket_key']
+        organic_bucket_name = event_body['organic_bucket']
         summary_file_key = organic_file_key.replace('extracted', 'summary')
         logger.info(f"organic_file_key:{organic_file_key}")
         #new_folder_name = organic_file_folder[1]
         upload_buffer_to_s3(summary_buf, organic_bucket_name, summary_file_key)
 
         return {
-            **event,
+            **event_body,
             "summary_bucket_name": organic_bucket_name,
             "summary_bucket_key": summary_file_key,
             "statusCode": 200,
@@ -518,6 +520,17 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"statusCode": 500, "statusMessage": str(e)}
 
 
+def _response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper to build a consistent Lambda response."""
+    return {"statusCode": status, "body": body}
+
+
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Lambda handler entry point."""
-    return process_for_summary(event, context)
+    try:
+        body = process_for_summary(event, context)
+        status = body.get("statusCode", 200)
+        return _response(status, body)
+    except Exception as e:
+        logger.exception("lambda_handler failed")
+        return _response(500, {"statusMessage": str(e)})
