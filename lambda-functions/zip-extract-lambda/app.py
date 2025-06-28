@@ -6,9 +6,10 @@ Module: app.py
 Description:
   AWS Lambda to extract PDFs from an uploaded ZIP and list them for the Map state.
 
-Version: 1.0.2
+Version: 1.0.3
 Created: 2025-05-12
-Last Modified: 2025-05-12
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 """
 
 import json
@@ -21,6 +22,11 @@ import datetime
 # ─── Logging Configuration ─────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Module Metadata
+__author__ = "Balakrishna"
+__version__ = "1.0.3"
+__modified_by__ = "Koushik Sinha"
 
 # Create a custom logger formatter with timestamp, level, and log message
 _handler = logging.StreamHandler()

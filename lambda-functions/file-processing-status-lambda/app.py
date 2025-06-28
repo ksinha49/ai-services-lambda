@@ -8,9 +8,10 @@ Description:
   2. Gets an authentication token from Ameritas' API.
   3. Checks the status of file uploads to Ameritas' API.
 
-Version: 1.0.1
+Version: 1.0.2
 Created: 2025-05-05
-Last Modified: 2025-05-06
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 """
 from __future__ import annotations
 import boto3
@@ -24,7 +25,8 @@ from common_utils.get_ssm import (
 
 # Module Metadata
 __author__ = "Balakrishna"  # Author name (please fill this in)
-__version__ = "1.0.1"  # Version number of the module
+__version__ = "1.0.2"  # Version number of the module
+__modified_by__ = "Koushik Sinha"
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)

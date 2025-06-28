@@ -1,6 +1,12 @@
+"""Shared helpers for retrieving SSM parameters and parsing S3 URIs."""
+
 import logging
 from typing import Optional, Tuple
 import boto3
+
+__author__ = "Koushik Sinha"
+__version__ = "1.0.1"
+__modified_by__ = "Koushik Sinha"
 
 logger = logging.getLogger(__name__)
 _ssm_client = boto3.client("ssm")

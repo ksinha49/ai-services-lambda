@@ -12,9 +12,10 @@ Description:
 Pre- and post-conditions are documented on the main handler.
 
 
-Version: 1.0.1
+Version: 1.0.2
 Created: 2025-05-05
-Last Modified: 2025-05-06
+Last Modified: 2025-06-28
+Modified By: Koushik Sinha
 """
 
 from __future__ import annotations
@@ -39,7 +40,8 @@ from unidecode import unidecode
 
 # Module Metadata
 __author__ = "Balakrishna"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
+__modified_by__ = "Koushik Sinha"
 
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
