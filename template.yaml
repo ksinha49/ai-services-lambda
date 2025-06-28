@@ -404,7 +404,7 @@ Resources:
             Type: Choice
             Choices:
               - Next: Wait
-                Condition: '{% $not(($states.input.fileupload_status) = ("COMPLETE")) %}'
+                Condition: '{% $not(($states.input.body.fileupload_status) = ("COMPLETE")) %}'
             Default: file_summary
           file_summary:
             Type: Task

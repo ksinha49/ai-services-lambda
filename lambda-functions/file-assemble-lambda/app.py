@@ -79,12 +79,13 @@ def assemble_files(event: dict, context) -> Optional[dict]:
         dict: A dictionary containing the result of the assembly operation. 
               If an error occurs, raises a ValueError.
     """
+    event_body = event.get("body", event)
     final_response = {}
     try:
-        organic_bucket_name = event["organic_bucket"]
-        organic_bucket_key = event["organic_bucket_key"]
-        summary_bucket_name = event["summary_bucket_name"]
-        summary_bucket_key = event["summary_bucket_key"]
+        organic_bucket_name = event_body["organic_bucket"]
+        organic_bucket_key = event_body["organic_bucket_key"]
+        summary_bucket_name = event_body["summary_bucket_name"]
+        summary_bucket_key = event_body["summary_bucket_key"]
         logger.info(f"Getting file details from S3: {organic_bucket_name}/{organic_bucket_key}")
         organic_response = s3_client.get_object(Bucket=organic_bucket_name, Key=organic_bucket_key)
         logger.info(f"GOT THE FILE DETAILS FROM THE S3: {organic_bucket_name}/{organic_bucket_key}")
@@ -93,8 +94,8 @@ def assemble_files(event: dict, context) -> Optional[dict]:
         logger.info(f"GOT THE FILE DETAILS FROM THE S3: {summary_bucket_name}/{summary_bucket_key}")
         summary_file_content = summary_response["Body"].read()
 
-        organic_file_key = event['organic_bucket_key']
-        organic_bucket_name = event['organic_bucket']
+        organic_file_key = event_body['organic_bucket_key']
+        organic_bucket_name = event_body['organic_bucket']
         merged_file_key = organic_file_key.replace('extracted', 'merged')
        
         logger.info(f"Merging PDFs: {merged_file_key}")
@@ -138,6 +139,11 @@ def merge_pdfs(summary_file_content: bytes, organic_file_content: bytes) -> Opti
         raise ValueError(f"Failed to merge PDFs")
 
 
+def _response(status: int, body: dict) -> dict:
+    """Helper to build a consistent Lambda response."""
+    return {"statusCode": status, "body": body}
+
+
 def lambda_handler(event: dict, context) -> Optional[dict]:
     """
     The main Lambda handler.
@@ -154,12 +160,8 @@ def lambda_handler(event: dict, context) -> Optional[dict]:
     logger.info("Starting Lambda function...")
     try:
         final_response = assemble_files(event, context)
-        return final_response
+        return _response(200, final_response)
     except Exception as e:
         logger.error(f"Error in Lambda handler: {str(e)}")
         response_body = f"Error occurred: {str(e)}"
-        return {
-            "statusCode": 500,
-            "body": response_body,
-            "headers": {"Content-Type": "application/json"},
-        }
+        return _response(500, {"error": response_body})

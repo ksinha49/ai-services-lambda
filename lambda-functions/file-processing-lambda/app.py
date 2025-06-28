@@ -179,17 +179,13 @@ def process_files(event: dict, context) -> dict:
         file_content = response['Body'].read()
         #logger.info(f"[file_content length is:{len(file_content)} ]")
         file_upload_resp = invoke_file_process_api(token ,file_content, bucket_key)
-        task_id = file_upload_resp["task_id"]
-        status = file_upload_resp["file_status"]
-        file_id = file_upload_resp["file_id"]
         return {
-            "task_id" : task_id,
-            "fileupload_status" : status,
-            "fileid" : file_id,
-            "organic_bucket" : bucket_name,
-            "organic_bucket_key" : bucket_key,
-            "statusCode": 200,
-            "statusMessage":"File processing is in progress",
+            "task_id": file_upload_resp["task_id"],
+            "fileupload_status": file_upload_resp["file_status"],
+            "fileid": file_upload_resp["file_id"],
+            "organic_bucket": bucket_name,
+            "organic_bucket_key": bucket_key,
+            "statusMessage": "File processing is in progress",
         }
     except HTTPError as e:
         logger.error(f"HTTP error occurred while waiting for API response: {e}")
@@ -197,6 +193,11 @@ def process_files(event: dict, context) -> dict:
     except TimeoutException as e:
         logger.error(f"Timeout occurred while waiting for API response: {e}")
         raise
+
+def _response(status: int, body: dict) -> dict:
+    """Helper to build a consistent Lambda response."""
+    return {"statusCode": status, "body": body}
+
 
 def lambda_handler(event: dict, context) -> dict:
     """
@@ -214,13 +215,8 @@ def lambda_handler(event: dict, context) -> dict:
     logger.info("Starting Lambda function...")
     try:
         final_response = process_files(event, context)
-        return final_response
+        return _response(200, final_response)
     except Exception as e:
         error_message = f"An unexpected error occurred: {str(e)}"
         logger.error(error_message)
-        response_body = f"error occurred: {error_message}"
-        return {
-            "statusCode": 500,
-            "body": response_body,
-            "headers": {"Content-Type": "application/json"},
-        }
+        return _response(500, {"error": error_message})
