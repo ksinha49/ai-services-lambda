@@ -1,9 +1,19 @@
 import os
+import logging
 from typing import List, Any
 
 from common_utils import MilvusClient, VectorItem
+from common_utils.get_ssm import get_config
 
-UPSERT = os.environ.get("MILVUS_UPSERT", "true").lower() == "true"
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+)
+logger.addHandler(_handler)
+
+UPSERT = (get_config("MILVUS_UPSERT") or os.environ.get("MILVUS_UPSERT", "true")).lower() == "true"
 
 client = MilvusClient()
 

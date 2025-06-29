@@ -1,8 +1,19 @@
 import os
 import json
+import logging
 
-CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE", "1000"))
-CHUNK_OVERLAP = int(os.environ.get("CHUNK_OVERLAP", "100"))
+from common_utils.get_ssm import get_config
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+)
+logger.addHandler(_handler)
+
+CHUNK_SIZE = int(get_config("CHUNK_SIZE") or os.environ.get("CHUNK_SIZE", "1000"))
+CHUNK_OVERLAP = int(get_config("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "100"))
 
 
 def chunk_text(text: str):

@@ -1,10 +1,21 @@
 import os
 import json
+import logging
 import boto3
 import httpx
 
-LAMBDA_FUNCTION = os.environ.get("VECTOR_SEARCH_FUNCTION")
-SUMMARY_ENDPOINT = os.environ.get("SUMMARY_ENDPOINT")
+from common_utils.get_ssm import get_config
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+)
+logger.addHandler(_handler)
+
+LAMBDA_FUNCTION = get_config("VECTOR_SEARCH_FUNCTION") or os.environ.get("VECTOR_SEARCH_FUNCTION")
+SUMMARY_ENDPOINT = get_config("SUMMARY_ENDPOINT") or os.environ.get("SUMMARY_ENDPOINT")
 
 lambda_client = boto3.client("lambda")
 

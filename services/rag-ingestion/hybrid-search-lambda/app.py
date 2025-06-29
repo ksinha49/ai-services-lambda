@@ -1,10 +1,21 @@
 import os
+import logging
 from pymilvus import Collection, connections
 
-HOST = os.environ.get("MILVUS_HOST", "localhost")
-PORT = int(os.environ.get("MILVUS_PORT", "19530"))
-COLLECTION_NAME = os.environ.get("MILVUS_COLLECTION", "docs")
-TOP_K = int(os.environ.get("TOP_K", "5"))
+from common_utils.get_ssm import get_config
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+)
+logger.addHandler(_handler)
+
+HOST = get_config("MILVUS_HOST") or os.environ.get("MILVUS_HOST", "localhost")
+PORT = int(get_config("MILVUS_PORT") or os.environ.get("MILVUS_PORT", "19530"))
+COLLECTION_NAME = get_config("MILVUS_COLLECTION") or os.environ.get("MILVUS_COLLECTION", "docs")
+TOP_K = int(get_config("TOP_K") or os.environ.get("TOP_K", "5"))
 
 connections.connect(alias="default", host=HOST, port=PORT)
 collection = Collection(COLLECTION_NAME)
