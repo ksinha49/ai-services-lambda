@@ -2,6 +2,17 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Parent SAM template that includes individual service stacks.
 
+Parameters:
+  MilvusHost:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/milvus/host
+  MilvusPort:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/milvus/port
+  MilvusCollection:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/milvus/collection
+
 Resources:
   IDPService:
     Type: AWS::Serverless::Application
@@ -17,8 +28,16 @@ Resources:
     Type: AWS::Serverless::Application
     Properties:
       Location: services/rag-ingestion/template.yaml
+      Parameters:
+        MilvusHost: !Ref MilvusHost
+        MilvusPort: !Ref MilvusPort
+        MilvusCollection: !Ref MilvusCollection
 
   RagRetrievalService:
     Type: AWS::Serverless::Application
     Properties:
       Location: services/rag-retrieval/template.yaml
+      Parameters:
+        MilvusHost: !Ref MilvusHost
+        MilvusPort: !Ref MilvusPort
+        MilvusCollection: !Ref MilvusCollection
