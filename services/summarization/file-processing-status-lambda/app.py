@@ -4,9 +4,9 @@
 """
 Module: app.py
 Description:
-  1. Retrieves SSM parameters using a proxy configuration.
-  2. Gets an authentication token from Ameritas' API.
-  3. Checks the status of file uploads to Ameritas' API.
+  Poll S3 for the text document produced by the IDP pipeline.  When the
+  ``TEXT_DOC_PREFIX`` JSON exists in the ``IDP_BUCKET`` the RAG ingestion
+  Step Function is invoked.
 
 Version: 1.0.2
 Created: 2025-05-05
@@ -16,8 +16,8 @@ Modified By: Koushik Sinha
 from __future__ import annotations
 import boto3
 import json
-import requests
 import logging
+import os
 from common_utils.get_ssm import (
     get_values_from_ssm,
     get_environment_prefix,
@@ -38,106 +38,53 @@ _handler.setFormatter(
 )
 logger.addHandler(_handler)
 
+
 # No proxy configuration is required for SSM access when running within AWS.
 
+s3_client = boto3.client("s3")
+sf_client = boto3.client("stepfunctions")
 
-def get_token() -> dict:
-    """
-    Retrieves an authentication token from Ameritas' API.
-
-    Returns:
-        dict: The JSON response from the API, or an empty dictionary if it fails.
-    """
-
-    headers = {"Content-type": "application/json"}
-    prefix = get_environment_prefix()
-    functional_user = get_values_from_ssm(f"{prefix}/FILE_PROCESSING_FUNCTIONAL_USER")
-
-    try:
-        # Construct the token URL
-        token_url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_TOKEN_URL")
-        token_url = f"{token_url}?userId={functional_user}"
-
-        headers = {"Content-type": "application/json"}
-
-        response = requests.post(
-            token_url,
-            json={},
-            headers=headers,
-            verify="AMERITASISSUING1-CA.crt"
-        )
-
-        if response.status_code == 200:
-            logger.info("Success!")
-            return response.json()
-        else:
-            logger.error(f"Error: {response.status_code}")
-            return None
-
-    except Exception as e:
-        logger.error(e)
-        raise
-
-
-def check_file_upload_status(input_data: dict) -> dict:
-    """
-    Checks the status of a file upload to Ameritas' API.
-
-    Args:
-        input_data (dict): A dictionary containing the task ID and file ID for the upload.
-
-    Returns:
-        dict: The JSON response from the API, or an empty dictionary if it fails.
-    """
-
-    prefix = get_environment_prefix()
-    headers = {
-        "Authorization": f"Bearer {get_token()}",
-        "Content-Type": "application/json"
-    }
-
-    status_url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_FILESTTAUS_URL") + input_data["task_id"] + "?fileid=" + input_data["fileid"]
-    
-    try:
-       response = requests.get(status_url, headers=headers, verify="AMERITASISSUING1-CA.crt")
-
-       return response.json()
-    except Exception as e:
-        logger.error(e)
-        raise
+def _get_param(name: str) -> str | None:
+    """Return ``name`` from environment or SSM."""
+    return os.getenv(name) or get_values_from_ssm(f"{get_environment_prefix()}/{name}")
 
 def check_file_processing_status(event: dict, context) -> dict:
-    """
-    Checks the status of file processing for a given event.
+    """Return updated *event* with processing status.
 
-    Args:
-        event (dict): The Lambda event.
-        context: The Lambda context.
-
-    Returns:
-        dict: The updated event with the file processing status and collection name.
+    The function looks for ``TEXT_DOC_PREFIX/{document_id}.json`` in the IDP
+    bucket.  If the object exists the RAG ingestion Step Function is invoked
+    and ``fileupload_status`` is set to ``"COMPLETE"``.
     """
 
     event_body = event.get("body", event)
-    task_id = event_body["task_id"]
+    document_id = event_body.get("document_id")
+    if not document_id:
+        raise ValueError("document_id missing from event")
 
-    if task_id:
+    bucket = _get_param("IDP_BUCKET")
+    prefix = _get_param("TEXT_DOC_PREFIX") or "text-docs/"
+    if prefix and not prefix.endswith("/"):
+        prefix += "/"
+    key = f"{prefix}{document_id}.json"
 
-        response = check_file_upload_status(event_body)
-
-        if "meta" in response:
-            logger.info("File processing completed")
-            collection_name = response['meta']["collection_name"]
-            event_body["collection_name"] = collection_name
-            event_body["fileupload_status"] = "COMPLETE"
-            event_body["statusMessage"] = "File processing completed"
-
+    try:
+        s3_client.head_object(Bucket=bucket, Key=key)
+    except s3_client.exceptions.ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") == "404":
+            event_body["fileupload_status"] = "PROCESSING"
             return event_body
+        raise
 
-        else:
-            event_body["fileupload_status"] = response['file_status']
+    sm_arn = _get_param("INGESTION_STATE_MACHINE_ARN")
+    if sm_arn:
+        sf_client.start_execution(
+            stateMachineArn=sm_arn,
+            input=json.dumps({"documentId": document_id})
+        )
 
-            return event_body
+    event_body["fileupload_status"] = "COMPLETE"
+    event_body["text_doc_key"] = key
+    return event_body
 
 
 def _response(status: int, body: dict) -> dict:
