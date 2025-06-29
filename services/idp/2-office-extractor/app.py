@@ -16,6 +16,7 @@ import os
 from typing import Iterable
 
 import boto3
+from common_utils import get_config
 from docx import Document
 from pptx import Presentation
 from openpyxl import load_workbook
@@ -35,17 +36,6 @@ logger.addHandler(_handler)
 
 s3_client = boto3.client("s3")
 
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
-OFFICE_PREFIX = os.environ.get("OFFICE_PREFIX", "")
-TEXT_DOC_PREFIX = os.environ.get("TEXT_DOC_PREFIX", "text-docs/")
-
-for name in ("OFFICE_PREFIX", "TEXT_DOC_PREFIX"):
-    val = globals()[name]
-    if val and not val.endswith("/"):
-        globals()[name] = val + "/"
-
-if not BUCKET_NAME:
-    raise RuntimeError("BUCKET_NAME environment variable must be set")
 
 def _iter_records(event: dict) -> Iterable[dict]:
     for rec in event.get("Records", []):
@@ -90,11 +80,18 @@ def _extract_xlsx(body: bytes) -> list[str]:
 def _process_record(record: dict) -> None:
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
-    if bucket != BUCKET_NAME or not key:
+    bucket_name = get_config("BUCKET_NAME", bucket, key)
+    office_prefix = get_config("OFFICE_PREFIX", bucket, key) or ""
+    text_doc_prefix = get_config("TEXT_DOC_PREFIX", bucket, key) or "text-docs/"
+    if office_prefix and not office_prefix.endswith("/"):
+        office_prefix += "/"
+    if text_doc_prefix and not text_doc_prefix.endswith("/"):
+        text_doc_prefix += "/"
+    if bucket != bucket_name or not key:
         logger.info("Skipping record with bucket=%s key=%s", bucket, key)
         return
-    if not key.startswith(OFFICE_PREFIX):
-        logger.info("Key %s outside prefix %s - skipping", key, OFFICE_PREFIX)
+    if not key.startswith(office_prefix):
+        logger.info("Key %s outside prefix %s - skipping", key, office_prefix)
         return
 
     ext = os.path.splitext(key)[1].lower()
@@ -102,7 +99,7 @@ def _process_record(record: dict) -> None:
         logger.info("Unsupported extension %s - skipping", ext)
         return
 
-    obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+    obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     body = obj["Body"].read()
 
     if ext == ".docx":
@@ -116,7 +113,7 @@ def _process_record(record: dict) -> None:
         typ = "xlsx"
 
     document_id = os.path.splitext(os.path.basename(key))[0]
-    dest_key = f"{TEXT_DOC_PREFIX}{document_id}.json"
+    dest_key = f"{text_doc_prefix}{document_id}.json"
 
     payload = {
         "documentId": document_id,
@@ -126,7 +123,7 @@ def _process_record(record: dict) -> None:
     }
 
     s3_client.put_object(
-        Bucket=BUCKET_NAME,
+        Bucket=bucket_name,
         Key=dest_key,
         Body=json.dumps(payload).encode("utf-8"),
         ContentType="application/json",

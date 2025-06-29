@@ -12,6 +12,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
 class DummyS3:
     def __init__(self):
         self.objects = {}
+        self.tags = {}
 
     def get_object(self, Bucket, Key):
         data = self.objects.get((Bucket, Key), b"")
@@ -31,6 +32,13 @@ class DummyS3:
         if (Bucket, Key) not in self.objects:
             raise self.exceptions.ClientError({"Error": {"Code": "404"}}, "head_object")
         return {}
+
+    def get_object_tagging(self, Bucket, Key):
+        tagset = [
+            {"Key": k, "Value": v}
+            for k, v in self.tags.get((Bucket, Key), {}).items()
+        ]
+        return {"TagSet": tagset}
 
     class exceptions:
         class ClientError(Exception):
@@ -99,3 +107,15 @@ def validate_schema():
         assert isinstance(obj["pageNumber"], int)
         assert isinstance(obj["content"], str)
     return _check
+
+
+@pytest.fixture
+def config(monkeypatch, s3_stub):
+    import sys, os
+    sys.path.insert(0, os.path.join(os.getcwd(), 'common/layers/common-utils/python'))
+    import common_utils.get_ssm as g
+    g._SSM_CACHE.clear()
+    params = {}
+    monkeypatch.setattr(g, "s3_client", s3_stub)
+    monkeypatch.setattr(g, "get_values_from_ssm", lambda name, decrypt=False: params.get(name))
+    return params

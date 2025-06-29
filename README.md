@@ -100,26 +100,23 @@ Each capability lives in its own directory, fostering a clean, modular structure
 
 ## Configuration
 ### AWS Parameter Store
-Open AWS Systems Manager → Parameter Store.
+Open AWS Systems Manager → Parameter Store and create parameters for each
+module using the path format:
 
-Create parameters for each module (e.g., API keys, file paths).
+```
+/parameters/aio/ameritasAI/<ENV>/<NAME>
+```
 
-Ensure Lambda functions have IAM policies granting ssm:GetParameter.
+where ``<ENV>`` comes from the ``SERVER_ENV`` parameter. Lambdas read their
+configuration from these paths at runtime. Ensure the functions have IAM
+policies allowing ``ssm:GetParameter``.
 
-### Environment Variables
-Configure each Lambda function’s environment variables via AWS Console or CLI:
-
-- PARAM_STORE_KEY
-- S3_BUCKET_NAME
-- VECTOR_DB_ENDPOINT
-- DOCLING_ENDPOINT
-- TROCR_ENDPOINT
-
-Set ``DOCLING_ENDPOINT`` to the HTTP endpoint of your Docling EC2 service so
-that the ``docling-processor`` Lambda can forward documents for analysis or
-for the ``docling`` OCR engine to perform recognition remotely.
-When using the TrOCR OCR engine, ``TROCR_ENDPOINT`` must point to the remote
-TrOCR service URL.
+### Object Tag Overrides
+Configuration values may be overridden per-object by attaching S3 tags. Tags
+use the same keys as the Parameter Store names, for example ``OCR_ENGINE`` or
+``TEXT_PAGE_PREFIX``. When processing an S3 event the Lambda checks the uploaded
+object’s tags first; if no relevant tag is found the value is loaded from
+Parameter Store.
 
 …etc.
 

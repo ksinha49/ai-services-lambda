@@ -32,6 +32,7 @@ import os
 from typing import Iterable
 
 import boto3
+from common_utils import get_config
 
 __author__ = "Balakrishna"
 __version__ = "1.0.0"
@@ -48,18 +49,6 @@ logger.addHandler(_handler)
 
 s3_client = boto3.client("s3")
 
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
-PDF_PAGE_PREFIX = os.environ.get("PDF_PAGE_PREFIX", "pdf-pages/")
-TEXT_PAGE_PREFIX = os.environ.get("TEXT_PAGE_PREFIX", "text-pages/")
-TEXT_DOC_PREFIX = os.environ.get("TEXT_DOC_PREFIX", "text-docs/")
-
-for name in ("PDF_PAGE_PREFIX", "TEXT_PAGE_PREFIX", "TEXT_DOC_PREFIX"):
-    val = globals()[name]
-    if val and not val.endswith("/"):
-        globals()[name] = val + "/"
-
-if not BUCKET_NAME:
-    raise RuntimeError("BUCKET_NAME environment variable must be set")
 
 
 def _iter_records(event: dict) -> Iterable[dict]:
@@ -69,24 +58,24 @@ def _iter_records(event: dict) -> Iterable[dict]:
         yield record
 
 
-def _load_manifest(doc_id: str) -> dict | None:
+def _load_manifest(bucket_name: str, pdf_page_prefix: str, doc_id: str) -> dict | None:
     """Return the manifest dictionary for *doc_id* or ``None`` if missing."""
 
-    key = f"{PDF_PAGE_PREFIX}{doc_id}/manifest.json"
+    key = f"{pdf_page_prefix}{doc_id}/manifest.json"
     try:
-        obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+        obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     except s3_client.exceptions.NoSuchKey:  # pragma: no cover - defensive
         logger.info("Manifest %s not found", key)
         return None
     return json.loads(obj["Body"].read())
 
 
-def _page_key(doc_id: str, page_num: int) -> str | None:
+def _page_key(bucket_name: str, text_page_prefix: str, doc_id: str, page_num: int) -> str | None:
     """Return the Markdown S3 key for page ``page_num`` of ``doc_id`` if it exists."""
 
-    key = f"{TEXT_PAGE_PREFIX}{doc_id}/page_{page_num:03d}.md"
+    key = f"{text_page_prefix}{doc_id}/page_{page_num:03d}.md"
     try:
-        s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+        s3_client.head_object(Bucket=bucket_name, Key=key)
     except s3_client.exceptions.ClientError as exc:  # pragma: no cover - defensive
         if exc.response.get("Error", {}).get("Code") == "404":
             return None
@@ -94,18 +83,18 @@ def _page_key(doc_id: str, page_num: int) -> str | None:
     return key
 
 
-def _read_page(key: str) -> str:
+def _read_page(bucket_name: str, key: str) -> str:
     """Return the Markdown text for page ``key``."""
 
-    obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+    obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     body = obj["Body"].read()
     return body.decode("utf-8")
 
 
-def _combine_document(doc_id: str) -> None:
+def _combine_document(bucket_name: str, pdf_page_prefix: str, text_page_prefix: str, text_doc_prefix: str, doc_id: str) -> None:
     """If all page outputs for ``doc_id`` exist, merge them and upload."""
 
-    manifest = _load_manifest(doc_id)
+    manifest = _load_manifest(bucket_name, pdf_page_prefix, doc_id)
     if not manifest:
         return
 
@@ -113,13 +102,13 @@ def _combine_document(doc_id: str) -> None:
 
     page_keys: list[str] = []
     for idx in range(1, page_count + 1):
-        key = _page_key(doc_id, idx)
+        key = _page_key(bucket_name, text_page_prefix, doc_id, idx)
         if not key:
             logger.info("Waiting for page %03d of %s", idx, doc_id)
             return
         page_keys.append(key)
 
-    pages = [_read_page(k) for k in page_keys]
+    pages = [_read_page(bucket_name, k) for k in page_keys]
     payload = {
         "documentId": doc_id,
         "type": "pdf",
@@ -127,9 +116,9 @@ def _combine_document(doc_id: str) -> None:
         "pages": pages,
     }
 
-    dest_key = f"{TEXT_DOC_PREFIX}{doc_id}.json"
+    dest_key = f"{text_doc_prefix}{doc_id}.json"
     s3_client.put_object(
-        Bucket=BUCKET_NAME,
+        Bucket=bucket_name,
         Key=dest_key,
         Body=json.dumps(payload).encode("utf-8"),
         ContentType="application/json",
@@ -142,20 +131,30 @@ def _handle_record(record: dict) -> None:
 
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
-    if bucket != BUCKET_NAME or not key:
+    bucket_name = get_config("BUCKET_NAME", bucket, key)
+    pdf_page_prefix = get_config("PDF_PAGE_PREFIX", bucket, key) or "pdf-pages/"
+    text_page_prefix = get_config("TEXT_PAGE_PREFIX", bucket, key) or "text-pages/"
+    text_doc_prefix = get_config("TEXT_DOC_PREFIX", bucket, key) or "text-docs/"
+    if pdf_page_prefix and not pdf_page_prefix.endswith("/"):
+        pdf_page_prefix += "/"
+    if text_page_prefix and not text_page_prefix.endswith("/"):
+        text_page_prefix += "/"
+    if text_doc_prefix and not text_doc_prefix.endswith("/"):
+        text_doc_prefix += "/"
+    if bucket != bucket_name or not key:
         logger.info("Skipping record with bucket=%s key=%s", bucket, key)
         return
-    if not key.startswith(TEXT_PAGE_PREFIX):
-        logger.info("Key %s outside prefix %s - skipping", key, TEXT_PAGE_PREFIX)
+    if not key.startswith(text_page_prefix):
+        logger.info("Key %s outside prefix %s - skipping", key, text_page_prefix)
         return
 
-    rel = key[len(TEXT_PAGE_PREFIX):]
+    rel = key[len(text_page_prefix):]
     parts = rel.split("/", 1)
     if not parts:
         logger.info("Unexpected key structure: %s", key)
         return
     doc_id = parts[0]
-    _combine_document(doc_id)
+    _combine_document(bucket_name, pdf_page_prefix, text_page_prefix, text_doc_prefix, doc_id)
 
 
 def lambda_handler(event: dict, context: dict) -> dict:

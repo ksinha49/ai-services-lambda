@@ -29,6 +29,7 @@ import os
 from typing import Iterable
 
 import boto3
+from common_utils import get_config
 from PyPDF2 import PdfReader, PdfWriter
 
 __author__ = "Koushik Sinha"
@@ -45,19 +46,6 @@ logger.addHandler(_handler)
 
 s3_client = boto3.client("s3")
 
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
-PDF_RAW_PREFIX = os.environ.get("PDF_RAW_PREFIX", "")
-PDF_PAGE_PREFIX = os.environ.get("PDF_PAGE_PREFIX", "pdf-pages/")
-
-
-# Normalise prefixes to always end with '/'
-for name in ("PDF_RAW_PREFIX", "PDF_PAGE_PREFIX"):
-    val = globals()[name]
-    if val and not val.endswith("/"):
-        globals()[name] = val + "/"
-
-if not BUCKET_NAME:
-    raise RuntimeError("BUCKET_NAME environment variable must be set")
 
 
 def _iter_records(event: dict) -> Iterable[dict]:
@@ -67,9 +55,9 @@ def _iter_records(event: dict) -> Iterable[dict]:
         yield record
 
 
-def _split_pdf(key: str) -> None:
+def _split_pdf(bucket_name: str, pdf_page_prefix: str, key: str) -> None:
     """Split the PDF stored at *key* into per-page files."""
-    obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+    obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     pdf_bytes = obj["Body"].read()
     doc = PdfReader(io.BytesIO(pdf_bytes))
     doc_id = os.path.splitext(os.path.basename(key))[0]
@@ -79,22 +67,22 @@ def _split_pdf(key: str) -> None:
         buf = io.BytesIO()
         writer.write(buf)
         buf.seek(0)
-        dest_key = f"{PDF_PAGE_PREFIX}{doc_id}/page_{idx:03d}.pdf"
+        dest_key = f"{pdf_page_prefix}{doc_id}/page_{idx:03d}.pdf"
         s3_client.put_object(
-            Bucket=BUCKET_NAME,
+            Bucket=bucket_name,
             Key=dest_key,
             Body=buf.getvalue(),
             ContentType="application/pdf",
         )
         logger.info("Wrote %s", dest_key)
 
-    manifest_key = f"{PDF_PAGE_PREFIX}{doc_id}/manifest.json"
+    manifest_key = f"{pdf_page_prefix}{doc_id}/manifest.json"
     manifest = {
         "documentId": doc_id,
         "pages": len(doc.pages),
     }
     s3_client.put_object(
-        Bucket=BUCKET_NAME,
+        Bucket=bucket_name,
         Key=manifest_key,
         Body=json.dumps(manifest).encode("utf-8"),
         ContentType="application/json",
@@ -106,17 +94,24 @@ def _handle_record(record: dict) -> None:
     """Process a single S3 event record."""
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
-    if bucket != BUCKET_NAME or not key:
+    bucket_name = get_config("BUCKET_NAME", bucket, key)
+    pdf_raw_prefix = get_config("PDF_RAW_PREFIX", bucket, key) or ""
+    pdf_page_prefix = get_config("PDF_PAGE_PREFIX", bucket, key) or "pdf-pages/"
+    if pdf_raw_prefix and not pdf_raw_prefix.endswith("/"):
+        pdf_raw_prefix += "/"
+    if pdf_page_prefix and not pdf_page_prefix.endswith("/"):
+        pdf_page_prefix += "/"
+    if bucket != bucket_name or not key:
         logger.info("Skipping record with bucket=%s key=%s", bucket, key)
         return
-    if not key.startswith(PDF_RAW_PREFIX):
-        logger.info("Key %s outside prefix %s - skipping", key, PDF_RAW_PREFIX)
+    if not key.startswith(pdf_raw_prefix):
+        logger.info("Key %s outside prefix %s - skipping", key, pdf_raw_prefix)
         return
     if not key.lower().endswith(".pdf"):
         logger.info("Key %s is not a PDF - skipping", key)
         return
     logger.info("Splitting %s", key)
-    _split_pdf(key)
+    _split_pdf(bucket_name, pdf_page_prefix, key)
 
 def lambda_handler(event: dict, context: dict) -> dict:
     """Entry point for the Lambda function."""

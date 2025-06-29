@@ -14,6 +14,7 @@ _ssm_client = boto3.client("ssm")
 # Simple in-memory cache so functions within a single Lambda invocation
 # don't repeatedly hit SSM
 _SSM_CACHE: dict[str, str] = {}
+s3_client = boto3.client("s3")
 
 def get_values_from_ssm(name: str, decrypt: bool = False) -> Optional[str]:
     """Retrieve a parameter value from SSM with optional decryption."""
@@ -41,3 +42,26 @@ def parse_s3_uri(s3_uri: str) -> Tuple[str, str]:
     assert s3_uri.startswith("s3://"), "Invalid S3 URI"
     bucket, key = s3_uri[5:].split("/", 1)
     return bucket, key
+
+
+def get_config(name: str, bucket: str | None = None, key: str | None = None,
+               decrypt: bool = False) -> Optional[str]:
+    """Return configuration ``name`` from S3 object tags or SSM.
+
+    If *bucket* and *key* are provided, the object's tags are consulted first
+    for ``name``.  If the tag is absent, the value is read from SSM under
+    ``get_environment_prefix()``.
+    """
+
+    if bucket and key:
+        try:
+            resp = s3_client.get_object_tagging(Bucket=bucket, Key=key)
+            for tag in resp.get("TagSet", []):
+                if tag.get("Key") == name:
+                    return tag.get("Value")
+        except Exception as exc:  # pragma: no cover - fallback to SSM
+            logger.warning("Tag lookup failed for %s/%s: %s", bucket, key, exc)
+
+    param_name = f"{get_environment_prefix()}/{name}"
+    return get_values_from_ssm(param_name, decrypt)
+
