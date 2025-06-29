@@ -84,6 +84,12 @@ Each capability lives in its own directory, fostering a clean, modular structure
 - Send combined text or PDFs to an external Docling service
 - Store structured JSON results for downstream use
 
+### 8. RAG Ingestion & Retrieval
+- Chunk text into configurable sizes and overlaps
+- Generate embeddings with selectable models
+- Store and search embeddings in Milvus
+- API endpoints expose summarization and extraction using retrieved context
+
 ---
 
 ## Installation 
@@ -176,6 +182,19 @@ sam deploy \
 
 Set ``DOCLING_ENDPOINT`` in the console or via `sam deploy` to the Docling
 service URL, e.g. ``http://<EC2-IP>:8001``.
+
+### Deploying the RAG Ingestion Service
+Deploy the RAG stack separately and provide Milvus connection details:
+
+```bash
+sam deploy \
+  --template-file services/rag-ingestion/template.yaml \
+  --stack-name rag-ingestion \
+  --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
+```
+
+Configure ``CHUNK_SIZE``, ``CHUNK_OVERLAP`` and ``EMBED_MODEL`` via environment
+variables or Parameter Store as needed.
 
 ## Documentation
 
