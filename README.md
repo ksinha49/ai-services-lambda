@@ -39,12 +39,9 @@ Each capability lives in its own directory, fostering a clean, modular structure
     - **file-processing/**
       - **app/**
         - `*.py`  
-    - **zip-assemble/**
-      - **app/**
-        - `*.py`  
-    - **zip-extract/**
-      - **app/**
-        - `*.py`  
+    - **zip-processing/**
+      - **zip-creation-lambda/app.py**
+      - **zip-extract-lambda/app.py**
   - **.github/**
     - **workflows/**
       - `deploy.yml`  
