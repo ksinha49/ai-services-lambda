@@ -1,6 +1,13 @@
+# ---------------------------------------------------------------------------
+# app.py
+# ---------------------------------------------------------------------------
+"""Insert embeddings into a Milvus collection."""
+
+from __future__ import annotations
+
 import os
 import logging
-from typing import List, Any
+from typing import Any, List
 
 from common_utils import MilvusClient, VectorItem
 from common_utils.get_ssm import get_config
@@ -18,12 +25,14 @@ UPSERT = (get_config("MILVUS_UPSERT") or os.environ.get("MILVUS_UPSERT", "true")
 client = MilvusClient()
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """Insert provided embeddings into Milvus."""
+
     embeddings: List[List[float]] = event.get("embeddings", [])
     metadatas: List[Any] = event.get("metadatas", [])
     ids = event.get("ids") or []
 
-    items = []
+    items: List[VectorItem] = []
     for idx, embedding in enumerate(embeddings):
         metadata = metadatas[idx] if idx < len(metadatas) else None
         item_id = ids[idx] if idx < len(ids) else None
@@ -31,3 +40,4 @@ def lambda_handler(event, context):
 
     inserted = client.insert(items, upsert=UPSERT)
     return {"inserted": inserted}
+

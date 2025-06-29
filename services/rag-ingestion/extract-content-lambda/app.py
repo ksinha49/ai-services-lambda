@@ -1,8 +1,17 @@
+# ---------------------------------------------------------------------------
+# app.py
+# ---------------------------------------------------------------------------
+"""Call a content extraction service using search results as context."""
+
+from __future__ import annotations
+
 import os
 import json
 import logging
 import boto3
 import httpx
+
+from typing import Any, Dict
 
 from common_utils.get_ssm import get_config
 
@@ -20,12 +29,20 @@ CONTENT_ENDPOINT = get_config("CONTENT_ENDPOINT") or os.environ.get("CONTENT_END
 lambda_client = boto3.client("lambda")
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """Invoke the content service with text from vector search results."""
+
     query = event.get("query")
     emb = event.get("embedding")
-    resp = lambda_client.invoke(FunctionName=LAMBDA_FUNCTION, Payload=json.dumps({"embedding": emb}).encode("utf-8"))
+    resp = lambda_client.invoke(
+        FunctionName=LAMBDA_FUNCTION,
+        Payload=json.dumps({"embedding": emb}).encode("utf-8"),
+    )
     result = json.loads(resp["Payload"].read())
-    context_text = " ".join(m.get("metadata", {}).get("text", "") for m in result.get("matches", []))
+    context_text = " ".join(
+        m.get("metadata", {}).get("text", "") for m in result.get("matches", [])
+    )
     r = httpx.post(CONTENT_ENDPOINT, json={"query": query, "context": context_text})
     r.raise_for_status()
     return {"content": r.json()}
+

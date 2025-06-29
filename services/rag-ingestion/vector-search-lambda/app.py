@@ -1,5 +1,14 @@
+# ---------------------------------------------------------------------------
+# app.py
+# ---------------------------------------------------------------------------
+"""Search a Milvus collection using an embedding."""
+
+from __future__ import annotations
+
 import os
 import logging
+
+from typing import Any, Dict, List
 
 from common_utils import MilvusClient
 from common_utils.get_ssm import get_config
@@ -17,8 +26,10 @@ TOP_K = int(get_config("TOP_K") or os.environ.get("TOP_K", "5"))
 client = MilvusClient()
 
 
-def lambda_handler(event, context):
-    embedding = event.get("embedding")
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """Search embeddings and return best matches."""
+
+    embedding: List[float] | None = event.get("embedding")
     if embedding is None:
         return {"matches": []}
 
@@ -28,3 +39,4 @@ def lambda_handler(event, context):
         for r in results
     ]
     return {"matches": matches}
+
