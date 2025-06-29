@@ -11,10 +11,12 @@ def load_lambda(name, path):
     return module
 
 
-def test_office_extractor(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('OFFICE_PREFIX', 'office-docs/')
-    monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
+def test_office_extractor(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/OFFICE_PREFIX'] = 'office-docs/'
+    config[f'{prefix}/TEXT_DOC_PREFIX'] = 'text-docs/'
     module = load_lambda('office', 'services/idp/2-office-extractor/app.py')
 
     s3_stub.objects[('bucket', 'office-docs/test.docx')] = b'data'
@@ -34,10 +36,12 @@ def test_office_extractor(monkeypatch, s3_stub, validate_schema):
     validate_schema(page)
 
 
-def test_pdf_text_extractor(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('PDF_TEXT_PAGE_PREFIX', 'text-pages/')
-    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
+def test_pdf_text_extractor(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/PDF_TEXT_PAGE_PREFIX'] = 'text-pages/'
+    config[f'{prefix}/TEXT_PAGE_PREFIX'] = 'text-pages/'
     module = load_lambda('pdf_text', 'services/idp/5-pdf-text-extractor/app.py')
 
     s3_stub.objects[('bucket', 'text-pages/doc1/page_001.pdf')] = b'data'
@@ -52,16 +56,18 @@ def test_pdf_text_extractor(monkeypatch, s3_stub, validate_schema):
     validate_schema(schema)
 
 
-def test_pdf_ocr_extractor(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('PDF_SCAN_PAGE_PREFIX', 'scan-pages/')
-    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
+def test_pdf_ocr_extractor(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/PDF_SCAN_PAGE_PREFIX'] = 'scan-pages/'
+    config[f'{prefix}/TEXT_PAGE_PREFIX'] = 'text-pages/'
     module = load_lambda('ocr', 'services/idp/6-pdf-ocr-extractor/app.py')
 
     s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
 
     monkeypatch.setattr(module, '_rasterize_page', lambda b, dpi: object())
-    monkeypatch.setattr(module, '_ocr_image', lambda img: '## Page 1\n\nocr\n')
+    monkeypatch.setattr(module, '_ocr_image', lambda img, e, t, d: '## Page 1\n\nocr\n')
 
     event = {'Records': [{'s3': {'bucket': {'name': 'bucket'}, 'object': {'key': 'scan-pages/doc1/page_001.pdf'}}}]}
     module.lambda_handler(event, {})
@@ -71,12 +77,14 @@ def test_pdf_ocr_extractor(monkeypatch, s3_stub, validate_schema):
     validate_schema(schema)
 
 
-def test_pdf_ocr_extractor_trocr(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('PDF_SCAN_PAGE_PREFIX', 'scan-pages/')
-    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
-    monkeypatch.setenv('OCR_ENGINE', 'trocr')
-    monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
+def test_pdf_ocr_extractor_trocr(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/PDF_SCAN_PAGE_PREFIX'] = 'scan-pages/'
+    config[f'{prefix}/TEXT_PAGE_PREFIX'] = 'text-pages/'
+    config[f'{prefix}/OCR_ENGINE'] = 'trocr'
+    config[f'{prefix}/TROCR_ENDPOINT'] = 'http://example'
     module = load_lambda('ocr_trocr', 'services/idp/6-pdf-ocr-extractor/app.py')
 
     s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
@@ -97,12 +105,14 @@ def test_pdf_ocr_extractor_trocr(monkeypatch, s3_stub, validate_schema):
     validate_schema(schema)
 
 
-def test_pdf_ocr_extractor_docling(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('PDF_SCAN_PAGE_PREFIX', 'scan-pages/')
-    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
-    monkeypatch.setenv('OCR_ENGINE', 'docling')
-    monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
+def test_pdf_ocr_extractor_docling(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/PDF_SCAN_PAGE_PREFIX'] = 'scan-pages/'
+    config[f'{prefix}/TEXT_PAGE_PREFIX'] = 'text-pages/'
+    config[f'{prefix}/OCR_ENGINE'] = 'docling'
+    config[f'{prefix}/DOCLING_ENDPOINT'] = 'http://example'
     module = load_lambda('ocr_docling', 'services/idp/6-pdf-ocr-extractor/app.py')
 
     s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
@@ -123,11 +133,13 @@ def test_pdf_ocr_extractor_docling(monkeypatch, s3_stub, validate_schema):
     validate_schema(schema)
 
 
-def test_combine(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('PDF_PAGE_PREFIX', 'pdf-pages/')
-    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
-    monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
+def test_combine(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/PDF_PAGE_PREFIX'] = 'pdf-pages/'
+    config[f'{prefix}/TEXT_PAGE_PREFIX'] = 'text-pages/'
+    config[f'{prefix}/TEXT_DOC_PREFIX'] = 'text-docs/'
     module = load_lambda('combine', 'services/idp/7-combine/app.py')
 
     s3_stub.objects[('bucket', 'pdf-pages/doc1/manifest.json')] = json.dumps({'documentId': 'doc1', 'pages': 2}).encode()
@@ -144,18 +156,20 @@ def test_combine(monkeypatch, s3_stub, validate_schema):
         validate_schema({'documentId': output['documentId'], 'pageNumber': i, 'content': page})
 
 
-def test_output(monkeypatch, s3_stub, validate_schema):
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
-    monkeypatch.setenv('EDI_SEARCH_API_URL', 'http://example')
-    monkeypatch.setenv('EDI_SEARCH_API_KEY', 'key')
+def test_output(monkeypatch, s3_stub, validate_schema, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/TEXT_DOC_PREFIX'] = 'text-docs/'
+    config[f'{prefix}/EDI_SEARCH_API_URL'] = 'http://example'
+    config[f'{prefix}/EDI_SEARCH_API_KEY'] = 'key'
     module = load_lambda('output', 'services/idp/8-output/app.py')
 
     payload = {'documentId': 'doc1', 'type': 'pdf', 'pageCount': 1, 'pages': ['## Page 1\n\nhi\n']}
     s3_stub.objects[('bucket', 'text-docs/doc1.json')] = json.dumps(payload).encode()
 
     sent = {}
-    monkeypatch.setattr(module, '_post_to_api', lambda data: sent.setdefault('payload', data) or True)
+    monkeypatch.setattr(module, '_post_to_api', lambda data, url, key: sent.setdefault('payload', data) or True)
 
     event = {'Records': [{'s3': {'bucket': {'name': 'bucket'}, 'object': {'key': 'text-docs/doc1.json'}}}]}
     module.lambda_handler(event, {})
@@ -166,9 +180,11 @@ def test_output(monkeypatch, s3_stub, validate_schema):
         validate_schema({'documentId': posted['documentId'], 'pageNumber': i, 'content': page})
 
 
-def test_ocr_image_engines(monkeypatch):
-    monkeypatch.setenv('OCR_ENGINE', 'easyocr')
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+def test_ocr_image_engines(monkeypatch, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/BUCKET_NAME'] = 'bucket'
+    config[f'{prefix}/OCR_ENGINE'] = 'easyocr'
     module = load_lambda('ocr_easy', 'services/idp/6-pdf-ocr-extractor/app.py')
     module.easyocr = __import__('easyocr')
     called = {}
@@ -177,7 +193,7 @@ def test_ocr_image_engines(monkeypatch):
         called['cls'] = r.__class__.__name__
         return 't', 0
     monkeypatch.setattr(module, '_perform_ocr', fake)
-    module._ocr_image(object())
+    module._ocr_image(object(), 'easyocr', None, None)
     assert called['engine'] == 'easyocr'
     assert called['cls'] == 'DummyReader'
 
@@ -188,8 +204,7 @@ def test_ocr_image_engines(monkeypatch):
     sys.modules['paddleocr'] = types.ModuleType('paddleocr')
     sys.modules['paddleocr'].PaddleOCR = DummyPaddle
 
-    monkeypatch.setenv('OCR_ENGINE', 'paddleocr')
-    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    config[f'{prefix}/OCR_ENGINE'] = 'paddleocr'
     module = load_lambda('ocr_paddle', 'services/idp/6-pdf-ocr-extractor/app.py')
     module.easyocr = __import__('easyocr')
     called = {}
@@ -198,12 +213,12 @@ def test_ocr_image_engines(monkeypatch):
         called['cls'] = r.__class__.__name__
         return 't', 0
     monkeypatch.setattr(module, '_perform_ocr', fake2)
-    module._ocr_image(object())
+    module._ocr_image(object(), 'paddleocr', None, None)
     assert called['engine'] == 'paddleocr'
     assert called['cls'] == 'DummyPaddle'
 
-    monkeypatch.setenv('OCR_ENGINE', 'trocr')
-    monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
+    config[f'{prefix}/OCR_ENGINE'] = 'trocr'
+    config[f'{prefix}/TROCR_ENDPOINT'] = 'http://example'
     module = load_lambda('ocr_trocr_engine', 'services/idp/6-pdf-ocr-extractor/app.py')
     called = {}
     def fake3(r, e, b):
@@ -211,12 +226,12 @@ def test_ocr_image_engines(monkeypatch):
         called['ctx'] = r
         return 't', 0
     monkeypatch.setattr(module, '_perform_ocr', fake3)
-    module._ocr_image(object())
+    module._ocr_image(object(), 'trocr', 'http://example', None)
     assert called['engine'] == 'trocr'
-    assert called['ctx'] is None
+    assert called['ctx'] == 'http://example'
 
-    monkeypatch.setenv('OCR_ENGINE', 'docling')
-    monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
+    config[f'{prefix}/OCR_ENGINE'] = 'docling'
+    config[f'{prefix}/DOCLING_ENDPOINT'] = 'http://example'
     module = load_lambda('ocr_docling_engine', 'services/idp/6-pdf-ocr-extractor/app.py')
     called = {}
     def fake4(r, e, b):
@@ -224,9 +239,9 @@ def test_ocr_image_engines(monkeypatch):
         called['ctx'] = r
         return 't', 0
     monkeypatch.setattr(module, '_perform_ocr', fake4)
-    module._ocr_image(object())
+    module._ocr_image(object(), 'docling', None, 'http://example')
     assert called['engine'] == 'docling'
-    assert called['ctx'] is None
+    assert called['ctx'] == 'http://example'
 
 
 def test_perform_ocr(monkeypatch):

@@ -16,6 +16,7 @@ import urllib.error
 import urllib.request
 
 import boto3
+from common_utils import get_config
 
 __author__ = "Balakrishna"
 __version__ = "1.0.0"
@@ -31,18 +32,6 @@ logger.addHandler(_handler)
 
 s3_client = boto3.client("s3")
 
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
-TEXT_DOC_PREFIX = os.environ.get("TEXT_DOC_PREFIX", "text-docs/")
-EDI_SEARCH_API_URL = os.environ.get("EDI_SEARCH_API_URL")
-EDI_SEARCH_API_KEY = os.environ.get("EDI_SEARCH_API_KEY")
-
-if TEXT_DOC_PREFIX and not TEXT_DOC_PREFIX.endswith("/"):
-    TEXT_DOC_PREFIX += "/"
-
-if not BUCKET_NAME:
-    raise RuntimeError("BUCKET_NAME environment variable must be set")
-if not EDI_SEARCH_API_URL:
-    raise RuntimeError("EDI_SEARCH_API_URL environment variable must be set")
 
 
 def _iter_records(event: dict):
@@ -52,14 +41,14 @@ def _iter_records(event: dict):
         yield record
 
 
-def _post_to_api(payload: dict) -> bool:
+def _post_to_api(payload: dict, url: str, api_key: str | None) -> bool:
     """Send *payload* to the external API and return ``True`` on success."""
 
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(EDI_SEARCH_API_URL, data=data, method="POST")
+    req = urllib.request.Request(url, data=data, method="POST")
     req.add_header("Content-Type", "application/json")
-    if EDI_SEARCH_API_KEY:
-        req.add_header("x-api-key", EDI_SEARCH_API_KEY)
+    if api_key:
+        req.add_header("x-api-key", api_key)
 
     try:
         with urllib.request.urlopen(req) as resp:
@@ -85,22 +74,31 @@ def _handle_record(record: dict) -> None:
 
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
-    if bucket != BUCKET_NAME or not key:
+    bucket_name = get_config("BUCKET_NAME", bucket, key)
+    text_doc_prefix = get_config("TEXT_DOC_PREFIX", bucket, key) or "text-docs/"
+    api_url = get_config("EDI_SEARCH_API_URL", bucket, key)
+    api_key = get_config("EDI_SEARCH_API_KEY", bucket, key)
+    if text_doc_prefix and not text_doc_prefix.endswith("/"):
+        text_doc_prefix += "/"
+    if not bucket_name or not api_url:
+        logger.error("Missing configuration")
+        return
+    if bucket != bucket_name or not key:
         logger.info("Skipping record with bucket=%s key=%s", bucket, key)
         return
-    if not key.startswith(TEXT_DOC_PREFIX) or not key.lower().endswith(".json"):
-        logger.info("Key %s outside prefix %s - skipping", key, TEXT_DOC_PREFIX)
+    if not key.startswith(text_doc_prefix) or not key.lower().endswith(".json"):
+        logger.info("Key %s outside prefix %s - skipping", key, text_doc_prefix)
         return
 
     try:
-        obj = s3_client.get_object(Bucket=bucket, Key=key)
+        obj = s3_client.get_object(Bucket=bucket_name, Key=key)
         body = obj["Body"].read()
         payload = json.loads(body)
     except Exception as exc:
         logger.error("Failed to read %s: %s", key, exc)
         return
 
-    if _post_to_api(payload):
+    if _post_to_api(payload, api_url, api_key):
         logger.info("Successfully posted %s", key)
     else:
         logger.error("Failed to post %s", key)

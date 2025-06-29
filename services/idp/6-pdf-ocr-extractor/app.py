@@ -38,6 +38,7 @@ import os
 from typing import Iterable
 
 import boto3
+from common_utils import get_config
 import fitz  # PyMuPDF
 import cv2
 import numpy as np
@@ -64,21 +65,6 @@ logger.addHandler(_handler)
 
 s3_client = boto3.client("s3")
 
-DPI = int(os.environ.get("DPI", "300"))
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
-PDF_SCAN_PAGE_PREFIX = os.environ.get("PDF_SCAN_PAGE_PREFIX", "scan-pages/")
-TEXT_PAGE_PREFIX = os.environ.get("TEXT_PAGE_PREFIX", "text-pages/")
-OCR_ENGINE = os.environ.get("OCR_ENGINE", "easyocr").lower()
-TROCR_ENDPOINT = os.environ.get("TROCR_ENDPOINT")
-DOCLING_ENDPOINT = os.environ.get("DOCLING_ENDPOINT")
-
-for name in ("PDF_SCAN_PAGE_PREFIX", "TEXT_PAGE_PREFIX"):
-    val = globals()[name]
-    if val and not val.endswith("/"):
-        globals()[name] = val + "/"
-
-if not BUCKET_NAME:
-    raise RuntimeError("BUCKET_NAME environment variable must be set")
 
 
 def _iter_records(event: dict) -> Iterable[dict]:
@@ -105,7 +91,7 @@ def _rasterize_page(pdf_bytes: bytes, dpi: int) -> np.ndarray | None:
         return img
 
 
-def _ocr_image(img: np.ndarray) -> str:
+def _ocr_image(img: np.ndarray, engine: str, trocr_endpoint: str | None, docling_endpoint: str | None) -> str:
     """Run OCR on *img* and return Markdown text."""
 
     # Encode the image to bytes for the OCR helper
@@ -113,14 +99,13 @@ def _ocr_image(img: np.ndarray) -> str:
     if not ok:
         raise ValueError("Failed to encode image for OCR")
 
-    engine = OCR_ENGINE
     if engine == "paddleocr":
         reader = PaddleOCR()
         ctx = reader
     elif engine == "trocr":
-        ctx = None
+        ctx = trocr_endpoint
     elif engine == "docling":
-        ctx = None
+        ctx = docling_endpoint
     else:
         reader = easyocr.Reader(["en"], gpu=False)
         ctx = reader
@@ -135,32 +120,43 @@ def _handle_record(record: dict) -> None:
 
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
-    if bucket != BUCKET_NAME or not key:
+    bucket_name = get_config("BUCKET_NAME", bucket, key)
+    pdf_scan_page_prefix = get_config("PDF_SCAN_PAGE_PREFIX", bucket, key) or "scan-pages/"
+    text_page_prefix = get_config("TEXT_PAGE_PREFIX", bucket, key) or "text-pages/"
+    dpi = int(get_config("DPI", bucket, key) or "300")
+    engine = (get_config("OCR_ENGINE", bucket, key) or "easyocr").lower()
+    trocr_endpoint = get_config("TROCR_ENDPOINT", bucket, key)
+    docling_endpoint = get_config("DOCLING_ENDPOINT", bucket, key)
+    if pdf_scan_page_prefix and not pdf_scan_page_prefix.endswith("/"):
+        pdf_scan_page_prefix += "/"
+    if text_page_prefix and not text_page_prefix.endswith("/"):
+        text_page_prefix += "/"
+    if bucket != bucket_name or not key:
         logger.info("Skipping record with bucket=%s key=%s", bucket, key)
         return
-    if not key.startswith(PDF_SCAN_PAGE_PREFIX):
-        logger.info("Key %s outside prefix %s - skipping", key, PDF_SCAN_PAGE_PREFIX)
+    if not key.startswith(pdf_scan_page_prefix):
+        logger.info("Key %s outside prefix %s - skipping", key, pdf_scan_page_prefix)
         return
     if not key.lower().endswith(".pdf"):
         logger.info("Key %s is not a PDF - skipping", key)
         return
 
-    obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+    obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     body = obj["Body"].read()
     try:
-        img = _rasterize_page(body, DPI)
+        img = _rasterize_page(body, dpi)
         if img is None:
             logger.info("No pages in %s", key)
             return
-        text = _ocr_image(img)
+        text = _ocr_image(img, engine, trocr_endpoint, docling_endpoint)
     except Exception as exc:  # pragma: no cover - runtime safety
         logger.error("Failed to OCR %s: %s", key, exc)
         return
 
-    rel_key = key[len(PDF_SCAN_PAGE_PREFIX):]
-    dest_key = TEXT_PAGE_PREFIX + os.path.splitext(rel_key)[0] + ".md"
+    rel_key = key[len(pdf_scan_page_prefix):]
+    dest_key = text_page_prefix + os.path.splitext(rel_key)[0] + ".md"
     s3_client.put_object(
-        Bucket=BUCKET_NAME,
+        Bucket=bucket_name,
         Key=dest_key,
         Body=text.encode("utf-8"),
         ContentType="text/markdown",

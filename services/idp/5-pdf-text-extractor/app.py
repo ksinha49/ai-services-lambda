@@ -29,6 +29,7 @@ from typing import Iterable
 from statistics import median
 
 import boto3
+from common_utils import get_config
 import fitz  # PyMuPDF
 from ocr_module import post_process_text, convert_to_markdown
 
@@ -46,17 +47,6 @@ logger.addHandler(_handler)
 
 s3_client = boto3.client("s3")
 
-BUCKET_NAME = os.environ.get("BUCKET_NAME")
-PDF_TEXT_PAGE_PREFIX = os.environ.get("PDF_TEXT_PAGE_PREFIX", "text-pages/")
-TEXT_PAGE_PREFIX = os.environ.get("TEXT_PAGE_PREFIX", "text-pages/")
-
-for name in ("PDF_TEXT_PAGE_PREFIX", "TEXT_PAGE_PREFIX"):
-    val = globals()[name]
-    if val and not val.endswith("/"):
-        globals()[name] = val + "/"
-
-if not BUCKET_NAME:
-    raise RuntimeError("BUCKET_NAME environment variable must be set")
 
 
 def _iter_records(event: dict) -> Iterable[dict]:
@@ -181,17 +171,24 @@ def _handle_record(record: dict) -> None:
 
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
-    if bucket != BUCKET_NAME or not key:
+    bucket_name = get_config("BUCKET_NAME", bucket, key)
+    pdf_text_page_prefix = get_config("PDF_TEXT_PAGE_PREFIX", bucket, key) or "text-pages/"
+    text_page_prefix = get_config("TEXT_PAGE_PREFIX", bucket, key) or "text-pages/"
+    if pdf_text_page_prefix and not pdf_text_page_prefix.endswith("/"):
+        pdf_text_page_prefix += "/"
+    if text_page_prefix and not text_page_prefix.endswith("/"):
+        text_page_prefix += "/"
+    if bucket != bucket_name or not key:
         logger.info("Skipping record with bucket=%s key=%s", bucket, key)
         return
-    if not key.startswith(PDF_TEXT_PAGE_PREFIX):
-        logger.info("Key %s outside prefix %s - skipping", key, PDF_TEXT_PAGE_PREFIX)
+    if not key.startswith(pdf_text_page_prefix):
+        logger.info("Key %s outside prefix %s - skipping", key, pdf_text_page_prefix)
         return
     if not key.lower().endswith(".pdf"):
         logger.info("Key %s is not a PDF - skipping", key)
         return
 
-    obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+    obj = s3_client.get_object(Bucket=bucket_name, Key=key)
     body = obj["Body"].read()
     try:
         text_md = _extract_text(body)
@@ -199,10 +196,10 @@ def _handle_record(record: dict) -> None:
         logger.error("Failed to extract text from %s: %s", key, exc)
         return
 
-    rel_key = key[len(PDF_TEXT_PAGE_PREFIX):]
-    dest_key = TEXT_PAGE_PREFIX + os.path.splitext(rel_key)[0] + ".md"
+    rel_key = key[len(pdf_text_page_prefix):]
+    dest_key = text_page_prefix + os.path.splitext(rel_key)[0] + ".md"
     s3_client.put_object(
-        Bucket=BUCKET_NAME,
+        Bucket=bucket_name,
         Key=dest_key,
         Body=text_md.encode("utf-8"),
         ContentType="text/markdown",
