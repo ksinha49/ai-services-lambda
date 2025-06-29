@@ -5,8 +5,8 @@
 Module: app.py
 Description:
   Poll S3 for the text document produced by the IDP pipeline.  When the
-  ``TEXT_DOC_PREFIX`` JSON exists in the ``IDP_BUCKET`` the RAG ingestion
-  Step Function is invoked.
+  ``TEXT_DOC_PREFIX`` JSON exists in the ``IDP_BUCKET`` the status is
+  updated to ``"COMPLETE"``.
 
 Version: 1.0.2
 Created: 2025-05-05
@@ -15,7 +15,6 @@ Modified By: Koushik Sinha
 """
 from __future__ import annotations
 import boto3
-import json
 import logging
 import os
 from common_utils.get_ssm import (
@@ -42,7 +41,6 @@ logger.addHandler(_handler)
 # No proxy configuration is required for SSM access when running within AWS.
 
 s3_client = boto3.client("s3")
-sf_client = boto3.client("stepfunctions")
 
 def _get_param(name: str) -> str | None:
     """Return ``name`` from environment or SSM."""
@@ -52,8 +50,8 @@ def check_file_processing_status(event: dict, context) -> dict:
     """Return updated *event* with processing status.
 
     The function looks for ``TEXT_DOC_PREFIX/{document_id}.json`` in the IDP
-    bucket.  If the object exists the RAG ingestion Step Function is invoked
-    and ``fileupload_status`` is set to ``"COMPLETE"``.
+    bucket.  If the object exists ``fileupload_status`` is set to
+    ``"COMPLETE"``.
     """
 
     event_body = event.get("body", event)
@@ -74,13 +72,6 @@ def check_file_processing_status(event: dict, context) -> dict:
             event_body["fileupload_status"] = "PROCESSING"
             return event_body
         raise
-
-    sm_arn = _get_param("INGESTION_STATE_MACHINE_ARN")
-    if sm_arn:
-        sf_client.start_execution(
-            stateMachineArn=sm_arn,
-            input=json.dumps({"documentId": document_id})
-        )
 
     event_body["fileupload_status"] = "COMPLETE"
     event_body["text_doc_key"] = key

@@ -243,7 +243,6 @@ Resources:
       Environment:
         Variables:
           AWS_ACCOUNT_NAME: !Ref AWSAccountName
-          INGESTION_STATE_MACHINE_ARN: !Ref IngestionStateMachineArn
 
   FileProcessingStatusLambdaPolicy:
     Type: AWS::IAM::Policy
@@ -258,10 +257,6 @@ Resources:
             Action:
               - s3:GetObject
             Resource: !Sub 'arn:aws:s3:::${IDPBucketName}/*'
-          - Effect: Allow
-            Action:
-              - states:StartExecution
-            Resource: !Ref IngestionStateMachineArn
 
   FileSummaryInvokePolicy:
     Type: AWS::IAM::Policy
@@ -302,6 +297,20 @@ Resources:
         Variables:
           AWS_ACCOUNT_NAME: !Ref AWSAccountName
           RAG_SUMMARY_FUNCTION_ARN: !Ref RagSummaryFunctionArn
+
+  FileProcessingSFInvokePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing-sf-invoke'
+      Roles:
+        - !Select [1, !Split ['/', !Ref FileProcessingStepFunctionIAMRole]]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - states:StartExecution
+            Resource: !Ref IngestionStateMachineArn
 
 
   # SQS Queue for file upload events
@@ -398,7 +407,14 @@ Resources:
             Choices:
               - Next: Wait
                 Condition: '{% $not(($states.input.body.fileupload_status) = ("COMPLETE")) %}'
-            Default: file_summary
+            Default: start_ingestion
+          start_ingestion:
+            Type: Task
+            Resource: arn:aws:states:::states:startExecution.sync
+            Parameters:
+              StateMachineArn: !Ref IngestionStateMachineArn
+              Input: '{% {"documentId": $states.input.body.document_id} %}'
+            Next: file_summary
           file_summary:
             Type: Task
             Resource: arn:aws:states:::lambda:invoke
