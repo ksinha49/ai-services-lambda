@@ -142,7 +142,11 @@ This project uses GitHub Actions for CI/CD:
 
 - Packages each Lambda function
 - Deploys to the configured AWS environment
-- Simply merge your changes into main—the pipeline takes care of the rest.
+  - Simply merge your changes into main—the pipeline takes care of the rest.
+
+## Documentation
+
+For details on how extracted text should be structured, see [docs/idp_output_format.md](docs/idp_output_format.md).
 
 
    
