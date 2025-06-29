@@ -365,7 +365,7 @@ def test_milvus_delete_lambda(monkeypatch):
     monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
     monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
 
-    module = load_lambda('milvus_delete', 'services/rag-ingestion/milvus-delete-lambda/app.py')
+    module = load_lambda('milvus_delete', 'services/vector-db/milvus-delete-lambda/app.py')
     called = {}
     def fake_delete(self, ids):
         called['ids'] = list(ids)
@@ -387,7 +387,7 @@ def test_milvus_update_lambda(monkeypatch):
     monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
     monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
 
-    module = load_lambda('milvus_update', 'services/rag-ingestion/milvus-update-lambda/app.py')
+    module = load_lambda('milvus_update', 'services/vector-db/milvus-update-lambda/app.py')
     received = {}
 
     def fake_update(items):
@@ -421,7 +421,7 @@ def test_milvus_create_lambda(monkeypatch):
     monkeypatch.setattr(mc, 'CollectionSchema', dummy.CollectionSchema, raising=False)
     monkeypatch.setattr(mc, 'DataType', dummy.DataType, raising=False)
 
-    module = load_lambda('milvus_create', 'services/rag-ingestion/milvus-create-lambda/app.py')
+    module = load_lambda('milvus_create', 'services/vector-db/milvus-create-lambda/app.py')
     called = {}
     monkeypatch.setattr(module, 'client', type('C', (), {'create_collection': lambda self, dimension=768: called.setdefault('dimension', dimension)})())
     res = module.lambda_handler({'dimension': 42}, {})
@@ -439,7 +439,7 @@ def test_milvus_drop_lambda(monkeypatch):
     monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
     monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
 
-    module = load_lambda('milvus_drop', 'services/rag-ingestion/milvus-drop-lambda/app.py')
+    module = load_lambda('milvus_drop', 'services/vector-db/milvus-drop-lambda/app.py')
     called = {'dropped': False}
 
     def fake_drop():

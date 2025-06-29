@@ -183,19 +183,34 @@ sam deploy \
 Set ``DOCLING_ENDPOINT`` in the console or via `sam deploy` to the Docling
 service URL, e.g. ``http://<EC2-IP>:8001``.
 
+### Deploying the Vector DB Service
+This stack contains the Milvus management and search Lambdas. Provide the
+Milvus connection details when deploying:
+
+```bash
+sam deploy \
+  --template-file services/vector-db/template.yaml \
+  --stack-name vector-db \
+  --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
+```
+
 ### Deploying the RAG Ingestion Service
 The ingestion stack now includes a Step Function that orchestrates `TextChunkFunction`,
 `EmbedFunction`, and `MilvusInsertFunction`. New JSON documents emitted by the
 IDP pipeline under `TEXT_DOC_PREFIX` trigger this state machine automatically.
-The root template passes the IDP bucket name and prefix to the stack, so only
-the Milvus parameters are required at deploy time.
-Deploy the RAG stack and provide Milvus connection details:
+The root template passes the IDP bucket name and prefix to the stack. Provide
+the ARNs of the vector-db Lambdas when deploying manually:
 
 ```bash
 sam deploy \
   --template-file services/rag-ingestion/template.yaml \
   --stack-name rag-ingestion \
-  --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
+  --parameter-overrides \ 
+    MilvusInsertFunctionArn=<arn> \ 
+    MilvusDeleteFunctionArn=<arn> \ 
+    MilvusUpdateFunctionArn=<arn> \ 
+    MilvusCreateCollectionFunctionArn=<arn> \ 
+    MilvusDropCollectionFunctionArn=<arn>
 ```
 If deploying the template by itself, also pass `BucketName` and `TextDocPrefix`
 to match your IDP stack.
@@ -220,14 +235,14 @@ each chunk's metadata so the function can select the appropriate model. Example:
 ```
 
 ### Deploying the RAG Retrieval Service
-Deploy the retrieval Lambdas separately. Provide the same Milvus connection
-details as well as the optional API endpoints for summarization and extraction:
+Deploy the retrieval Lambdas separately. Provide the ARN of the vector search
+Lambda along with the optional API endpoints for summarization and extraction:
 
 ```bash
 sam deploy \
   --template-file services/rag-retrieval/template.yaml \
   --stack-name rag-retrieval \
-  --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
+  --parameter-overrides VectorSearchFunctionArn=<arn>
 ```
 
 ## Documentation
