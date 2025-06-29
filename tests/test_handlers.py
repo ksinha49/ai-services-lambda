@@ -310,3 +310,46 @@ def test_docling_processor(monkeypatch, s3_stub):
     assert sent['url'] == 'http://docling'
     out_key = 'docling-results/doc1.json'
     assert json.loads(s3_stub.objects[('bucket', out_key)].decode()) == {'ok': True}
+
+
+def test_embed_model_map_event(monkeypatch, config):
+    monkeypatch.setenv('EMBED_MODEL', 'dummy')
+    monkeypatch.setenv('EMBED_MODEL_MAP', '{"pdf": "openai"}')
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('embed_event', 'services/rag-ingestion/embed-lambda/app.py')
+    monkeypatch.setattr(module, '_openai_embed', lambda t: [42])
+    module._MODEL_MAP['openai'] = module._openai_embed
+    out = module.lambda_handler({'chunks': ['t'], 'docType': 'pdf'}, {})
+    assert out['embeddings'] == [[42]]
+
+
+def test_embed_model_map_chunk(monkeypatch, config):
+    monkeypatch.setenv('EMBED_MODEL', 'dummy')
+    monkeypatch.setenv('EMBED_MODEL_MAP', '{"pptx": "cohere"}')
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('embed_chunk', 'services/rag-ingestion/embed-lambda/app.py')
+    monkeypatch.setattr(module, '_cohere_embed', lambda t: [24])
+    module._MODEL_MAP['cohere'] = module._cohere_embed
+    chunk = {'text': 'hi', 'metadata': {'docType': 'pptx'}}
+    out = module.lambda_handler({'chunks': [chunk]}, {})
+    assert out['embeddings'] == [[24]]
+
+
+def test_embed_model_default(monkeypatch, config):
+    monkeypatch.setenv('EMBED_MODEL', 'cohere')
+    monkeypatch.setenv('EMBED_MODEL_MAP', '{"pdf": "openai"}')
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('embed_default', 'services/rag-ingestion/embed-lambda/app.py')
+    monkeypatch.setattr(module, '_cohere_embed', lambda t: [7])
+    module._MODEL_MAP['cohere'] = module._cohere_embed
+    out = module.lambda_handler({'chunks': ['x'], 'docType': 'txt'}, {})
+    assert out['embeddings'] == [[7]]
+
+
+def test_text_chunk_doc_type(monkeypatch, config):
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('chunk', 'services/rag-ingestion/text-chunk-lambda/app.py')
+    event = {'text': 'abcdef', 'docType': 'pdf'}
+    result = module.lambda_handler(event, {})
+    assert result['docType'] == 'pdf'
+    assert result['chunks']

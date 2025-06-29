@@ -25,5 +25,9 @@ def chunk_text(text: str):
 
 def lambda_handler(event, context):
     text = event.get("text", "")
+    doc_type = event.get("docType") or event.get("type")
     chunks = chunk_text(text)
-    return {"chunks": chunks}
+    payload = {"chunks": chunks}
+    if doc_type:
+        payload["docType"] = doc_type
+    return payload

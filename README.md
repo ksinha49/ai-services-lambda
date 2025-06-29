@@ -194,7 +194,19 @@ sam deploy \
 ```
 
 Configure ``CHUNK_SIZE``, ``CHUNK_OVERLAP`` and ``EMBED_MODEL`` via environment
-variables or Parameter Store as needed.
+variables or Parameter Store as needed. ``EMBED_MODEL`` specifies the default
+embedding provider. Use ``EMBED_MODEL_MAP`` to map document types to specific
+models, e.g. ``{"pdf": "openai", "pptx": "cohere"}``.
+
+When invoking the embed Lambda include a ``docType`` field in the payload or in
+each chunk's metadata so the function can select the appropriate model. Example:
+
+```json
+{
+  "docType": "pdf",
+  "chunks": ["some text"]
+}
+```
 
 ## Documentation
 
