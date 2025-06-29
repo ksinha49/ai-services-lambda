@@ -3,20 +3,21 @@ Transform: AWS::Serverless-2016-10-31
 Description: Lambdas for RAG ingestion.
 
 Parameters:
-  MilvusHost:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /rag/milvus/host
-  MilvusPort:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /rag/milvus/port
-  MilvusCollection:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /rag/milvus/collection
   BucketName:
     Type: String
   TextDocPrefix:
     Type: String
     Default: text-docs/
+  MilvusInsertFunctionArn:
+    Type: String
+  MilvusDeleteFunctionArn:
+    Type: String
+  MilvusUpdateFunctionArn:
+    Type: String
+  MilvusCreateCollectionFunctionArn:
+    Type: String
+  MilvusDropCollectionFunctionArn:
+    Type: String
 
 Globals:
   Function:
@@ -36,55 +37,6 @@ Resources:
     Properties:
       CodeUri: ./embed-lambda/
 
-  MilvusInsertFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./milvus-insert-lambda/
-      Environment:
-        Variables:
-          MILVUS_HOST: !Ref MilvusHost
-          MILVUS_PORT: !Ref MilvusPort
-          MILVUS_COLLECTION: !Ref MilvusCollection
-
-  MilvusDeleteFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./milvus-delete-lambda/
-      Environment:
-        Variables:
-          MILVUS_HOST: !Ref MilvusHost
-          MILVUS_PORT: !Ref MilvusPort
-          MILVUS_COLLECTION: !Ref MilvusCollection
-
-  MilvusUpdateFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./milvus-update-lambda/
-      Environment:
-        Variables:
-          MILVUS_HOST: !Ref MilvusHost
-          MILVUS_PORT: !Ref MilvusPort
-          MILVUS_COLLECTION: !Ref MilvusCollection
-
-  MilvusCreateCollectionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./milvus-create-lambda/
-      Environment:
-        Variables:
-          MILVUS_HOST: !Ref MilvusHost
-          MILVUS_PORT: !Ref MilvusPort
-          MILVUS_COLLECTION: !Ref MilvusCollection
-
-  MilvusDropCollectionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./milvus-drop-lambda/
-      Environment:
-        Variables:
-          MILVUS_HOST: !Ref MilvusHost
-          MILVUS_PORT: !Ref MilvusPort
-          MILVUS_COLLECTION: !Ref MilvusCollection
 
   IngestionStateMachine:
     Type: AWS::Serverless::StateMachine
@@ -114,7 +66,7 @@ Resources:
             Resource: arn:aws:states:::lambda:invoke
             Output: '{% $states.result.Payload %}'
             Arguments:
-              FunctionName: !GetAtt MilvusInsertFunction.Arn
+              FunctionName: !Ref MilvusInsertFunctionArn
               Payload: '{% $states.input %}'
             End: true
         QueryLanguage: JSONata
@@ -123,8 +75,6 @@ Resources:
             FunctionName: !Ref TextChunkFunction
         - LambdaInvokePolicy:
             FunctionName: !Ref EmbedFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref MilvusInsertFunction
       Events:
         NewTextDoc:
           Type: S3
@@ -144,21 +94,6 @@ Outputs:
   EmbedFunctionArn:
     Description: ARN of the embed Lambda
     Value: !GetAtt EmbedFunction.Arn
-  MilvusInsertFunctionArn:
-    Description: ARN of the Milvus insert Lambda
-    Value: !GetAtt MilvusInsertFunction.Arn
-  MilvusDeleteFunctionArn:
-    Description: ARN of the Milvus delete Lambda
-    Value: !GetAtt MilvusDeleteFunction.Arn
-  MilvusUpdateFunctionArn:
-    Description: ARN of the Milvus update Lambda
-    Value: !GetAtt MilvusUpdateFunction.Arn
-  MilvusCreateCollectionFunctionArn:
-    Description: ARN of the Milvus create collection Lambda
-    Value: !GetAtt MilvusCreateCollectionFunction.Arn
-  MilvusDropCollectionFunctionArn:
-    Description: ARN of the Milvus drop collection Lambda
-    Value: !GetAtt MilvusDropCollectionFunction.Arn
   IngestionStateMachineArn:
     Description: ARN of the ingestion Step Function
     Value: !Ref IngestionStateMachine
