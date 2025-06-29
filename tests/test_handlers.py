@@ -1,6 +1,7 @@
 import json
 import importlib.util
 import os
+import pytest
 
 
 def load_lambda(name, path):
@@ -111,3 +112,87 @@ def test_output(monkeypatch, s3_stub, validate_schema):
     assert posted['documentId'] == 'doc1'
     for i, page in enumerate(posted['pages'], start=1):
         validate_schema({'documentId': posted['documentId'], 'pageNumber': i, 'content': page})
+
+
+def test_ocr_image_engines(monkeypatch):
+    monkeypatch.setenv('OCR_ENGINE', 'easyocr')
+    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    module = load_lambda('ocr_easy', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module.easyocr = __import__('easyocr')
+    called = {}
+    def fake(r, e, b):
+        called['engine'] = e
+        called['cls'] = r.__class__.__name__
+        return 't', 0
+    monkeypatch.setattr(module, '_perform_ocr', fake)
+    module._ocr_image(object())
+    assert called['engine'] == 'easyocr'
+    assert called['cls'] == 'DummyReader'
+
+    import types, sys
+    class DummyPaddle:
+        def __init__(self, *a, **k):
+            pass
+    sys.modules['paddleocr'] = types.ModuleType('paddleocr')
+    sys.modules['paddleocr'].PaddleOCR = DummyPaddle
+
+    monkeypatch.setenv('OCR_ENGINE', 'paddleocr')
+    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    module = load_lambda('ocr_paddle', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module.easyocr = __import__('easyocr')
+    called = {}
+    def fake2(r, e, b):
+        called['engine'] = e
+        called['cls'] = r.__class__.__name__
+        return 't', 0
+    monkeypatch.setattr(module, '_perform_ocr', fake2)
+    module._ocr_image(object())
+    assert called['engine'] == 'paddleocr'
+    assert called['cls'] == 'DummyPaddle'
+
+
+def test_ocr_image_auto(monkeypatch):
+    monkeypatch.setenv('OCR_ENGINE', 'auto')
+    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    module = load_lambda('ocr_auto', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module.easyocr = __import__('easyocr')
+    called = {}
+    def fake(r, e, b):
+        called['engine'] = e
+        return 't', 0
+    monkeypatch.setattr(module, '_perform_ocr', fake)
+    monkeypatch.setattr(module, 'is_handwritten', lambda img: True)
+    module._ocr_image(object())
+    assert called['engine'] == 'paddleocr'
+    monkeypatch.setattr(module, 'is_handwritten', lambda img: False)
+    module._ocr_image(object())
+    assert called['engine'] == 'easyocr'
+
+
+def test_perform_ocr(monkeypatch):
+    import types, sys, importlib.util
+    class DummyPaddle:
+        def __init__(self, *a, **k):
+            pass
+        def ocr(self, img):
+            return [([[0,0],[1,0],[1,1],[0,1]], ('pd', 0.8))]
+    sys.modules['paddleocr'] = types.ModuleType('paddleocr')
+    sys.modules['paddleocr'].PaddleOCR = DummyPaddle
+
+    mod = load_lambda('ocr_real', 'layers/ocr_layer/python/ocr_module.py')
+    monkeypatch.setattr(mod, 'preprocess_image_cv2', lambda b: 'img')
+    monkeypatch.setattr(mod, '_results_to_layout_text', lambda res: 'layout')
+    monkeypatch.setattr(mod.np, 'mean', lambda x: sum(x)/len(x))
+
+    reader = mod.easyocr.Reader()
+    text, conf = mod._perform_ocr(reader, 'easyocr', b'1')
+    assert text == 'layout'
+    assert conf == 0.9
+
+    pd = DummyPaddle()
+    text, conf = mod._perform_ocr(pd, 'paddleocr', b'1')
+    assert text == 'layout'
+    assert conf == 0.8
+
+    with pytest.raises(ValueError):
+        mod._perform_ocr(reader, 'other', b'1')

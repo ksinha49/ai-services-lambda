@@ -5,9 +5,9 @@
 
 Triggered for each single-page PDF under ``PDF_SCAN_PAGE_PREFIX``. The
 page is rasterised using :mod:`fitz` at ``DPI`` resolution and passed to
-EasyOCR via helpers from :mod:`ocr_module`.  The recognised text is
-stored as Markdown under ``TEXT_PAGE_PREFIX`` using the same relative
-path as the source page.
+the configured OCR engine via helpers from :mod:`ocr_module`.  The
+recognised text is stored as Markdown under ``TEXT_PAGE_PREFIX`` using
+the same relative path as the source page.
 
 Environment variables
 ---------------------
@@ -21,6 +21,10 @@ Environment variables
     ``"text-pages/"``.
 ``DPI``
     Rasterisation resolution for PyMuPDF. Defaults to ``300``.
+``OCR_ENGINE``
+    Which OCR engine to use. Set to ``"easyocr"`` or ``"paddleocr"`` to force an
+    engine, or ``"auto"`` to detect handwritten pages and use PaddleOCR
+    automatically. Defaults to ``"easyocr"``.
 """
 
 from __future__ import annotations
@@ -34,10 +38,12 @@ import boto3
 import fitz  # PyMuPDF
 import cv2
 import numpy as np
+from paddleocr import PaddleOCR
 
 from ocr_module import (
     easyocr,
     _perform_ocr,
+    is_handwritten,
     post_process_text,
     convert_to_markdown,
 )
@@ -60,6 +66,7 @@ DPI = int(os.environ.get("DPI", "300"))
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
 PDF_SCAN_PAGE_PREFIX = os.environ.get("PDF_SCAN_PAGE_PREFIX", "scan-pages/")
 TEXT_PAGE_PREFIX = os.environ.get("TEXT_PAGE_PREFIX", "text-pages/")
+OCR_ENGINE = os.environ.get("OCR_ENGINE", "easyocr").lower()
 
 for name in ("PDF_SCAN_PAGE_PREFIX", "TEXT_PAGE_PREFIX"):
     val = globals()[name]
@@ -102,8 +109,15 @@ def _ocr_image(img: np.ndarray) -> str:
     if not ok:
         raise ValueError("Failed to encode image for OCR")
 
-    reader = easyocr.Reader(["en"], gpu=False)
-    text, _ = _perform_ocr(reader, "easyocr", bytes(encoded))
+    engine = OCR_ENGINE
+    if engine == "auto":
+        engine = "paddleocr" if is_handwritten(img) else "easyocr"
+    if engine == "paddleocr":
+        reader = PaddleOCR()
+    else:
+        reader = easyocr.Reader(["en"], gpu=False)
+        engine = "easyocr"
+    text, _ = _perform_ocr(reader, engine, bytes(encoded))
     text = post_process_text(text)
     return convert_to_markdown(text, 1)
 

@@ -4,6 +4,7 @@ from statistics import median
 
 import fitz  # PyMuPDF
 import easyocr
+from paddleocr import PaddleOCR
 import cv2
 import numpy as np
 
@@ -14,6 +15,7 @@ __all__ = [
     "extract_text_from_pdf",
     "preprocess_image_cv2",
     "_perform_ocr",
+    "is_handwritten",
     "post_process_text",
     "convert_to_markdown",
 ]
@@ -53,6 +55,15 @@ def preprocess_image_cv2(img_bytes: bytes) -> np.ndarray:
     if img is None:
         raise ValueError("Unable to decode image bytes")
     return img
+
+
+def is_handwritten(img: np.ndarray) -> bool:
+    """Return ``True`` if *img* appears to be handwritten text."""
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 100, 200)
+    edge_density = float(np.count_nonzero(edges)) / edges.size
+    return edge_density > 0.1
 
 
 def _results_to_layout_text(results: list[tuple[list[list[int]], str, float]]) -> str:
@@ -132,6 +143,19 @@ def _perform_ocr(ctx, engine: str, img_bytes: bytes) -> tuple[str, float]:
             return "", 0.0
         text = _results_to_layout_text(results)
         confidences = [float(r[2]) for r in results]
+        return text, float(np.mean(confidences))
+
+    if engine.lower() == "paddleocr":
+        if not isinstance(ctx, PaddleOCR):
+            raise TypeError("ctx must be a PaddleOCR for engine 'paddleocr'")
+        results = ctx.ocr(img)
+        if not results:
+            return "", 0.0
+        converted = []
+        for box, (text, conf) in results:
+            converted.append((box, text, float(conf)))
+        text = _results_to_layout_text(converted)
+        confidences = [float(conf) for _, (_, conf) in results]
         return text, float(np.mean(confidences))
 
     raise ValueError(f"Unsupported OCR engine: {engine}")

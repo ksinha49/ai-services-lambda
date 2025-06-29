@@ -71,16 +71,23 @@ def external_stubs():
         def readtext(self, img, detail=1):
             return [([[0,0],[1,0],[1,1],[0,1]], "text", 0.9)]
     _stub_module("easyocr", {"Reader": DummyReader})
+    class DummyPaddle:
+        def __init__(self, *a, **k):
+            pass
+        def ocr(self, img):
+            return [([[0,0],[1,0],[1,1],[0,1]], ("pd", 0.8))]
+    _stub_module("paddleocr", {"PaddleOCR": DummyPaddle})
     _stub_module(
         "ocr_module",
         {
             "post_process_text": lambda t: t,
-            "convert_to_markdown": lambda t, n: f"## Page {n}\n\n{t}\n",
-            "easyocr": DummyReader,
-            "_perform_ocr": lambda reader, engine, img: ("text", 0.0),
+        "convert_to_markdown": lambda t, n: f"## Page {n}\n\n{t}\n",
+        "easyocr": DummyReader,
+        "_perform_ocr": lambda reader, engine, img: ("text", 0.0),
+        "is_handwritten": lambda img: False,
         },
     )
-    _stub_module("numpy", {"frombuffer": lambda *a, **k: [], "uint8": int, "reshape": lambda *a, **k: [], "mean": lambda x: 0})
+    _stub_module("numpy", {"frombuffer": lambda *a, **k: [], "uint8": int, "reshape": lambda *a, **k: [], "mean": lambda x: 0, "ndarray": object})
     yield
 
 @pytest.fixture
