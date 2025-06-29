@@ -87,6 +87,10 @@ Each capability lives in its own directory, fostering a clean, modular structure
 - Store and search embeddings in Milvus
 - API endpoints expose summarization and extraction using retrieved context
 
+### 9. Summarization
+- Generate context-aware summaries using retrieved text chunks
+- Merge the summary pages with the original PDF
+
 ---
 
 ## Installation 
@@ -241,6 +245,28 @@ sam deploy \
   --stack-name rag-retrieval \
   --parameter-overrides VectorSearchFunctionArn=<arn>
 ```
+
+### Deploying the Summarization Service
+This stack orchestrates the end‑to‑end summary workflow:
+1. `file-processing` copies PDFs to `IDP_BUCKET/RAW_PREFIX`.
+2. The IDP pipeline extracts text to `TEXT_DOC_PREFIX`.
+3. New text files start the ingestion state machine (`IngestionStateMachineArn`) to chunk and embed the pages.
+4. Once ingestion completes, the summarization state machine calls the RAG retrieval summary Lambda (`RAG_SUMMARY_FUNCTION_ARN`) and merges the output with the original PDF.
+
+Deploy with the required parameters:
+
+```bash
+sam deploy \
+  --template-file services/summarization/template.yaml \
+  --stack-name summarization \
+  --parameter-overrides \
+    IDPBucketName=<bucket> \
+    IDPRawPrefix=<prefix> \
+    IngestionStateMachineArn=<arn> \
+    RagSummaryFunctionArn=<arn>
+```
+
+Ensure Parameter Store keys `IDP_BUCKET`, `RAW_PREFIX` and `TEXT_DOC_PREFIX` exist so the Lambdas can locate the IDP resources.
 
 ## Documentation
 
