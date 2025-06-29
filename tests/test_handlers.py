@@ -353,3 +353,99 @@ def test_text_chunk_doc_type(monkeypatch, config):
     result = module.lambda_handler(event, {})
     assert result['docType'] == 'pdf'
     assert result['chunks']
+
+
+def test_milvus_delete_lambda(monkeypatch):
+    import types, sys
+    dummy = types.ModuleType('pymilvus')
+    dummy.Collection = type('Coll', (), {'__init__': lambda self, *a, **k: None, 'delete': lambda self, expr: types.SimpleNamespace(delete_count=2)})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, 'pymilvus', dummy)
+    import common_utils.milvus_client as mc
+    monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
+
+    module = load_lambda('milvus_delete', 'services/rag-ingestion/milvus-delete-lambda/app.py')
+    called = {}
+    def fake_delete(self, ids):
+        called['ids'] = list(ids)
+        return len(called['ids'])
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'delete': fake_delete})())
+    res = module.lambda_handler({'ids': [1, 2]}, {})
+    assert called['ids'] == [1, 2]
+    assert res['deleted'] == 2
+
+
+def test_milvus_update_lambda(monkeypatch):
+    import types, sys
+    dummy = types.ModuleType('pymilvus')
+    dummy.Collection = type('Coll', (), {'__init__': lambda self, *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, 'pymilvus', dummy)
+    import common_utils.milvus_client as mc
+    monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
+
+    module = load_lambda('milvus_update', 'services/rag-ingestion/milvus-update-lambda/app.py')
+    received = {}
+
+    def fake_update(items):
+        received['items'] = items
+        return len(items)
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'update': lambda self, items: fake_update(items)})())
+    event = {'embeddings': [[0.1, 0.2]], 'metadatas': [{'a': 1}], 'ids': [5]}
+    res = module.lambda_handler(event, {})
+    assert len(received['items']) == 1
+    item = received['items'][0]
+    assert item.embedding == [0.1, 0.2]
+    assert item.metadata == {'a': 1}
+    assert item.id == 5
+    assert res['updated'] == 1
+
+
+def test_milvus_create_lambda(monkeypatch):
+    import types, sys
+    dummy = types.ModuleType('pymilvus')
+    dummy.FieldSchema = lambda *a, **k: None
+    dummy.CollectionSchema = lambda *a, **k: None
+    dummy.DataType = types.SimpleNamespace(INT64=0, FLOAT_VECTOR=1, JSON=2)
+    dummy.Collection = type('Coll', (), {'__init__': lambda self, *a, **k: None, 'create_index': lambda *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, 'pymilvus', dummy)
+    import common_utils.milvus_client as mc
+    monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
+    monkeypatch.setattr(mc, 'FieldSchema', dummy.FieldSchema, raising=False)
+    monkeypatch.setattr(mc, 'CollectionSchema', dummy.CollectionSchema, raising=False)
+    monkeypatch.setattr(mc, 'DataType', dummy.DataType, raising=False)
+
+    module = load_lambda('milvus_create', 'services/rag-ingestion/milvus-create-lambda/app.py')
+    called = {}
+    monkeypatch.setattr(module, 'client', type('C', (), {'create_collection': lambda self, dimension=768: called.setdefault('dimension', dimension)})())
+    res = module.lambda_handler({'dimension': 42}, {})
+    assert called['dimension'] == 42
+    assert res['created'] is True
+
+
+def test_milvus_drop_lambda(monkeypatch):
+    import types, sys
+    dummy = types.ModuleType('pymilvus')
+    dummy.Collection = type('Coll', (), {'__init__': lambda self, *a, **k: None, 'drop': lambda self: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, 'pymilvus', dummy)
+    import common_utils.milvus_client as mc
+    monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
+
+    module = load_lambda('milvus_drop', 'services/rag-ingestion/milvus-drop-lambda/app.py')
+    called = {'dropped': False}
+
+    def fake_drop():
+        called['dropped'] = True
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'drop_collection': lambda self: fake_drop()})())
+    res = module.lambda_handler({}, {})
+    assert called['dropped'] is True
+    assert res['dropped'] is True
