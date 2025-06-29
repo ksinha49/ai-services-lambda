@@ -223,3 +223,30 @@ def test_perform_ocr(monkeypatch):
 
     with pytest.raises(ValueError):
         mod._perform_ocr(reader, 'other', b'1')
+
+
+def test_docling_processor(monkeypatch, s3_stub):
+    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
+    monkeypatch.setenv('DOCLING_ENDPOINT', 'http://docling')
+    module = load_lambda('docling', 'lambda-functions/docling-processor/app.py')
+
+    s3_stub.objects[('bucket', 'text-docs/doc1.json')] = b'data'
+
+    sent = {}
+    def fake_post(url, content=None, **kwargs):
+        sent['url'] = url
+        sent['content'] = content
+        return type('Resp', (), {
+            'json': lambda self=None: {'ok': True},
+            'raise_for_status': lambda self=None: None
+        })()
+
+    monkeypatch.setattr(module.httpx, 'post', fake_post)
+
+    event = {'Records': [{'s3': {'bucket': {'name': 'bucket'}, 'object': {'key': 'text-docs/doc1.json'}}}]}
+    module.lambda_handler(event, {})
+
+    assert sent['url'] == 'http://docling'
+    out_key = 'docling-results/doc1.json'
+    assert json.loads(s3_stub.objects[('bucket', out_key)].decode()) == {'ok': True}

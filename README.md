@@ -76,9 +76,13 @@ Each capability lives in its own directory, fostering a clean, modular structure
 ### 5. ZIP Assembly
 - Bundle merged PDFs and metadata into ZIP files for transfer  
 
-### 6. ZIP Extraction 
-- Unpack ZIP archives  
-- Save individual files to Amazon S3  
+### 6. ZIP Extraction
+- Unpack ZIP archives
+- Save individual files to Amazon S3
+
+### 7. Docling Processing
+- Send combined text or PDFs to an external Docling service
+- Store structured JSON results for downstream use
 
 ---
 
@@ -108,6 +112,10 @@ Configure each Lambda function’s environment variables via AWS Console or CLI:
 - PARAM_STORE_KEY
 - S3_BUCKET_NAME
 - VECTOR_DB_ENDPOINT
+- DOCLING_ENDPOINT
+
+Set ``DOCLING_ENDPOINT`` to the HTTP endpoint of your Docling EC2 service so
+that the ``docling-processor`` Lambda can forward documents for analysis.
 
 …etc.
 
