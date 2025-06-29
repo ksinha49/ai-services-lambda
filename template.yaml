@@ -12,3 +12,8 @@ Resources:
     Type: AWS::Serverless::Application
     Properties:
       Location: services/summarization/template.yaml
+
+  RagIngestionService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/rag-ingestion/template.yaml
