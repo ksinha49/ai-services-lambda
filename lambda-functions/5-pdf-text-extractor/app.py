@@ -4,8 +4,9 @@
 """PDF text extraction Lambda.
 
 Triggered for each single-page PDF under ``PDF_TEXT_PAGE_PREFIX``. The
-page is read using :mod:`fitz` and the result of ``get_text("json")`` is
-written to ``TEXT_PAGE_PREFIX/{documentId}/page_NNN.json``.
+page is read using :mod:`fitz` and the text from ``get_text("json")`` is
+converted to Markdown and stored as
+``TEXT_PAGE_PREFIX/{documentId}/page_NNN.md``.
 
 Environment variables
 ---------------------
@@ -15,7 +16,8 @@ Environment variables
     Prefix where single-page PDFs with embedded text are stored. Defaults
     to ``"text-pages/"``.
 ``TEXT_PAGE_PREFIX``
-    Destination prefix for the extracted JSON. Defaults to ``"text-pages/"``.
+    Destination prefix for the extracted Markdown. Defaults to
+    ``"text-pages/"``.
 """
 
 from __future__ import annotations
@@ -24,9 +26,11 @@ import json
 import logging
 import os
 from typing import Iterable
+from statistics import median
 
 import boto3
 import fitz  # PyMuPDF
+from ocr_module import post_process_text, convert_to_markdown
 
 __author__ = "Balakrishna"
 __version__ = "1.0.0"
@@ -62,13 +66,113 @@ def _iter_records(event: dict) -> Iterable[dict]:
         yield record
 
 
+def _results_to_layout_text(results: list[tuple[list[list[int]], str]]) -> str:
+    """Return text arranged using bounding boxes from PDF extraction."""
+
+    if not results:
+        return ""
+
+    boxes = []
+    for box, text in results:
+        top = min(pt[1] for pt in box)
+        bottom = max(pt[1] for pt in box)
+        left = min(pt[0] for pt in box)
+        boxes.append({"top": top, "bottom": bottom, "left": left, "text": text})
+
+    boxes.sort(key=lambda b: (b["top"], b["left"]))
+
+    heights = [b["bottom"] - b["top"] for b in boxes]
+    line_height = median(heights) if heights else 1
+    group_thresh = line_height * 0.6
+
+    lines: list[list[dict]] = []
+    current = [boxes[0]]
+    for b in boxes[1:]:
+        if b["top"] - current[-1]["top"] > group_thresh:
+            lines.append(current)
+            current = [b]
+        else:
+            current.append(b)
+    lines.append(current)
+
+    para_thresh = line_height * 1.5
+    output_lines: list[str] = []
+    table_buffer: list[list[str]] = []
+    prev_bottom = lines[0][0]["bottom"]
+
+    def flush_table() -> None:
+        nonlocal table_buffer
+        if not table_buffer:
+            return
+        header = table_buffer[0]
+        md = ["| " + " | ".join(header) + " |"]
+        md.append("| " + " | ".join(["---"] * len(header)) + " |")
+        for row in table_buffer[1:]:
+            md.append("| " + " | ".join(row) + " |")
+        output_lines.extend(md)
+        table_buffer = []
+
+    for line in lines:
+        line.sort(key=lambda item: item["left"])
+        cells = [item["text"] for item in line]
+        top = line[0]["top"]
+        bottom = max(item["bottom"] for item in line)
+        if len(cells) > 1:
+            table_buffer.append(cells)
+        else:
+            flush_table()
+            if top - prev_bottom > para_thresh:
+                output_lines.append("")
+            output_lines.append(" ".join(cells))
+        prev_bottom = bottom
+
+    flush_table()
+    return "\n".join(output_lines)
+
+
+def _json_to_markdown(text_json: str) -> str:
+    """Convert ``page.get_text('json')`` output to Markdown."""
+
+    try:
+        data = json.loads(text_json)
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON text")
+        return ""
+
+    results: list[tuple[list[list[int]], str]] = []
+    for block in data.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines", []):
+            bbox = line.get("bbox")
+            if not bbox or len(bbox) != 4:
+                continue
+            text = " ".join(span.get("text", "") for span in line.get("spans", []))
+            text = text.strip()
+            if not text:
+                continue
+            box = [
+                [int(bbox[0]), int(bbox[1])],
+                [int(bbox[2]), int(bbox[1])],
+                [int(bbox[2]), int(bbox[3])],
+                [int(bbox[0]), int(bbox[3])],
+            ]
+            results.append((box, text))
+
+    text = _results_to_layout_text(results)
+    text = post_process_text(text)
+    return convert_to_markdown(text, 1)
+
+
 def _extract_text(pdf_bytes: bytes) -> str:
-    """Return JSON text for the first page of the PDF."""
+    """Return Markdown text for the first page of the PDF."""
 
     with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
-        if doc.page_count:
-            page = doc[0]
-            return page.get_text("json")
+        if not doc.page_count:
+            return ""
+        page = doc[0]
+        text_json = page.get_text("json")
+        return _json_to_markdown(text_json)
     return ""
 
 
@@ -90,18 +194,18 @@ def _handle_record(record: dict) -> None:
     obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
     body = obj["Body"].read()
     try:
-        text_json = _extract_text(body)
+        text_md = _extract_text(body)
     except Exception as exc:  # pragma: no cover - runtime safety
         logger.error("Failed to extract text from %s: %s", key, exc)
         return
 
     rel_key = key[len(PDF_TEXT_PAGE_PREFIX):]
-    dest_key = TEXT_PAGE_PREFIX + os.path.splitext(rel_key)[0] + ".json"
+    dest_key = TEXT_PAGE_PREFIX + os.path.splitext(rel_key)[0] + ".md"
     s3_client.put_object(
         Bucket=BUCKET_NAME,
         Key=dest_key,
-        Body=text_json.encode("utf-8"),
-        ContentType="application/json",
+        Body=text_md.encode("utf-8"),
+        ContentType="text/markdown",
     )
     logger.info("Wrote %s", dest_key)
 
