@@ -19,6 +19,7 @@ import boto3
 from docx import Document
 from pptx import Presentation
 from openpyxl import load_workbook
+from ocr_module import convert_to_markdown
 
 __author__ = "Balakrishna"
 __version__ = "1.0.0"
@@ -50,36 +51,41 @@ def _iter_records(event: dict) -> Iterable[dict]:
     for rec in event.get("Records", []):
         yield rec
 
-def _extract_docx(body: bytes) -> list[dict]:
-    doc = Document(io.BytesIO(body))
-    out: list[dict] = []
-    for p in doc.paragraphs:
-        if p.text:
-            fmt = {"style": getattr(p.style, "name", None)}
-            out.append({"text": p.text, "format": fmt})
-    return out
+def _extract_docx(body: bytes) -> list[str]:
+    """Return Markdown pages extracted from a DOCX file."""
 
-def _extract_pptx(body: bytes) -> list[dict]:
+    doc = Document(io.BytesIO(body))
+    lines = [p.text for p in doc.paragraphs if p.text]
+    text = "\n".join(lines)
+    return [convert_to_markdown(text, 1)]
+
+def _extract_pptx(body: bytes) -> list[str]:
+    """Return Markdown pages extracted from a PPTX file, one per slide."""
+
     pres = Presentation(io.BytesIO(body))
-    slides = []
+    pages: list[str] = []
     for i, slide in enumerate(pres.slides, start=1):
         texts = []
         for shape in slide.shapes:
-            if hasattr(shape, "text"):
-                if shape.text:
-                    texts.append(shape.text)
-        slides.append({"slide": i, "text": "\n".join(texts)})
-    return slides
+            if hasattr(shape, "text") and shape.text:
+                texts.append(shape.text)
+        page_text = "\n".join(texts)
+        pages.append(convert_to_markdown(page_text, i))
+    return pages
 
-def _extract_xlsx(body: bytes) -> dict:
+def _extract_xlsx(body: bytes) -> list[str]:
+    """Return Markdown pages extracted from an XLSX file, one per sheet."""
+
     wb = load_workbook(filename=io.BytesIO(body), data_only=True)
-    sheets: dict[str, list[list[str]]] = {}
-    for sheet in wb:
+    pages: list[str] = []
+    for i, sheet in enumerate(wb, start=1):
         rows = []
         for row in sheet.iter_rows(values_only=True):
-            rows.append(["" if cell is None else str(cell) for cell in row])
-        sheets[sheet.title] = rows
-    return sheets
+            cells = ["" if cell is None else str(cell) for cell in row]
+            rows.append("| " + " | ".join(cells) + " |")
+        text = "\n".join(rows)
+        pages.append(convert_to_markdown(text, i))
+    return pages
 
 def _process_record(record: dict) -> None:
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
@@ -100,13 +106,13 @@ def _process_record(record: dict) -> None:
     body = obj["Body"].read()
 
     if ext == ".docx":
-        content = _extract_docx(body)
+        pages = _extract_docx(body)
         typ = "docx"
     elif ext == ".pptx":
-        content = _extract_pptx(body)
+        pages = _extract_pptx(body)
         typ = "pptx"
     else:
-        content = _extract_xlsx(body)
+        pages = _extract_xlsx(body)
         typ = "xlsx"
 
     document_id = os.path.splitext(os.path.basename(key))[0]
@@ -115,7 +121,8 @@ def _process_record(record: dict) -> None:
     payload = {
         "documentId": document_id,
         "type": typ,
-        "content": content,
+        "pageCount": len(pages),
+        "pages": pages,
     }
 
     s3_client.put_object(
