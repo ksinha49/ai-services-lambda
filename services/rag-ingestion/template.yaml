@@ -46,6 +46,46 @@ Resources:
           MILVUS_PORT: !Ref MilvusPort
           MILVUS_COLLECTION: !Ref MilvusCollection
 
+  MilvusDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./milvus-delete-lambda/
+      Environment:
+        Variables:
+          MILVUS_HOST: !Ref MilvusHost
+          MILVUS_PORT: !Ref MilvusPort
+          MILVUS_COLLECTION: !Ref MilvusCollection
+
+  MilvusUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./milvus-update-lambda/
+      Environment:
+        Variables:
+          MILVUS_HOST: !Ref MilvusHost
+          MILVUS_PORT: !Ref MilvusPort
+          MILVUS_COLLECTION: !Ref MilvusCollection
+
+  MilvusCreateCollectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./milvus-create-lambda/
+      Environment:
+        Variables:
+          MILVUS_HOST: !Ref MilvusHost
+          MILVUS_PORT: !Ref MilvusPort
+          MILVUS_COLLECTION: !Ref MilvusCollection
+
+  MilvusDropCollectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./milvus-drop-lambda/
+      Environment:
+        Variables:
+          MILVUS_HOST: !Ref MilvusHost
+          MILVUS_PORT: !Ref MilvusPort
+          MILVUS_COLLECTION: !Ref MilvusCollection
+
   IngestionStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -107,6 +147,18 @@ Outputs:
   MilvusInsertFunctionArn:
     Description: ARN of the Milvus insert Lambda
     Value: !GetAtt MilvusInsertFunction.Arn
+  MilvusDeleteFunctionArn:
+    Description: ARN of the Milvus delete Lambda
+    Value: !GetAtt MilvusDeleteFunction.Arn
+  MilvusUpdateFunctionArn:
+    Description: ARN of the Milvus update Lambda
+    Value: !GetAtt MilvusUpdateFunction.Arn
+  MilvusCreateCollectionFunctionArn:
+    Description: ARN of the Milvus create collection Lambda
+    Value: !GetAtt MilvusCreateCollectionFunction.Arn
+  MilvusDropCollectionFunctionArn:
+    Description: ARN of the Milvus drop collection Lambda
+    Value: !GetAtt MilvusDropCollectionFunction.Arn
   IngestionStateMachineArn:
     Description: ARN of the ingestion Step Function
     Value: !Ref IngestionStateMachine

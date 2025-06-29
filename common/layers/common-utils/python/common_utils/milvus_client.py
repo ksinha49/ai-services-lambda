@@ -159,3 +159,45 @@ class MilvusClient:
             for rec in res
         ]
 
+    def delete(self, ids: Iterable[int]) -> int:
+        """Delete records with matching ``ids`` and return count."""
+
+        id_list = [int(i) for i in ids]
+        if not id_list:
+            return 0
+        res = self.collection.delete(f"id in {id_list}")
+        count = getattr(res, "delete_count", None)
+        return count if count is not None else len(id_list)
+
+    def update(self, items: Iterable[VectorItem]) -> int:
+        """Replace existing records with ``items``."""
+
+        return self.insert(items, upsert=True)
+
+    def create_collection(self, dimension: int = 768) -> None:
+        """Create the collection if it does not exist."""
+
+        from pymilvus import FieldSchema, CollectionSchema, DataType
+
+        id_field = FieldSchema(
+            name="id", dtype=DataType.INT64, is_primary=True, auto_id=True
+        )
+        vec_field = FieldSchema(
+            name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dimension
+        )
+        meta_field = FieldSchema(name="metadata", dtype=DataType.JSON)
+        schema = CollectionSchema([id_field, vec_field, meta_field])
+        self.collection = Collection(self.collection_name, schema)
+        if self.index_params:
+            try:  # pragma: no cover - ignore index exists errors
+                self.collection.create_index(
+                    "embedding", self.index_params, index_name="embedding_idx"
+                )
+            except Exception:
+                pass
+
+    def drop_collection(self) -> None:
+        """Drop the current collection."""
+
+        self.collection.drop()
+
