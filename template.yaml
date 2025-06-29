@@ -24,6 +24,13 @@ Resources:
     Properties:
       Location: services/summarization/template.yaml
 
+  ZipProcessingService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/zip-processing/template.yaml
+      Parameters:
+        FileProcessingStepFunctionArn: !GetAtt SummarizationService.Outputs.FileProcessingStepFunctionArn
+
   VectorDBService:
     Type: AWS::Serverless::Application
     Properties:
