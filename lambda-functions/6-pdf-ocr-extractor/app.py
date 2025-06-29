@@ -35,7 +35,12 @@ import fitz  # PyMuPDF
 import cv2
 import numpy as np
 
-from ocr_module import easyocr
+from ocr_module import (
+    easyocr,
+    _perform_ocr,
+    post_process_text,
+    convert_to_markdown,
+)
 
 __author__ = "Balakrishna"
 __version__ = "1.0.0"
@@ -90,11 +95,17 @@ def _rasterize_page(pdf_bytes: bytes, dpi: int) -> np.ndarray | None:
 
 
 def _ocr_image(img: np.ndarray) -> str:
-    """Run OCR on *img* and return the extracted text."""
+    """Run OCR on *img* and return Markdown text."""
+
+    # Encode the image to bytes for the OCR helper
+    ok, encoded = cv2.imencode(".png", img)
+    if not ok:
+        raise ValueError("Failed to encode image for OCR")
 
     reader = easyocr.Reader(["en"], gpu=False)
-    results = reader.readtext(img)
-    return " ".join(r[1] for r in results)
+    text, _ = _perform_ocr(reader, "easyocr", bytes(encoded))
+    text = post_process_text(text)
+    return convert_to_markdown(text, 1)
 
 
 def _handle_record(record: dict) -> None:
