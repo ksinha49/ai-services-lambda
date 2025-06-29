@@ -77,6 +77,7 @@ def external_stubs():
         def ocr(self, img):
             return [([[0,0],[1,0],[1,1],[0,1]], ("pd", 0.8))]
     _stub_module("paddleocr", {"PaddleOCR": DummyPaddle})
+    _stub_module("httpx", {"post": lambda *a, **k: types.SimpleNamespace(json=lambda: {}, raise_for_status=lambda: None)})
     _stub_module(
         "ocr_module",
         {

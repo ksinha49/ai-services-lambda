@@ -22,8 +22,10 @@ Environment variables
 ``DPI``
     Rasterisation resolution for PyMuPDF. Defaults to ``300``.
 ``OCR_ENGINE``
-    OCR engine to use, either ``"easyocr"`` or ``"paddleocr"``. Defaults to
+    OCR engine to use, ``"easyocr"``, ``"paddleocr"`` or ``"trocr"``. Defaults to
     ``"easyocr"``.
+``TROCR_ENDPOINT``
+    HTTP endpoint for the TrOCR engine when ``OCR_ENGINE`` is ``"trocr"``.
 """
 
 from __future__ import annotations
@@ -65,6 +67,7 @@ BUCKET_NAME = os.environ.get("BUCKET_NAME")
 PDF_SCAN_PAGE_PREFIX = os.environ.get("PDF_SCAN_PAGE_PREFIX", "scan-pages/")
 TEXT_PAGE_PREFIX = os.environ.get("TEXT_PAGE_PREFIX", "text-pages/")
 OCR_ENGINE = os.environ.get("OCR_ENGINE", "easyocr").lower()
+TROCR_ENDPOINT = os.environ.get("TROCR_ENDPOINT")
 
 for name in ("PDF_SCAN_PAGE_PREFIX", "TEXT_PAGE_PREFIX"):
     val = globals()[name]
@@ -110,6 +113,8 @@ def _ocr_image(img: np.ndarray) -> str:
     engine = OCR_ENGINE
     if engine == "paddleocr":
         reader = PaddleOCR()
+    elif engine == "trocr":
+        reader = None
     else:
         reader = easyocr.Reader(["en"], gpu=False)
         engine = "easyocr"

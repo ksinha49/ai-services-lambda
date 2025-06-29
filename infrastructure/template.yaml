@@ -36,6 +36,9 @@ Parameters:
   OCR_ENGINE:
     Type: String
     Default: easyocr
+  TROCR_ENDPOINT:
+    Type: String
+    Default: ''
 
 Globals:
   Function:
@@ -181,6 +184,7 @@ Resources:
       Environment:
         Variables:
           OCR_ENGINE: !Ref OCR_ENGINE
+          TROCR_ENDPOINT: !Ref TROCR_ENDPOINT
       Events:
         FromTextExtractor:
           Type: S3

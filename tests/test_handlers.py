@@ -71,6 +71,32 @@ def test_pdf_ocr_extractor(monkeypatch, s3_stub, validate_schema):
     validate_schema(schema)
 
 
+def test_pdf_ocr_extractor_trocr(monkeypatch, s3_stub, validate_schema):
+    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    monkeypatch.setenv('PDF_SCAN_PAGE_PREFIX', 'scan-pages/')
+    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
+    monkeypatch.setenv('OCR_ENGINE', 'trocr')
+    monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
+    module = load_lambda('ocr_trocr', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+
+    s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
+
+    monkeypatch.setattr(module, '_rasterize_page', lambda b, dpi: object())
+    called = {}
+    def fake(reader, engine, img):
+        called['engine'] = engine
+        return 'ocr', 0.9
+    monkeypatch.setattr(module, '_perform_ocr', fake)
+
+    event = {'Records': [{'s3': {'bucket': {'name': 'bucket'}, 'object': {'key': 'scan-pages/doc1/page_001.pdf'}}}]}
+    module.lambda_handler(event, {})
+
+    md = s3_stub.objects[('bucket', 'text-pages/doc1/page_001.md')].decode()
+    assert called['engine'] == 'trocr'
+    schema = {'documentId': 'doc1', 'pageNumber': 1, 'content': md}
+    validate_schema(schema)
+
+
 def test_combine(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
     monkeypatch.setenv('PDF_PAGE_PREFIX', 'pdf-pages/')
@@ -150,6 +176,19 @@ def test_ocr_image_engines(monkeypatch):
     assert called['engine'] == 'paddleocr'
     assert called['cls'] == 'DummyPaddle'
 
+    monkeypatch.setenv('OCR_ENGINE', 'trocr')
+    monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
+    module = load_lambda('ocr_trocr_engine', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    called = {}
+    def fake3(r, e, b):
+        called['engine'] = e
+        called['ctx'] = r
+        return 't', 0
+    monkeypatch.setattr(module, '_perform_ocr', fake3)
+    module._ocr_image(object())
+    assert called['engine'] == 'trocr'
+    assert called['ctx'] is None
+
 
 def test_perform_ocr(monkeypatch):
     import types, sys, importlib.util
@@ -175,6 +214,12 @@ def test_perform_ocr(monkeypatch):
     text, conf = mod._perform_ocr(pd, 'paddleocr', b'1')
     assert text == 'layout'
     assert conf == 0.8
+
+    monkeypatch.setattr(mod, '_remote_trocr', lambda b, url: ('layout', 0.7))
+    monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
+    text, conf = mod._perform_ocr(None, 'trocr', b'1')
+    assert text == 'layout'
+    assert conf == 0.7
 
     with pytest.raises(ValueError):
         mod._perform_ocr(reader, 'other', b'1')
