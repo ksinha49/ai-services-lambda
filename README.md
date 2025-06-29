@@ -113,9 +113,12 @@ Configure each Lambda function’s environment variables via AWS Console or CLI:
 - S3_BUCKET_NAME
 - VECTOR_DB_ENDPOINT
 - DOCLING_ENDPOINT
+- TROCR_ENDPOINT
 
 Set ``DOCLING_ENDPOINT`` to the HTTP endpoint of your Docling EC2 service so
 that the ``docling-processor`` Lambda can forward documents for analysis.
+When using the TrOCR OCR engine, ``TROCR_ENDPOINT`` must point to the remote
+TrOCR service URL.
 
 …etc.
 
@@ -158,6 +161,21 @@ This project uses GitHub Actions for CI/CD:
 - Packages each Lambda function
 - Deploys to the configured AWS environment
   - Simply merge your changes into main—the pipeline takes care of the rest.
+
+### Example SAM Deployment
+
+When deploying manually you can point the Lambdas to an EC2 instance running
+the TrOCR or Docling services. Pass the URLs as parameter overrides or
+environment variables:
+
+```bash
+sam deploy \
+  --parameter-overrides TROCR_ENDPOINT=http://<EC2-IP>:8000/trocr \
+  --stack-name ai-services
+```
+
+Set ``DOCLING_ENDPOINT`` in the console or via `sam deploy` to the Docling
+service URL, e.g. ``http://<EC2-IP>:8001``.
 
 ## Documentation
 
