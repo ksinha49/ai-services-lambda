@@ -3,3 +3,4 @@ EasyOCR
 torch
 opencv-python-headless
 numpy
+paddleocr

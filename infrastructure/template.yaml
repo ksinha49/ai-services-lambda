@@ -33,6 +33,9 @@ Parameters:
   OUTPUT_PREFIX:
     Type: String
     Default: output/
+  OCR_ENGINE:
+    Type: String
+    Default: easyocr
 
 Globals:
   Function:
@@ -53,6 +56,7 @@ Globals:
         OCR_PREFIX: !Ref OCR_PREFIX
         COMBINE_PREFIX: !Ref COMBINE_PREFIX
         OUTPUT_PREFIX: !Ref OUTPUT_PREFIX
+        OCR_ENGINE: !Ref OCR_ENGINE
 
 Resources:
   LambdaExecutionRole:
@@ -174,6 +178,9 @@ Resources:
       CodeUri: ../lambdas/6-pdf-ocr-extractor/
       Layers:
         - !Ref OCRLayer
+      Environment:
+        Variables:
+          OCR_ENGINE: !Ref OCR_ENGINE
       Events:
         FromTextExtractor:
           Type: S3
