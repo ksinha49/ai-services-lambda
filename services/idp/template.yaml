@@ -93,7 +93,7 @@ Resources:
     Properties:
       LayerName: ocr-layer
       Description: OCR layer with PyMuPDF and EasyOCR
-      ContentUri: ../layers/ocr_layer/
+      ContentUri: ../../common/layers/ocr_layer/
       CompatibleRuntimes:
         - python3.13
       RetentionPolicy: Delete
@@ -101,7 +101,7 @@ Resources:
   ClassifierFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/1-classifier/
+      CodeUri: ./1-classifier/
       Events:
         RawUpload:
           Type: S3
@@ -117,7 +117,7 @@ Resources:
   OfficeExtractorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/2-office-extractor/
+      CodeUri: ./2-office-extractor/
       Events:
         FromClassifier:
           Type: S3
@@ -133,7 +133,7 @@ Resources:
   PdfSplitFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/3-pdf-split/
+      CodeUri: ./3-pdf-split/
       Events:
         FromOffice:
           Type: S3
@@ -149,7 +149,7 @@ Resources:
   PdfPageClassifierFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/4-pdf-page-classifier/
+      CodeUri: ./4-pdf-page-classifier/
       Events:
         FromSplit:
           Type: S3
@@ -165,7 +165,7 @@ Resources:
   PdfTextExtractorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/5-pdf-text-extractor/
+      CodeUri: ./5-pdf-text-extractor/
       Events:
         FromPageClassifier:
           Type: S3
@@ -181,7 +181,7 @@ Resources:
   PdfOcrExtractorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/6-pdf-ocr-extractor/
+      CodeUri: ./6-pdf-ocr-extractor/
       Layers:
         - !Ref OCRLayer
       Environment:
@@ -204,7 +204,7 @@ Resources:
   CombineFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/7-combine/
+      CodeUri: ./7-combine/
       Events:
         FromOcr:
           Type: S3
@@ -220,7 +220,7 @@ Resources:
   OutputFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../lambdas/8-output/
+      CodeUri: ./8-output/
       Events:
         FromCombine:
           Type: S3
