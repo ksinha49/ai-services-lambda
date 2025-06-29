@@ -97,6 +97,32 @@ def test_pdf_ocr_extractor_trocr(monkeypatch, s3_stub, validate_schema):
     validate_schema(schema)
 
 
+def test_pdf_ocr_extractor_docling(monkeypatch, s3_stub, validate_schema):
+    monkeypatch.setenv('BUCKET_NAME', 'bucket')
+    monkeypatch.setenv('PDF_SCAN_PAGE_PREFIX', 'scan-pages/')
+    monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
+    monkeypatch.setenv('OCR_ENGINE', 'docling')
+    monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
+    module = load_lambda('ocr_docling', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+
+    s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
+
+    monkeypatch.setattr(module, '_rasterize_page', lambda b, dpi: object())
+    called = {}
+    def fake(reader, engine, img):
+        called['engine'] = engine
+        return 'ocr', 0.9
+    monkeypatch.setattr(module, '_perform_ocr', fake)
+
+    event = {'Records': [{'s3': {'bucket': {'name': 'bucket'}, 'object': {'key': 'scan-pages/doc1/page_001.pdf'}}}]}
+    module.lambda_handler(event, {})
+
+    md = s3_stub.objects[('bucket', 'text-pages/doc1/page_001.md')].decode()
+    assert called['engine'] == 'docling'
+    schema = {'documentId': 'doc1', 'pageNumber': 1, 'content': md}
+    validate_schema(schema)
+
+
 def test_combine(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
     monkeypatch.setenv('PDF_PAGE_PREFIX', 'pdf-pages/')
@@ -189,6 +215,19 @@ def test_ocr_image_engines(monkeypatch):
     assert called['engine'] == 'trocr'
     assert called['ctx'] is None
 
+    monkeypatch.setenv('OCR_ENGINE', 'docling')
+    monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
+    module = load_lambda('ocr_docling_engine', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    called = {}
+    def fake4(r, e, b):
+        called['engine'] = e
+        called['ctx'] = r
+        return 't', 0
+    monkeypatch.setattr(module, '_perform_ocr', fake4)
+    module._ocr_image(object())
+    assert called['engine'] == 'docling'
+    assert called['ctx'] is None
+
 
 def test_perform_ocr(monkeypatch):
     import types, sys, importlib.util
@@ -220,6 +259,12 @@ def test_perform_ocr(monkeypatch):
     text, conf = mod._perform_ocr(None, 'trocr', b'1')
     assert text == 'layout'
     assert conf == 0.7
+
+    monkeypatch.setattr(mod, '_remote_docling', lambda b, url: ('layout', 0.6))
+    monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
+    text, conf = mod._perform_ocr(None, 'docling', b'1')
+    assert text == 'layout'
+    assert conf == 0.6
 
     with pytest.raises(ValueError):
         mod._perform_ocr(reader, 'other', b'1')
