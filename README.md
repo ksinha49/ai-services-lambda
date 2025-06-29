@@ -212,6 +212,17 @@ each chunk's metadata so the function can select the appropriate model. Example:
 }
 ```
 
+### Deploying the RAG Retrieval Service
+Deploy the retrieval Lambdas separately. Provide the same Milvus connection
+details as well as the optional API endpoints for summarization and extraction:
+
+```bash
+sam deploy \
+  --template-file services/rag-retrieval/template.yaml \
+  --stack-name rag-retrieval \
+  --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
+```
+
 ## Documentation
 
 For details on how extracted text should be structured, see [docs/idp_output_format.md](docs/idp_output_format.md).
