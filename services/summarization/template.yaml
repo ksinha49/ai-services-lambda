@@ -60,6 +60,10 @@ Parameters:
     Default: raw/
     Description: RAW prefix within the IDP bucket
 
+  IngestionStateMachineArn:
+    Type: String
+    Description: ARN of the RAG ingestion Step Function
+
 Resources:
   # Layers - each defined separately
   FileAssembleLambdaLayer:
@@ -219,8 +223,8 @@ Resources:
       Runtime: python3.13
       CodeUri: ./file-processing-status-lambda/
       Role: !Ref LambdaIAMRoleARN
-      MemorySize: 1024                
-      Timeout: 480                      
+      MemorySize: 1024
+      Timeout: 480
       EphemeralStorage:
         Size: 2068  
       Layers:
@@ -235,6 +239,25 @@ Resources:
       Environment:
         Variables:
           AWS_ACCOUNT_NAME: !Ref AWSAccountName
+          INGESTION_STATE_MACHINE_ARN: !Ref IngestionStateMachineArn
+
+  FileProcessingStatusLambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWSAccountName}-${AWS::StackName}-file-processing-status'
+      Roles:
+        - !Select [1, !Split ['/', !Ref LambdaIAMRoleARN]]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub 'arn:aws:s3:::${IDPBucketName}/*'
+          - Effect: Allow
+            Action:
+              - states:StartExecution
+            Resource: !Ref IngestionStateMachineArn
 
   FileSummaryLambdaFunction:
     Type: AWS::Serverless::Function
