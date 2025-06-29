@@ -15,7 +15,7 @@ def test_office_extractor(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
     monkeypatch.setenv('OFFICE_PREFIX', 'office-docs/')
     monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
-    module = load_lambda('office', 'lambda-functions/2-office-extractor/app.py')
+    module = load_lambda('office', 'services/idp/2-office-extractor/app.py')
 
     s3_stub.objects[('bucket', 'office-docs/test.docx')] = b'data'
 
@@ -38,7 +38,7 @@ def test_pdf_text_extractor(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
     monkeypatch.setenv('PDF_TEXT_PAGE_PREFIX', 'text-pages/')
     monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
-    module = load_lambda('pdf_text', 'lambda-functions/5-pdf-text-extractor/app.py')
+    module = load_lambda('pdf_text', 'services/idp/5-pdf-text-extractor/app.py')
 
     s3_stub.objects[('bucket', 'text-pages/doc1/page_001.pdf')] = b'data'
 
@@ -56,7 +56,7 @@ def test_pdf_ocr_extractor(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
     monkeypatch.setenv('PDF_SCAN_PAGE_PREFIX', 'scan-pages/')
     monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
-    module = load_lambda('ocr', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr', 'services/idp/6-pdf-ocr-extractor/app.py')
 
     s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
 
@@ -77,7 +77,7 @@ def test_pdf_ocr_extractor_trocr(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
     monkeypatch.setenv('OCR_ENGINE', 'trocr')
     monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
-    module = load_lambda('ocr_trocr', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr_trocr', 'services/idp/6-pdf-ocr-extractor/app.py')
 
     s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
 
@@ -103,7 +103,7 @@ def test_pdf_ocr_extractor_docling(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
     monkeypatch.setenv('OCR_ENGINE', 'docling')
     monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
-    module = load_lambda('ocr_docling', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr_docling', 'services/idp/6-pdf-ocr-extractor/app.py')
 
     s3_stub.objects[('bucket', 'scan-pages/doc1/page_001.pdf')] = b'data'
 
@@ -128,7 +128,7 @@ def test_combine(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('PDF_PAGE_PREFIX', 'pdf-pages/')
     monkeypatch.setenv('TEXT_PAGE_PREFIX', 'text-pages/')
     monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
-    module = load_lambda('combine', 'lambda-functions/7-combine/app.py')
+    module = load_lambda('combine', 'services/idp/7-combine/app.py')
 
     s3_stub.objects[('bucket', 'pdf-pages/doc1/manifest.json')] = json.dumps({'documentId': 'doc1', 'pages': 2}).encode()
     s3_stub.objects[('bucket', 'text-pages/doc1/page_001.md')] = b'## Page 1\n\none\n'
@@ -149,7 +149,7 @@ def test_output(monkeypatch, s3_stub, validate_schema):
     monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
     monkeypatch.setenv('EDI_SEARCH_API_URL', 'http://example')
     monkeypatch.setenv('EDI_SEARCH_API_KEY', 'key')
-    module = load_lambda('output', 'lambda-functions/8-output/app.py')
+    module = load_lambda('output', 'services/idp/8-output/app.py')
 
     payload = {'documentId': 'doc1', 'type': 'pdf', 'pageCount': 1, 'pages': ['## Page 1\n\nhi\n']}
     s3_stub.objects[('bucket', 'text-docs/doc1.json')] = json.dumps(payload).encode()
@@ -169,7 +169,7 @@ def test_output(monkeypatch, s3_stub, validate_schema):
 def test_ocr_image_engines(monkeypatch):
     monkeypatch.setenv('OCR_ENGINE', 'easyocr')
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    module = load_lambda('ocr_easy', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr_easy', 'services/idp/6-pdf-ocr-extractor/app.py')
     module.easyocr = __import__('easyocr')
     called = {}
     def fake(r, e, b):
@@ -190,7 +190,7 @@ def test_ocr_image_engines(monkeypatch):
 
     monkeypatch.setenv('OCR_ENGINE', 'paddleocr')
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
-    module = load_lambda('ocr_paddle', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr_paddle', 'services/idp/6-pdf-ocr-extractor/app.py')
     module.easyocr = __import__('easyocr')
     called = {}
     def fake2(r, e, b):
@@ -204,7 +204,7 @@ def test_ocr_image_engines(monkeypatch):
 
     monkeypatch.setenv('OCR_ENGINE', 'trocr')
     monkeypatch.setenv('TROCR_ENDPOINT', 'http://example')
-    module = load_lambda('ocr_trocr_engine', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr_trocr_engine', 'services/idp/6-pdf-ocr-extractor/app.py')
     called = {}
     def fake3(r, e, b):
         called['engine'] = e
@@ -217,7 +217,7 @@ def test_ocr_image_engines(monkeypatch):
 
     monkeypatch.setenv('OCR_ENGINE', 'docling')
     monkeypatch.setenv('DOCLING_ENDPOINT', 'http://example')
-    module = load_lambda('ocr_docling_engine', 'lambda-functions/6-pdf-ocr-extractor/app.py')
+    module = load_lambda('ocr_docling_engine', 'services/idp/6-pdf-ocr-extractor/app.py')
     called = {}
     def fake4(r, e, b):
         called['engine'] = e
@@ -239,7 +239,7 @@ def test_perform_ocr(monkeypatch):
     sys.modules['paddleocr'] = types.ModuleType('paddleocr')
     sys.modules['paddleocr'].PaddleOCR = DummyPaddle
 
-    mod = load_lambda('ocr_real', 'layers/ocr_layer/python/ocr_module.py')
+    mod = load_lambda('ocr_real', 'common/layers/ocr_layer/python/ocr_module.py')
     monkeypatch.setattr(mod, 'preprocess_image_cv2', lambda b: 'img')
     monkeypatch.setattr(mod, '_results_to_layout_text', lambda res: 'layout')
     monkeypatch.setattr(mod.np, 'mean', lambda x: sum(x)/len(x))
@@ -274,7 +274,7 @@ def test_docling_processor(monkeypatch, s3_stub):
     monkeypatch.setenv('BUCKET_NAME', 'bucket')
     monkeypatch.setenv('TEXT_DOC_PREFIX', 'text-docs/')
     monkeypatch.setenv('DOCLING_ENDPOINT', 'http://docling')
-    module = load_lambda('docling', 'lambda-functions/docling-processor/app.py')
+    module = load_lambda('docling', 'services/summarization/docling-processor/app.py')
 
     s3_stub.objects[('bucket', 'text-docs/doc1.json')] = b'data'
 
