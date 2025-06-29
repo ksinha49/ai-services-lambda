@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------------------
 # app.py
 # ------------------------------------------------------------------------------
+
 """PDF page splitting Lambda.
 
 This function is triggered by S3 events for objects uploaded under
@@ -30,9 +31,9 @@ from typing import Iterable
 import boto3
 from PyPDF2 import PdfReader, PdfWriter
 
-__author__ = "Balakrishna"
+__author__ = "Koushik Sinha"
 __version__ = "1.0.0"
-__modified_by__ = "Koushik Sinha"
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -48,6 +49,7 @@ BUCKET_NAME = os.environ.get("BUCKET_NAME")
 PDF_RAW_PREFIX = os.environ.get("PDF_RAW_PREFIX", "")
 PDF_PAGE_PREFIX = os.environ.get("PDF_PAGE_PREFIX", "pdf-pages/")
 
+
 # Normalise prefixes to always end with '/'
 for name in ("PDF_RAW_PREFIX", "PDF_PAGE_PREFIX"):
     val = globals()[name]
@@ -60,6 +62,7 @@ if not BUCKET_NAME:
 
 def _iter_records(event: dict) -> Iterable[dict]:
     """Yield S3 event records from the Lambda event."""
+
     for record in event.get("Records", []):
         yield record
 
