@@ -1,5 +1,14 @@
+# ---------------------------------------------------------------------------
+# app.py
+# ---------------------------------------------------------------------------
+"""Perform hybrid keyword and vector search against Milvus."""
+
+from __future__ import annotations
+
 import os
 import logging
+from typing import Any, Dict, List
+
 from pymilvus import Collection, connections
 
 from common_utils.get_ssm import get_config
@@ -21,12 +30,18 @@ connections.connect(alias="default", host=HOST, port=PORT)
 collection = Collection(COLLECTION_NAME)
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """Search Milvus using a vector embedding and optional keywords."""
+
     embedding = event.get("embedding")
-    keywords = event.get("keywords", [])
-    res = collection.search([
-        embedding
-    ], "embedding", {"metric_type": "L2"}, limit=TOP_K, output_fields=["metadata"])
+    keywords: List[str] = event.get("keywords", [])
+    res = collection.search(
+        [embedding],
+        "embedding",
+        {"metric_type": "L2"},
+        limit=TOP_K,
+        output_fields=["metadata"],
+    )
     matches = [
         {"id": r.id, "score": r.distance, "metadata": r.entity.get("metadata")}
         for r in res[0]
@@ -38,4 +53,6 @@ def lambda_handler(event, context):
             if any(k.lower() in text for k in keywords):
                 filtered.append(m)
         matches = filtered
+
     return {"matches": matches[:TOP_K]}
+
