@@ -33,6 +33,9 @@ Parameters:
   OUTPUT_PREFIX:
     Type: String
     Default: output/
+  TEXT_DOC_PREFIX:
+    Type: String
+    Default: text-docs/
   OCR_ENGINE:
     Type: String
     Default: easyocr
@@ -62,6 +65,7 @@ Globals:
         OCR_PREFIX: !Ref OCR_PREFIX
         COMBINE_PREFIX: !Ref COMBINE_PREFIX
         OUTPUT_PREFIX: !Ref OUTPUT_PREFIX
+        TEXT_DOC_PREFIX: !Ref TEXT_DOC_PREFIX
         OCR_ENGINE: !Ref OCR_ENGINE
 
 Resources:
@@ -261,4 +265,10 @@ Outputs:
   OCRLayerArn:
     Description: ARN of the OCR shared layer
     Value: !Ref OCRLayer
+  BucketName:
+    Description: Input and output S3 bucket
+    Value: !Ref BUCKET_NAME
+  TextDocPrefix:
+    Description: Prefix for combined text documents
+    Value: !Ref TEXT_DOC_PREFIX
 

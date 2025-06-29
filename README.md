@@ -184,7 +184,12 @@ Set ``DOCLING_ENDPOINT`` in the console or via `sam deploy` to the Docling
 service URL, e.g. ``http://<EC2-IP>:8001``.
 
 ### Deploying the RAG Ingestion Service
-Deploy the RAG stack separately and provide Milvus connection details:
+The ingestion stack now includes a Step Function that orchestrates `TextChunkFunction`,
+`EmbedFunction`, and `MilvusInsertFunction`. New JSON documents emitted by the
+IDP pipeline under `TEXT_DOC_PREFIX` trigger this state machine automatically.
+The root template passes the IDP bucket name and prefix to the stack, so only
+the Milvus parameters are required at deploy time.
+Deploy the RAG stack and provide Milvus connection details:
 
 ```bash
 sam deploy \
@@ -192,6 +197,8 @@ sam deploy \
   --stack-name rag-ingestion \
   --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
 ```
+If deploying the template by itself, also pass `BucketName` and `TextDocPrefix`
+to match your IDP stack.
 
 Configure ``CHUNK_SIZE``, ``CHUNK_OVERLAP`` and ``EMBED_MODEL`` via environment
 variables or Parameter Store as needed. ``EMBED_MODEL`` specifies the default
