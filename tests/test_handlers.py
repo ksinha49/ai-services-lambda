@@ -313,7 +313,7 @@ def test_docling_processor(monkeypatch, s3_stub):
 
 
 def test_embed_model_map_event(monkeypatch, config):
-    monkeypatch.setenv('EMBED_MODEL', 'dummy')
+    monkeypatch.setenv('EMBED_MODEL', 'sbert')
     monkeypatch.setenv('EMBED_MODEL_MAP', '{"pdf": "openai"}')
     config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
     module = load_lambda('embed_event', 'services/rag-ingestion/embed-lambda/app.py')
@@ -324,7 +324,7 @@ def test_embed_model_map_event(monkeypatch, config):
 
 
 def test_embed_model_map_chunk(monkeypatch, config):
-    monkeypatch.setenv('EMBED_MODEL', 'dummy')
+    monkeypatch.setenv('EMBED_MODEL', 'sbert')
     monkeypatch.setenv('EMBED_MODEL_MAP', '{"pptx": "cohere"}')
     config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
     module = load_lambda('embed_chunk', 'services/rag-ingestion/embed-lambda/app.py')

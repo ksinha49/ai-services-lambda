@@ -21,7 +21,7 @@ _handler.setFormatter(
 )
 logger.addHandler(_handler)
 
-EMBED_MODEL = get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "dummy")
+EMBED_MODEL = get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "sbert")
 _MAP_RAW = get_config("EMBED_MODEL_MAP") or os.environ.get("EMBED_MODEL_MAP", "{}")
 try:
     EMBED_MODEL_MAP = json.loads(_MAP_RAW) if _MAP_RAW else {}
@@ -29,10 +29,32 @@ except json.JSONDecodeError:
     EMBED_MODEL_MAP = {}
 
 
-def _dummy_embed(text: str) -> List[float]:
-    """Return a deterministic embedding for testing."""
+_SBERT_MODEL = None
 
-    return [float(ord(c) % 5) for c in text]
+
+def _sbert_embed(text: str) -> List[float]:
+    """Embed ``text`` using a SentenceTransformer model."""
+
+    global _SBERT_MODEL
+    if _SBERT_MODEL is None:
+        model_path = (
+            get_config("SBERT_MODEL")
+            or os.environ.get("SBERT_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        )
+        if model_path.startswith("s3://"):
+            import boto3
+            from common_utils import parse_s3_uri
+
+            bucket, key = parse_s3_uri(model_path)
+            dest = os.path.join("/tmp", os.path.basename(key))
+            boto3.client("s3").download_file(bucket, key, dest)
+            model_path = dest
+
+        from sentence_transformers import SentenceTransformer  # type: ignore
+
+        _SBERT_MODEL = SentenceTransformer(model_path)
+
+    return _SBERT_MODEL.encode([text])[0].tolist()
 
 
 def _openai_embed(text: str) -> List[float]:
@@ -40,7 +62,9 @@ def _openai_embed(text: str) -> List[float]:
 
     import openai  # type: ignore
 
-    model = os.environ.get("OPENAI_EMBED_MODEL", "text-embedding-ada-002")
+    model = get_config("OPENAI_EMBED_MODEL") or os.environ.get(
+        "OPENAI_EMBED_MODEL", "text-embedding-ada-002"
+    )
     resp = openai.Embedding.create(input=[text], model=model)
     return resp["data"][0]["embedding"]
 
@@ -50,14 +74,15 @@ def _cohere_embed(text: str) -> List[float]:
 
     import cohere  # type: ignore
 
-    api_key = os.environ.get("COHERE_API_KEY")
+    api_key = get_config("COHERE_API_KEY", decrypt=True) or os.environ.get("COHERE_API_KEY")
     client = cohere.Client(api_key)
     resp = client.embed([text])
     return resp.embeddings[0]
 
 
 _MODEL_MAP = {
-    "dummy": _dummy_embed,
+    "sbert": _sbert_embed,
+    "sentence": _sbert_embed,
     "openai": _openai_embed,
     "cohere": _cohere_embed,
 }
@@ -77,7 +102,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             meta = chunk.get("metadata", {})
             c_type = meta.get("docType") or meta.get("type") or c_type
         model_name = EMBED_MODEL_MAP.get(c_type, EMBED_MODEL)
-        embed_fn = _MODEL_MAP.get(model_name, _dummy_embed)
+        embed_fn = _MODEL_MAP.get(model_name, _sbert_embed)
         embeddings.append(embed_fn(text))
 
     return {"embeddings": embeddings}
