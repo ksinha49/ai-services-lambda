@@ -50,9 +50,6 @@ Parameters:
   FileProcessingEmailId:
     Type: String
     Description: IAM role ARN for step functions
-  DOCLING_ENDPOINT:
-    Type: String
-    Default: ''
 
 Resources:
   # Layers - each defined separately
@@ -126,15 +123,6 @@ Resources:
       CompatibleRuntimes:
         - python3.13
 
-  DoclingProcessorLambdaLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-docling-processor-layer'
-      Description: Layer for docling processor Lambda
-      ContentUri: ../../common/layers/docling-processor-lambda-layer/
-      RetentionPolicy: Delete
-      CompatibleRuntimes:
-        - python3.13
 
   # Lambdas - each defined separately
   FileAssembleLambdaFunction:
@@ -317,41 +305,6 @@ Resources:
         Variables:
           AWS_ACCOUNT_NAME: !Ref AWSAccountName
 
-  DoclingProcessorLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-docling-processor'
-      Handler: app.lambda_handler
-      Runtime: python3.13
-      CodeUri: ./docling-processor/
-      Role: !Ref LambdaIAMRoleARN
-      MemorySize: 1024
-      Timeout: 300
-      EphemeralStorage:
-        Size: 2068
-      Layers:
-        - !Ref DoclingProcessorLambdaLayer
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupID1
-          - !Ref LambdaSecurityGroupID2
-        SubnetIds:
-          - !Ref LambdaSubnet1ID
-          - !Ref LambdaSubnet2ID
-      Environment:
-        Variables:
-          AWS_ACCOUNT_NAME: !Ref AWSAccountName
-      Events:
-        TextDocUpload:
-          Type: S3
-          Properties:
-            Bucket: !Ref FileuploadS3bucketName
-            Events: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: prefix
-                    Value: text-docs/
   # SQS Queue for file upload events
   FileUploadFIFOQueue:
     Type: AWS::SQS::Queue
