@@ -6,7 +6,9 @@
 Triggered whenever a page-level text object is written.  Once all page
 outputs exist for a document (as indicated by the ``manifest.json`` from
 ``PDF_PAGE_PREFIX``), the individual page results are merged in page order
-and written to ``TEXT_DOC_PREFIX/{documentId}.json``.
+and written to ``TEXT_DOC_PREFIX/{documentId}.json``.  The payload stores
+the Markdown for each page under the ``pages`` key and includes the total
+``pageCount``.
 
 Environment variables
 ---------------------
@@ -80,32 +82,23 @@ def _load_manifest(doc_id: str) -> dict | None:
 
 
 def _page_key(doc_id: str, page_num: int) -> str | None:
-    """Return the S3 key for page ``page_num`` of ``doc_id`` if it exists."""
+    """Return the Markdown S3 key for page ``page_num`` of ``doc_id`` if it exists."""
 
-    base = f"{TEXT_PAGE_PREFIX}{doc_id}/page_{page_num:03d}"
-    for ext in (".json", ".md"):
-        key = base + ext
-        try:
-            s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
-        except s3_client.exceptions.ClientError as exc:  # pragma: no cover - defensive
-            if exc.response.get("Error", {}).get("Code") == "404":
-                continue
-            raise
-        else:
-            return key
-    return None
+    key = f"{TEXT_PAGE_PREFIX}{doc_id}/page_{page_num:03d}.md"
+    try:
+        s3_client.head_object(Bucket=BUCKET_NAME, Key=key)
+    except s3_client.exceptions.ClientError as exc:  # pragma: no cover - defensive
+        if exc.response.get("Error", {}).get("Code") == "404":
+            return None
+        raise
+    return key
 
 
-def _read_page(key: str):
-    """Return the parsed content for page ``key``."""
+def _read_page(key: str) -> str:
+    """Return the Markdown text for page ``key``."""
 
     obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
     body = obj["Body"].read()
-    if key.endswith(".json"):
-        try:
-            return json.loads(body)
-        except Exception:  # pragma: no cover - defensive
-            return json.loads(body.decode("utf-8"))
     return body.decode("utf-8")
 
 
@@ -127,7 +120,12 @@ def _combine_document(doc_id: str) -> None:
         page_keys.append(key)
 
     pages = [_read_page(k) for k in page_keys]
-    payload = {"documentId": doc_id, "type": "pdf", "pages": pages}
+    payload = {
+        "documentId": doc_id,
+        "type": "pdf",
+        "pageCount": page_count,
+        "pages": pages,
+    }
 
     dest_key = f"{TEXT_DOC_PREFIX}{doc_id}.json"
     s3_client.put_object(
