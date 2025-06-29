@@ -116,18 +116,21 @@ Configure each Lambda function’s environment variables via AWS Console or CLI:
 - TROCR_ENDPOINT
 
 Set ``DOCLING_ENDPOINT`` to the HTTP endpoint of your Docling EC2 service so
-that the ``docling-processor`` Lambda can forward documents for analysis.
+that the ``docling-processor`` Lambda can forward documents for analysis or
+for the ``docling`` OCR engine to perform recognition remotely.
 When using the TrOCR OCR engine, ``TROCR_ENDPOINT`` must point to the remote
 TrOCR service URL.
 
 …etc.
 
 ### OCR Engine Configuration
-The PDF OCR extractor supports EasyOCR, PaddleOCR and a remote TrOCR
-service. Set the ``OCR_ENGINE`` environment variable to ``"easyocr"``
-(default), ``"paddleocr"`` or ``"trocr"``. When using TrOCR, specify the
-endpoint URL via ``TROCR_ENDPOINT``. PaddleOCR may offer better accuracy
-for some documents but increases package size.
+The PDF OCR extractor supports EasyOCR, PaddleOCR, a remote TrOCR
+service and a remote Docling service. Set the ``OCR_ENGINE`` environment
+variable to ``"easyocr"`` (default), ``"paddleocr"``, ``"trocr"`` or
+``"docling"``. When using TrOCR, specify the endpoint URL via
+``TROCR_ENDPOINT``. The Docling engine requires ``DOCLING_ENDPOINT``.  
+PaddleOCR may offer better accuracy for some documents but increases
+package size.
 
 ---
 

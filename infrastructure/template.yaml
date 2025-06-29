@@ -39,6 +39,9 @@ Parameters:
   TROCR_ENDPOINT:
     Type: String
     Default: ''
+  DOCLING_ENDPOINT:
+    Type: String
+    Default: ''
 
 Globals:
   Function:
@@ -185,6 +188,7 @@ Resources:
         Variables:
           OCR_ENGINE: !Ref OCR_ENGINE
           TROCR_ENDPOINT: !Ref TROCR_ENDPOINT
+          DOCLING_ENDPOINT: !Ref DOCLING_ENDPOINT
       Events:
         FromTextExtractor:
           Type: S3

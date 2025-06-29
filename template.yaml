@@ -50,6 +50,9 @@ Parameters:
   FileProcessingEmailId:
     Type: String
     Description: IAM role ARN for step functions
+  DOCLING_ENDPOINT:
+    Type: String
+    Default: ''
 
 Resources:
   # Layers - each defined separately

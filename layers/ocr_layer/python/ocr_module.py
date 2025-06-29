@@ -132,6 +132,17 @@ def _remote_trocr(img_bytes: bytes, url: str) -> tuple[str, float]:
     return text, confidence
 
 
+def _remote_docling(img_bytes: bytes, url: str) -> tuple[str, float]:
+    """Send *img_bytes* to a remote Docling service at *url*."""
+
+    response = httpx.post(url, files={"file": ("image.png", img_bytes, "image/png")})
+    response.raise_for_status()
+    data = response.json()
+    text = data.get("text", "")
+    confidence = float(data.get("confidence", 0.0))
+    return text, confidence
+
+
 def _perform_ocr(ctx, engine: str, img_bytes: bytes) -> tuple[str, float]:
     """Run OCR on *img_bytes* using the specified *engine*."""
 
@@ -168,6 +179,15 @@ def _perform_ocr(ctx, engine: str, img_bytes: bytes) -> tuple[str, float]:
         if not url:
             raise ValueError("TROCR_ENDPOINT not configured")
         return _remote_trocr(img_bytes, url)
+
+    if engine.lower() == "docling":
+        import os
+        url = os.environ.get("DOCLING_ENDPOINT")
+        if ctx and isinstance(ctx, str):
+            url = ctx
+        if not url:
+            raise ValueError("DOCLING_ENDPOINT not configured")
+        return _remote_docling(img_bytes, url)
 
     raise ValueError(f"Unsupported OCR engine: {engine}")
 

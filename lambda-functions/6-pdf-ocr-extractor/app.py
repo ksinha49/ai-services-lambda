@@ -26,6 +26,8 @@ Environment variables
     ``"easyocr"``.
 ``TROCR_ENDPOINT``
     HTTP endpoint for the TrOCR engine when ``OCR_ENGINE`` is ``"trocr"``.
+``DOCLING_ENDPOINT``
+    HTTP endpoint for the Docling engine when ``OCR_ENGINE`` is ``"docling"``.
 """
 
 from __future__ import annotations
@@ -68,6 +70,7 @@ PDF_SCAN_PAGE_PREFIX = os.environ.get("PDF_SCAN_PAGE_PREFIX", "scan-pages/")
 TEXT_PAGE_PREFIX = os.environ.get("TEXT_PAGE_PREFIX", "text-pages/")
 OCR_ENGINE = os.environ.get("OCR_ENGINE", "easyocr").lower()
 TROCR_ENDPOINT = os.environ.get("TROCR_ENDPOINT")
+DOCLING_ENDPOINT = os.environ.get("DOCLING_ENDPOINT")
 
 for name in ("PDF_SCAN_PAGE_PREFIX", "TEXT_PAGE_PREFIX"):
     val = globals()[name]
@@ -113,12 +116,16 @@ def _ocr_image(img: np.ndarray) -> str:
     engine = OCR_ENGINE
     if engine == "paddleocr":
         reader = PaddleOCR()
+        ctx = reader
     elif engine == "trocr":
-        reader = None
+        ctx = None
+    elif engine == "docling":
+        ctx = None
     else:
         reader = easyocr.Reader(["en"], gpu=False)
+        ctx = reader
         engine = "easyocr"
-    text, _ = _perform_ocr(reader, engine, bytes(encoded))
+    text, _ = _perform_ocr(ctx, engine, bytes(encoded))
     text = post_process_text(text)
     return convert_to_markdown(text, 1)
 
