@@ -24,6 +24,7 @@ import json
 import logging
 import urllib.parse
 import re
+import os
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
@@ -55,6 +56,8 @@ _handler.setFormatter(logging.Formatter(
 logger.addHandler(_handler)
 
 _s3_client = boto3.client("s3")
+_lambda_client = boto3.client("lambda")
+RAG_SUMMARY_FUNCTION_ARN = os.environ.get("RAG_SUMMARY_FUNCTION_ARN")
 
 def get_token() -> Dict[str, Any]:
     """
@@ -423,30 +426,23 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"statusCode": 500, "statusMessage": msg}
 
     try:
-        token = get_token()
-        if not token:
-            raise ValueError("access_token missing in token response")
-
         prompts = read_prompts_from_json(USER_PROMPTS_PATH)
         if prompts is None:
             raise RuntimeError("Unable to read prompts")
-        
-        system_msg = read_prompts_from_json(SYSTEM_PROMPT_PATH)
-        if not system_msg:
-            raise RuntimeError("Unable to load system prompt from JSON")
-        system_prompt = None
-        system_prompt = system_msg.get("system_prompt","")
+
         summaries: List[str] = []
-        model = get_values_from_ssm(
-            f"{get_environment_prefix()}/AMERITAS_CHAT_SUMMARY_MODEL"
-        ) or ""
         for p in prompts:
             raw_query = p.get("query", "")
             title = p.get("Title", "")
-            resp = chat_with_collection(token, model, raw_query, system_prompt, event_body["collection_name"])
-            for choice in resp.get("choices", []):
+            resp = _lambda_client.invoke(
+                FunctionName=RAG_SUMMARY_FUNCTION_ARN,
+                Payload=json.dumps({"query": raw_query}).encode("utf-8"),
+            )
+            payload = json.loads(resp["Payload"].read())
+            summary_json = payload.get("summary", payload)
+            for choice in summary_json.get("choices", []):
                 content = choice.get("message", {}).get("content", "")
-                summaries.append((title,content))
+                summaries.append((title, content))
 
         # Build, merge, and upload PDFs
         summary_buf = create_summary_pdf(summaries)

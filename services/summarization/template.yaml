@@ -64,6 +64,10 @@ Parameters:
     Type: String
     Description: ARN of the RAG ingestion Step Function
 
+  RagSummaryFunctionArn:
+    Type: String
+    Description: ARN of the RAG retrieval summary Lambda
+
 Resources:
   # Layers - each defined separately
   FileAssembleLambdaLayer:
@@ -135,14 +139,14 @@ Resources:
         - !Ref FileAssembleLambdaLayer
       VpcConfig:
         SecurityGroupIds:
-          - !Ref LambdaSecurityGroupID1 
+          - !Ref LambdaSecurityGroupID1
           - !Ref LambdaSecurityGroupID2
         SubnetIds:
           - !Ref LambdaSubnet1ID
           - !Ref LambdaSubnet2ID
-      Environment:
-        Variables:
-          AWS_ACCOUNT_NAME: !Ref AWSAccountName
+        Environment:
+          Variables:
+            AWS_ACCOUNT_NAME: !Ref AWSAccountName
 
   FileClassificationLambdaFunction:
     Type: AWS::Serverless::Function
@@ -195,11 +199,11 @@ Resources:
         SubnetIds:
           - !Ref LambdaSubnet1ID
           - !Ref LambdaSubnet2ID
-      Environment:
-        Variables:
-          AWS_ACCOUNT_NAME: !Ref AWSAccountName
-          IDP_BUCKET: !Ref IDPBucketName
-          RAW_PREFIX: !Ref IDPRawPrefix
+        Environment:
+          Variables:
+            AWS_ACCOUNT_NAME: !Ref AWSAccountName
+            IDP_BUCKET: !Ref IDPBucketName
+            RAW_PREFIX: !Ref IDPRawPrefix
 
   FileProcessingLambdaS3Policy:
     Type: AWS::IAM::Policy
@@ -259,6 +263,20 @@ Resources:
               - states:StartExecution
             Resource: !Ref IngestionStateMachineArn
 
+  FileSummaryInvokePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWSAccountName}-${AWS::StackName}-file-summary-invoke'
+      Roles:
+        - !Select [1, !Split ['/', !Ref LambdaIAMRoleARN]]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: !Ref RagSummaryFunctionArn
+
   FileSummaryLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -283,6 +301,7 @@ Resources:
       Environment:
         Variables:
           AWS_ACCOUNT_NAME: !Ref AWSAccountName
+          RAG_SUMMARY_FUNCTION_ARN: !Ref RagSummaryFunctionArn
 
 
   # SQS Queue for file upload events
