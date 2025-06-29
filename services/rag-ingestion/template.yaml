@@ -40,3 +40,14 @@ Resources:
           MILVUS_HOST: !Ref MilvusHost
           MILVUS_PORT: !Ref MilvusPort
           MILVUS_COLLECTION: !Ref MilvusCollection
+
+Outputs:
+  TextChunkFunctionArn:
+    Description: ARN of the text chunk Lambda
+    Value: !GetAtt TextChunkFunction.Arn
+  EmbedFunctionArn:
+    Description: ARN of the embed Lambda
+    Value: !GetAtt EmbedFunction.Arn
+  MilvusInsertFunctionArn:
+    Description: ARN of the Milvus insert Lambda
+    Value: !GetAtt MilvusInsertFunction.Arn
