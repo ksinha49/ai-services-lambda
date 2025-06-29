@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambdas for RAG retrieval.
+
+Parameters:
+  MilvusHost:
+    Type: String
+    Default: localhost
+  MilvusPort:
+    Type: Number
+    Default: 19530
+  MilvusCollection:
+    Type: String
+    Default: docs
+  SummaryEndpoint:
+    Type: String
+    Default: ''
+  ContentEndpoint:
+    Type: String
+    Default: ''
+  EntitiesEndpoint:
+    Type: String
+    Default: ''
+
+Globals:
+  Function:
+    Handler: app.lambda_handler
+    Runtime: python3.13
+    Timeout: 60
+    MemorySize: 512
+
+Resources:
+  VectorSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./vector-search-lambda/
+      Environment:
+        Variables:
+          MILVUS_HOST: !Ref MilvusHost
+          MILVUS_PORT: !Ref MilvusPort
+          MILVUS_COLLECTION: !Ref MilvusCollection
+
+  HybridSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./hybrid-search-lambda/
+      Environment:
+        Variables:
+          MILVUS_HOST: !Ref MilvusHost
+          MILVUS_PORT: !Ref MilvusPort
+          MILVUS_COLLECTION: !Ref MilvusCollection
+
+  SummarizeWithContextFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./summarize-with-context-lambda/
+      Environment:
+        Variables:
+          VECTOR_SEARCH_FUNCTION: !Ref VectorSearchFunction
+          SUMMARY_ENDPOINT: !Ref SummaryEndpoint
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /summarize
+            Method: post
+
+  ContentExtractionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./extract-content-lambda/
+      Environment:
+        Variables:
+          VECTOR_SEARCH_FUNCTION: !Ref VectorSearchFunction
+          CONTENT_ENDPOINT: !Ref ContentEndpoint
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /extract-content
+            Method: post
+
+  EntityExtractionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./extract-entities-lambda/
+      Environment:
+        Variables:
+          VECTOR_SEARCH_FUNCTION: !Ref VectorSearchFunction
+          ENTITIES_ENDPOINT: !Ref EntitiesEndpoint
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /extract-entities
+            Method: post
+
+Outputs:
+  VectorSearchFunctionArn:
+    Description: ARN of the vector search Lambda
+    Value: !GetAtt VectorSearchFunction.Arn
