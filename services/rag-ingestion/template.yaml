@@ -12,6 +12,11 @@ Parameters:
   MilvusCollection:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /rag/milvus/collection
+  BucketName:
+    Type: String
+  TextDocPrefix:
+    Type: String
+    Default: text-docs/
 
 Globals:
   Function:
@@ -41,6 +46,57 @@ Resources:
           MILVUS_PORT: !Ref MilvusPort
           MILVUS_COLLECTION: !Ref MilvusCollection
 
+  IngestionStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Definition:
+        Comment: Sequential ingestion workflow
+        StartAt: TextChunk
+        States:
+          TextChunk:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt TextChunkFunction.Arn
+              Payload: '{% $states.input %}'
+            Next: Embed
+          Embed:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt EmbedFunction.Arn
+              Payload: '{% $states.input %}'
+            Next: MilvusInsert
+          MilvusInsert:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Output: '{% $states.result.Payload %}'
+            Arguments:
+              FunctionName: !GetAtt MilvusInsertFunction.Arn
+              Payload: '{% $states.input %}'
+            End: true
+        QueryLanguage: JSONata
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TextChunkFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref EmbedFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref MilvusInsertFunction
+      Events:
+        NewTextDoc:
+          Type: S3
+          Properties:
+            Bucket: !Ref BucketName
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: !Ref TextDocPrefix
+
 Outputs:
   TextChunkFunctionArn:
     Description: ARN of the text chunk Lambda
@@ -51,3 +107,6 @@ Outputs:
   MilvusInsertFunctionArn:
     Description: ARN of the Milvus insert Lambda
     Value: !GetAtt MilvusInsertFunction.Arn
+  IngestionStateMachineArn:
+    Description: ARN of the ingestion Step Function
+    Value: !Ref IngestionStateMachine

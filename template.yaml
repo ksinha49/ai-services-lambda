@@ -32,6 +32,8 @@ Resources:
         MilvusHost: !Ref MilvusHost
         MilvusPort: !Ref MilvusPort
         MilvusCollection: !Ref MilvusCollection
+        BucketName: !GetAtt IDPService.Outputs.BucketName
+        TextDocPrefix: !GetAtt IDPService.Outputs.TextDocPrefix
 
   RagRetrievalService:
     Type: AWS::Serverless::Application
