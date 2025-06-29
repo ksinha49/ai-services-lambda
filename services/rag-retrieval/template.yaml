@@ -4,14 +4,14 @@ Description: Lambdas for RAG retrieval.
 
 Parameters:
   MilvusHost:
-    Type: String
-    Default: localhost
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/milvus/host
   MilvusPort:
-    Type: Number
-    Default: 19530
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/milvus/port
   MilvusCollection:
-    Type: String
-    Default: docs
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/milvus/collection
   SummaryEndpoint:
     Type: String
     Default: ''
