@@ -4,6 +4,7 @@ from statistics import median
 
 import fitz  # PyMuPDF
 import easyocr
+from paddleocr import PaddleOCR
 import cv2
 import numpy as np
 
@@ -132,6 +133,19 @@ def _perform_ocr(ctx, engine: str, img_bytes: bytes) -> tuple[str, float]:
             return "", 0.0
         text = _results_to_layout_text(results)
         confidences = [float(r[2]) for r in results]
+        return text, float(np.mean(confidences))
+
+    if engine.lower() == "paddleocr":
+        if not isinstance(ctx, PaddleOCR):
+            raise TypeError("ctx must be a PaddleOCR for engine 'paddleocr'")
+        results = ctx.ocr(img)
+        if not results:
+            return "", 0.0
+        converted = []
+        for box, (text, conf) in results:
+            converted.append((box, text, float(conf)))
+        text = _results_to_layout_text(converted)
+        confidences = [float(conf) for _, (_, conf) in results]
         return text, float(np.mean(confidences))
 
     raise ValueError(f"Unsupported OCR engine: {engine}")
