@@ -111,7 +111,7 @@ Configure each Lambda function’s environment variables via AWS Console or CLI:
 
 …etc.
 
-### OCR Engine Configuration
+
 The PDF OCR extractor supports EasyOCR and PaddleOCR. Control which
 engine is used with the ``OCR_ENGINE`` environment variable. Set it to
 ``"easyocr"`` or ``"paddleocr"`` to force a specific engine. Using the

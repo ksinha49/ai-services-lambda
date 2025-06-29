@@ -168,7 +168,6 @@ def test_ocr_image_auto(monkeypatch):
     module._ocr_image(object())
     assert called['engine'] == 'easyocr'
 
-
 def test_perform_ocr(monkeypatch):
     import types, sys, importlib.util
     class DummyPaddle:
