@@ -1,0 +1,161 @@
+"""Simple wrapper around pymilvus Collection for Lambda usage."""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from typing import Any, Iterable, List, Optional
+
+try:  # pragma: no cover - optional dependency
+    from pymilvus import Collection, connections
+except Exception:  # pragma: no cover - allow import without pymilvus
+    Collection = None  # type: ignore
+    connections = None  # type: ignore
+
+
+@dataclass
+class VectorItem:
+    """Embedding with optional ID and metadata."""
+
+    embedding: List[float]
+    metadata: Any
+    id: Optional[int] = None
+
+
+@dataclass
+class SearchResult:
+    """Result item returned from ``search``."""
+
+    id: int
+    score: float
+    metadata: Any
+
+
+@dataclass
+class GetResult:
+    """Record returned from ``get``."""
+
+    id: int
+    embedding: List[float]
+    metadata: Any
+
+
+class MilvusClient:
+    """Minimal Milvus helper for Lambda functions."""
+
+    def __init__(
+        self,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        collection_name: Optional[str] = None,
+        *,
+        index_params: Optional[dict] = None,
+        search_params: Optional[dict] = None,
+        metric_type: Optional[str] = None,
+    ) -> None:
+        self.host = host or os.environ.get("MILVUS_HOST", "localhost")
+        self.port = int(port or os.environ.get("MILVUS_PORT", "19530"))
+        self.collection_name = collection_name or os.environ.get(
+            "MILVUS_COLLECTION", "docs"
+        )
+
+        if Collection is None or connections is None:  # pragma: no cover
+            raise ImportError("pymilvus is required to use MilvusClient")
+
+        # Optional tuning parameters read from env if not provided
+        if index_params is None:
+            params = os.environ.get("MILVUS_INDEX_PARAMS")
+            if params:
+                try:
+                    index_params = json.loads(params)
+                except json.JSONDecodeError:
+                    index_params = None
+        self.index_params = index_params
+
+        if metric_type is None:
+            metric_type = os.environ.get("MILVUS_METRIC_TYPE")
+        self.metric_type = metric_type or (index_params or {}).get("metric_type", "L2")
+
+        if search_params is None:
+            params = os.environ.get("MILVUS_SEARCH_PARAMS")
+            if params:
+                try:
+                    search_params = json.loads(params)
+                except json.JSONDecodeError:
+                    search_params = None
+        self.search_params = search_params or {"metric_type": self.metric_type}
+
+        connections.connect(alias="default", host=self.host, port=self.port)
+        self.collection = Collection(self.collection_name)
+        if self.index_params:
+            try:
+                self.collection.create_index(
+                    "embedding", self.index_params, index_name="embedding_idx"
+                )
+            except Exception:
+                # index may already exist
+                pass
+
+    # ------------------------------------------------------------------
+    # CRUD operations
+    # ------------------------------------------------------------------
+    def insert(self, items: Iterable[VectorItem], upsert: bool = False) -> int:
+        """Insert items and return the number inserted."""
+
+        embeddings: List[List[float]] = []
+        metadatas: List[Any] = []
+        ids: List[int] = []
+        for item in items:
+            embeddings.append(item.embedding)
+            metadatas.append(item.metadata)
+            if item.id is not None:
+                ids.append(int(item.id))
+
+        if upsert and ids:
+            self.collection.delete(f"id in {ids}")
+
+        if ids:
+            entities = [ids, embeddings, metadatas]
+        else:
+            entities = [embeddings, metadatas]
+        self.collection.insert(entities)
+        return len(embeddings)
+
+    def search(self, embedding: List[float], top_k: int = 5) -> List[SearchResult]:
+        """Return closest matches to *embedding*."""
+
+        if embedding is None:
+            return []
+        res = self.collection.search(
+            [embedding],
+            "embedding",
+            self.search_params,
+            limit=top_k,
+            output_fields=["metadata"],
+        )
+        results: List[SearchResult] = []
+        for r in res[0]:
+            md = None
+            if hasattr(r, "entity") and r.entity is not None:
+                md = r.entity.get("metadata")
+            results.append(SearchResult(id=r.id, score=r.distance, metadata=md))
+        return results
+
+    def get(self, ids: Iterable[int]) -> List[GetResult]:
+        """Fetch records by ``ids``."""
+
+        id_list = list(ids)
+        if not id_list:
+            return []
+        expr = f"id in {id_list}"
+        res = self.collection.query(expr, output_fields=["id", "embedding", "metadata"])
+        return [
+            GetResult(
+                id=rec.get("id"),
+                embedding=rec.get("embedding"),
+                metadata=rec.get("metadata"),
+            )
+            for rec in res
+        ]
+
