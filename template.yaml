@@ -41,3 +41,14 @@ Resources:
         MilvusHost: !Ref MilvusHost
         MilvusPort: !Ref MilvusPort
         MilvusCollection: !Ref MilvusCollection
+        TextChunkFunctionArn: !GetAtt RagIngestionService.Outputs.TextChunkFunctionArn
+        EmbedFunctionArn: !GetAtt RagIngestionService.Outputs.EmbedFunctionArn
+        MilvusInsertFunctionArn: !GetAtt RagIngestionService.Outputs.MilvusInsertFunctionArn
+        ClassifierFunctionArn: !GetAtt IDPService.Outputs.ClassifierFunctionArn
+        OfficeExtractorFunctionArn: !GetAtt IDPService.Outputs.OfficeExtractorFunctionArn
+        PdfSplitFunctionArn: !GetAtt IDPService.Outputs.PdfSplitFunctionArn
+        PdfPageClassifierFunctionArn: !GetAtt IDPService.Outputs.PdfPageClassifierFunctionArn
+        PdfTextExtractorFunctionArn: !GetAtt IDPService.Outputs.PdfTextExtractorFunctionArn
+        PdfOcrExtractorFunctionArn: !GetAtt IDPService.Outputs.PdfOcrExtractorFunctionArn
+        CombineFunctionArn: !GetAtt IDPService.Outputs.CombineFunctionArn
+        OutputFunctionArn: !GetAtt IDPService.Outputs.OutputFunctionArn

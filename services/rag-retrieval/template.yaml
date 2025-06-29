@@ -12,6 +12,28 @@ Parameters:
   MilvusCollection:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /rag/milvus/collection
+  TextChunkFunctionArn:
+    Type: String
+  EmbedFunctionArn:
+    Type: String
+  MilvusInsertFunctionArn:
+    Type: String
+  ClassifierFunctionArn:
+    Type: String
+  OfficeExtractorFunctionArn:
+    Type: String
+  PdfSplitFunctionArn:
+    Type: String
+  PdfPageClassifierFunctionArn:
+    Type: String
+  PdfTextExtractorFunctionArn:
+    Type: String
+  PdfOcrExtractorFunctionArn:
+    Type: String
+  CombineFunctionArn:
+    Type: String
+  OutputFunctionArn:
+    Type: String
   SummaryEndpoint:
     Type: String
     Default: ''
@@ -94,6 +116,88 @@ Resources:
           Properties:
             Path: /extract-entities
             Method: post
+
+  RagWorkflowStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Definition:
+        Comment: Process document with IDP and ingest into Milvus
+        StartAt: ClassifyDocument
+        States:
+          ClassifyDocument:
+            Type: Task
+            Resource: !Ref ClassifierFunctionArn
+            Next: OfficeExtract
+          OfficeExtract:
+            Type: Task
+            Resource: !Ref OfficeExtractorFunctionArn
+            Next: PdfSplit
+          PdfSplit:
+            Type: Task
+            Resource: !Ref PdfSplitFunctionArn
+            Next: PdfPageClassify
+          PdfPageClassify:
+            Type: Task
+            Resource: !Ref PdfPageClassifierFunctionArn
+            Next: PdfTextExtract
+          PdfTextExtract:
+            Type: Task
+            Resource: !Ref PdfTextExtractorFunctionArn
+            Next: PdfOcrExtract
+          PdfOcrExtract:
+            Type: Task
+            Resource: !Ref PdfOcrExtractorFunctionArn
+            Next: CombineResults
+          CombineResults:
+            Type: Task
+            Resource: !Ref CombineFunctionArn
+            Next: OutputDocument
+          OutputDocument:
+            Type: Task
+            Resource: !Ref OutputFunctionArn
+            ResultPath: $.document
+            Next: ChunkText
+          ChunkText:
+            Type: Task
+            Resource: !Ref TextChunkFunctionArn
+            InputPath: $.document
+            ResultPath: $.chunk
+            Next: EmbedText
+          EmbedText:
+            Type: Task
+            Resource: !Ref EmbedFunctionArn
+            InputPath: $.chunk
+            ResultPath: $.embedding
+            Next: MilvusInsert
+          MilvusInsert:
+            Type: Task
+            Resource: !Ref MilvusInsertFunctionArn
+            InputPath: $.embedding
+            ResultPath: $.insert
+            End: true
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ClassifierFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OfficeExtractorFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PdfSplitFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PdfPageClassifierFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PdfTextExtractorFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PdfOcrExtractorFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CombineFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OutputFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TextChunkFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref EmbedFunctionArn
+        - LambdaInvokePolicy:
+            FunctionName: !Ref MilvusInsertFunctionArn
 
 Outputs:
   VectorSearchFunctionArn:
