@@ -1,7 +1,18 @@
 import os
 import json
+import logging
 
-EMBED_MODEL = os.environ.get("EMBED_MODEL", "dummy")
+from common_utils.get_ssm import get_config
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+_handler = logging.StreamHandler()
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+)
+logger.addHandler(_handler)
+
+EMBED_MODEL = get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "dummy")
 
 
 def _dummy_embed(text: str):
