@@ -195,8 +195,12 @@ sam deploy \
 
 Configure ``CHUNK_SIZE``, ``CHUNK_OVERLAP`` and ``EMBED_MODEL`` via environment
 variables or Parameter Store as needed. ``EMBED_MODEL`` specifies the default
-embedding provider. Use ``EMBED_MODEL_MAP`` to map document types to specific
-models, e.g. ``{"pdf": "openai", "pptx": "cohere"}``.
+embedding provider (``"sbert"``). Use ``EMBED_MODEL_MAP`` to map document types
+to specific models, e.g. ``{"pdf": "openai", "pptx": "cohere"}``.
+
+Set ``SBERT_MODEL`` (via Parameter Store or environment variable) to the
+SentenceTransformer model name or path. If the value starts with ``s3://`` it
+will be downloaded to ``/tmp`` before loading.
 
 When invoking the embed Lambda include a ``docType`` field in the payload or in
 each chunk's metadata so the function can select the appropriate model. Example:
