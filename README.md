@@ -91,10 +91,27 @@ Each capability lives in its own directory, fostering a clean, modular structure
 - Supports summarization for any file type handled by the IDP pipeline
 
 ---
+## Services
 
-## Installation 
+Below is a summary of each service directory. Refer to the README in each folder for deployment parameters and environment variables.
 
-1. **Clone** the repository  
+- **idp/** – Intelligent Document Processing pipeline with Lambdas for classifying, splitting, OCR, text extraction and output.
+- **file-assembly/** – merges generated summary pages with the original PDF.
+- **zip-processing/** – extracts PDFs from uploaded archives and assembles new ZIPs after processing.
+- **rag-ingestion/** – chunks extracted text and generates embeddings stored in Milvus.
+- **vector-db/** – manages Milvus collections and provides search Lambdas.
+- **rag-retrieval/** – retrieval functions and API endpoints for summarization or entity extraction.
+- **summarization/** – Step Function workflow that orchestrates file processing and summary generation.
+- **llm-router/** – routes prompts to Amazon Bedrock or local Ollama based on heuristics.
+- **llm-invocation/** – forwards OpenAI-style requests to a specific LLM backend.
+
+Shared dependencies are packaged as layers under `common/layers/`.
+
+## Installation
+
+Basic steps are listed here. Refer to [INSTALL.md](INSTALL.md) for a more detailed guide.
+
+1. **Clone** the repository
    ```bash
    git clone https://github.com/ameritascorp/aio-enterprise-ai-services.git
    cd aio-enterprise-ai-services
