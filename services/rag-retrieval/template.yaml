@@ -12,6 +12,9 @@ Parameters:
   EntitiesEndpoint:
     Type: String
     Default: ''
+  RouteLlmEndpoint:
+    Type: String
+    Default: ''
   VectorSearchFunctionArn:
     Type: String
 
@@ -32,6 +35,7 @@ Resources:
         Variables:
           VECTOR_SEARCH_FUNCTION: !Ref VectorSearchFunctionArn
           SUMMARY_ENDPOINT: !Ref SummaryEndpoint
+          ROUTELLM_ENDPOINT: !Ref RouteLlmEndpoint
       Events:
         Api:
           Type: Api

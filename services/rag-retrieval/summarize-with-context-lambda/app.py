@@ -9,7 +9,7 @@ import os
 import json
 import logging
 import boto3
-import httpx
+from routellm_integration import forward_to_routellm
 
 from typing import Any, Dict
 
@@ -26,6 +26,9 @@ if not logger.handlers:
 
 LAMBDA_FUNCTION = get_config("VECTOR_SEARCH_FUNCTION") or os.environ.get("VECTOR_SEARCH_FUNCTION")
 SUMMARY_ENDPOINT = get_config("SUMMARY_ENDPOINT") or os.environ.get("SUMMARY_ENDPOINT")
+ROUTELLM_ENDPOINT = (
+    get_config("ROUTELLM_ENDPOINT") or os.environ.get("ROUTELLM_ENDPOINT")
+)
 
 lambda_client = boto3.client("lambda")
 
@@ -44,7 +47,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     context_text = " ".join(
         m.get("metadata", {}).get("text", "") for m in result.get("matches", [])
     )
-    r = httpx.post(SUMMARY_ENDPOINT, json={"query": query, "context": context_text})
-    r.raise_for_status()
-    return {"summary": r.json()}
+    summary = forward_to_routellm({"query": query, "context": context_text})
+    return {"summary": summary}
 

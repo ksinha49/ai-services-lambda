@@ -247,6 +247,10 @@ sam deploy \
   --stack-name rag-retrieval \
   --parameter-overrides VectorSearchFunctionArn=<arn>
 ```
+The summarization Lambda forwards its prompts through the LLM router. Ensure the
+router environment variables (e.g. `ROUTELLM_ENDPOINT`, `LLM_INVOCATION_FUNCTION`,
+and any `BEDROCK_*` or `OLLAMA_*` settings) are configured as described in
+[`docs/router_configuration.md`](docs/router_configuration.md).
 
 ### Deploying the Summarization Service
 This stack orchestrates the end‑to‑end summary workflow:
