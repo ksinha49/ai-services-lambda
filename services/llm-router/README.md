@@ -29,6 +29,12 @@ easily through AWS Parameter Store or the Lambda console:
 - ``BEDROCK_OPENAI_ENDPOINTS`` – comma-separated Bedrock OpenAI‑compatible
   endpoints.
 - ``BEDROCK_API_KEY`` – API key used when calling Bedrock.
+- ``BEDROCK_TEMPERATURE`` – sampling temperature for Bedrock models (default ``0.5``).
+- ``BEDROCK_NUM_CTX`` – context length for Bedrock calls (default ``4096``).
+- ``BEDROCK_MAX_TOKENS`` – maximum tokens to generate (default ``2048``).
+- ``BEDROCK_TOP_P`` – nucleus sampling parameter (default ``0.9``).
+- ``BEDROCK_TOP_K`` – top‑k sampling parameter (default ``50``).
+- ``BEDROCK_MAX_TOKENS_TO_SAMPLE`` – maximum tokens Bedrock should sample (default ``2048``).
 - ``OLLAMA_ENDPOINTS`` – comma-separated URLs of the local Ollama services.
 - ``OLLAMA_DEFAULT_MODEL`` – model name passed to Ollama when not
   supplied in the payload.

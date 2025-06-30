@@ -9,6 +9,24 @@ Parameters:
   BedrockApiKey:
     Type: String
     Default: ''
+  BedrockTemperature:
+    Type: String
+    Default: ''
+  BedrockNumCtx:
+    Type: String
+    Default: ''
+  BedrockMaxTokens:
+    Type: String
+    Default: ''
+  BedrockTopP:
+    Type: String
+    Default: ''
+  BedrockTopK:
+    Type: String
+    Default: ''
+  BedrockMaxTokensToSample:
+    Type: String
+    Default: ''
   OllamaEndpoint:
     Type: String
     Default: ''
@@ -32,6 +50,12 @@ Resources:
         Variables:
           BEDROCK_OPENAI_ENDPOINTS: !Ref BedrockOpenAIEndpoint
           BEDROCK_API_KEY: !Ref BedrockApiKey
+          BEDROCK_TEMPERATURE: !Ref BedrockTemperature
+          BEDROCK_NUM_CTX: !Ref BedrockNumCtx
+          BEDROCK_MAX_TOKENS: !Ref BedrockMaxTokens
+          BEDROCK_TOP_P: !Ref BedrockTopP
+          BEDROCK_TOP_K: !Ref BedrockTopK
+          BEDROCK_MAX_TOKENS_TO_SAMPLE: !Ref BedrockMaxTokensToSample
           OLLAMA_ENDPOINTS: !Ref OllamaEndpoint
           OLLAMA_DEFAULT_MODEL: !Ref OllamaDefaultModel
 

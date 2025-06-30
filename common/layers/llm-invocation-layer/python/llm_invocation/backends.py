@@ -14,6 +14,29 @@ import httpx
 BEDROCK_API_KEY = os.environ.get("BEDROCK_API_KEY")
 OLLAMA_DEFAULT_MODEL = os.environ.get("OLLAMA_DEFAULT_MODEL", "")
 
+# Default sampling parameters for Bedrock models
+DEFAULT_BEDROCK_TEMPERATURE = 0.5
+DEFAULT_BEDROCK_NUM_CTX = 4096
+DEFAULT_BEDROCK_MAX_TOKENS = 2048
+DEFAULT_BEDROCK_TOP_P = 0.9
+DEFAULT_BEDROCK_TOP_K = 50
+DEFAULT_BEDROCK_MAX_TOKENS_TO_SAMPLE = 2048
+
+BEDROCK_TEMPERATURE = float(
+    os.environ.get("BEDROCK_TEMPERATURE", str(DEFAULT_BEDROCK_TEMPERATURE))
+)
+BEDROCK_NUM_CTX = int(os.environ.get("BEDROCK_NUM_CTX", str(DEFAULT_BEDROCK_NUM_CTX)))
+BEDROCK_MAX_TOKENS = int(
+    os.environ.get("BEDROCK_MAX_TOKENS", str(DEFAULT_BEDROCK_MAX_TOKENS))
+)
+BEDROCK_TOP_P = float(os.environ.get("BEDROCK_TOP_P", str(DEFAULT_BEDROCK_TOP_P)))
+BEDROCK_TOP_K = int(os.environ.get("BEDROCK_TOP_K", str(DEFAULT_BEDROCK_TOP_K)))
+BEDROCK_MAX_TOKENS_TO_SAMPLE = int(
+    os.environ.get(
+        "BEDROCK_MAX_TOKENS_TO_SAMPLE", str(DEFAULT_BEDROCK_MAX_TOKENS_TO_SAMPLE)
+    )
+)
+
 
 def _get_endpoints(plural_var: str, single_var: str) -> List[str]:
     raw = os.environ.get(plural_var)
@@ -60,7 +83,12 @@ def invoke_bedrock_runtime(prompt: str, model_id: str | None = None) -> Dict[str
         {
             "model": model_id,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 2048,
+            "temperature": BEDROCK_TEMPERATURE,
+            "num_ctx": BEDROCK_NUM_CTX,
+            "max_tokens": BEDROCK_MAX_TOKENS,
+            "top_p": BEDROCK_TOP_P,
+            "top_k": BEDROCK_TOP_K,
+            "max_tokens_to_sample": BEDROCK_MAX_TOKENS_TO_SAMPLE,
         }
     )
 
@@ -85,6 +113,12 @@ def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
     headers = {"Content-Type": "application/json"}
     if BEDROCK_API_KEY:
         headers["Authorization"] = f"Bearer {BEDROCK_API_KEY}"
+    payload.setdefault("temperature", BEDROCK_TEMPERATURE)
+    payload.setdefault("num_ctx", BEDROCK_NUM_CTX)
+    payload.setdefault("max_tokens", BEDROCK_MAX_TOKENS)
+    payload.setdefault("top_p", BEDROCK_TOP_P)
+    payload.setdefault("top_k", BEDROCK_TOP_K)
+    payload.setdefault("max_tokens_to_sample", BEDROCK_MAX_TOKENS_TO_SAMPLE)
     resp = httpx.post(endpoint, json=payload, headers=headers)
     resp.raise_for_status()
     return resp.json()

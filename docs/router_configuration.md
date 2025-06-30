@@ -8,6 +8,12 @@ This document details the environment variables used by the router Lambda and ho
 | ---- | ----------- |
 | `BEDROCK_OPENAI_ENDPOINTS` | Comma‑separated Bedrock endpoints implementing the OpenAI API. |
 | `BEDROCK_API_KEY` | API key to authenticate when calling Bedrock. |
+| `BEDROCK_TEMPERATURE` | Sampling temperature for Bedrock models (default `0.5`). |
+| `BEDROCK_NUM_CTX` | Context length for Bedrock calls (default `4096`). |
+| `BEDROCK_MAX_TOKENS` | Maximum tokens to generate (default `2048`). |
+| `BEDROCK_TOP_P` | Nucleus sampling parameter (default `0.9`). |
+| `BEDROCK_TOP_K` | Top‑k sampling parameter (default `50`). |
+| `BEDROCK_MAX_TOKENS_TO_SAMPLE` | Maximum tokens Bedrock should sample (default `2048`). |
 | `OLLAMA_ENDPOINTS` | Comma‑separated URLs of the local Ollama services. |
 | `OLLAMA_DEFAULT_MODEL` | Default model name if one is not supplied in the payload. |
 | `PROMPT_COMPLEXITY_THRESHOLD` | Word count threshold that determines when to switch from Ollama to Bedrock (defaults to `20`). |
