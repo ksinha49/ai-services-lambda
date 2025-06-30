@@ -98,6 +98,13 @@ def external_stubs():
     _stub_module("numpy", {"frombuffer": lambda *a, **k: [], "uint8": int, "reshape": lambda *a, **k: [], "mean": lambda x: 0, "ndarray": object})
     yield
 
+
+@pytest.fixture(autouse=True)
+def router_layer_path():
+    import sys, os
+    sys.path.insert(0, os.path.join(os.getcwd(), 'common/layers/router-layer/python'))
+    yield
+
 @pytest.fixture
 def validate_schema():
     def _check(obj):

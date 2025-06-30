@@ -16,6 +16,8 @@ import logging
 import os
 from typing import Any, Dict
 
+from llm_router import route_event
+
 import httpx
 from httpx import HTTPStatusError
 
@@ -63,14 +65,13 @@ def _choose_backend(prompt: str) -> str:
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Route prompt to appropriate LLM backend and return response."""
     logger.info("Received event: %s", event)
-    prompt_text = _get_prompt_text(event)
     backend = event.get("backend")
     strategy = event.get("strategy")
 
     if not backend:
         if strategy and strategy != "complexity":
             logger.info("Strategy '%s' not implemented, using complexity", strategy)
-        backend = _choose_backend(prompt_text)
+        backend = route_event(event).get("backend")
 
     url = BEDROCK_OPENAI_ENDPOINT if backend == "bedrock" else OLLAMA_ENDPOINT
     if not url:
