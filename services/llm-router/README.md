@@ -85,6 +85,4 @@ response = httpx.post(
     json={"model": os.environ["STRONG_MODEL_ID"], "prompt": prompt},
 )
 ```
-
 Model identifiers are provided by ``STRONG_MODEL_ID`` and ``WEAK_MODEL_ID``.
-
