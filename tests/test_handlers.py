@@ -623,29 +623,27 @@ def test_summary_lambda_forwards(monkeypatch):
     sys.modules['unidecode'].unidecode = lambda x: x
 
     module = load_lambda('sum_lambda', 'services/summarization/file-summary-lambda/app.py')
-    monkeypatch.setattr(module, 'read_prompts_from_json', lambda p: [{'query': 'hi', 'Title': 'T'}])
-    module.USER_PROMPTS_PATH = 'dummy'
     captured = {}
 
-    class FakePayload:
-        def read(self):
-            return json.dumps({'choices': [{'message': {'content': 'ok'}}]}).encode()
+    def fake_create(summaries):
+        captured['summaries'] = summaries
+        return io.BytesIO(b'd')
 
-    def fake_invoke(FunctionName=None, Payload=None):
-        captured['payload'] = json.loads(Payload)
-        return {'Payload': FakePayload()}
+    def fake_upload(buf, bucket, key):
+        captured['bucket'] = bucket
+        captured['key'] = key
 
-    monkeypatch.setattr(module, '_lambda_client', type('C', (), {'invoke': staticmethod(fake_invoke)})())
-    monkeypatch.setattr(module, 'upload_buffer_to_s3', lambda *a, **k: None)
-    monkeypatch.setattr(module, 'create_summary_pdf', lambda s: io.BytesIO(b'd'))
+    monkeypatch.setattr(module, 'create_summary_pdf', fake_create)
+    monkeypatch.setattr(module, 'upload_buffer_to_s3', fake_upload)
 
     event = {
         'collection_name': 'c',
         'statusCode': 200,
         'organic_bucket': 'b',
         'organic_bucket_key': 'extracted/x.pdf',
-        'retrieve_params': {'top_k': 3},
-        'router_params': {'backend': 'bedrock'},
+        'summaries': [{'Title': 'T', 'content': 'ok'}],
     }
     module.lambda_handler(event, {})
-    assert captured['payload'] == {'query': 'hi', 'top_k': 3, 'backend': 'bedrock'}
+    assert captured['summaries'] == [('T', 'ok')]
+    assert captured['bucket'] == 'b'
+    assert captured['key'] == 'summary/x.pdf'
