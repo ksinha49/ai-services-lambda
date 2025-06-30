@@ -10,6 +10,7 @@ import json
 import logging
 import boto3
 from routellm_integration import forward_to_routellm
+import hashlib
 
 from typing import Any, Dict
 
@@ -32,13 +33,96 @@ ROUTELLM_ENDPOINT = (
 
 lambda_client = boto3.client("lambda")
 
+DEFAULT_EMBED_MODEL = (
+    get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "sbert")
+)
+
+_SBERT_MODEL = None
+
+
+def _sbert_embed(text: str) -> list[float]:
+    """Embed ``text`` using a SentenceTransformer model."""
+
+    global _SBERT_MODEL
+    if _SBERT_MODEL is None:
+        model_path = (
+            get_config("SBERT_MODEL")
+            or os.environ.get("SBERT_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+        )
+        if model_path.startswith("s3://"):
+            import boto3
+            from common_utils import parse_s3_uri
+
+            bucket, key = parse_s3_uri(model_path)
+            dest = os.path.join("/tmp", os.path.basename(key))
+            boto3.client("s3").download_file(bucket, key, dest)
+            model_path = dest
+
+        from sentence_transformers import SentenceTransformer  # type: ignore
+
+        _SBERT_MODEL = SentenceTransformer(model_path)
+
+    return _SBERT_MODEL.encode([text])[0].tolist()
+
+
+def _openai_embed(text: str) -> list[float]:
+    """Embed ``text`` using the OpenAI API."""
+
+    import openai  # type: ignore
+
+    model = get_config("OPENAI_EMBED_MODEL") or os.environ.get(
+        "OPENAI_EMBED_MODEL", "text-embedding-ada-002"
+    )
+    resp = openai.Embedding.create(input=[text], model=model)
+    return resp["data"][0]["embedding"]
+
+
+def _cohere_embed(text: str) -> list[float]:
+    """Embed ``text`` using the Cohere API."""
+
+    import cohere  # type: ignore
+
+    api_key = get_config("COHERE_API_KEY", decrypt=True) or os.environ.get("COHERE_API_KEY")
+    client = cohere.Client(api_key)
+    resp = client.embed([text])
+    return resp.embeddings[0]
+
+
+_MODEL_MAP = {
+    "sbert": _sbert_embed,
+    "sentence": _sbert_embed,
+    "openai": _openai_embed,
+    "cohere": _cohere_embed,
+}
+
+
+def _simple_embed(text: str) -> list[float]:
+    """Generate a deterministic embedding for ``text``."""
+
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return [b / 255 for b in digest[:32]]
+
+
+def _embed_query(text: str, model: str | None = None) -> list[float]:
+    """Return an embedding for ``text`` using the configured model."""
+
+    model_name = model or DEFAULT_EMBED_MODEL
+    embed_fn = _MODEL_MAP.get(model_name, _sbert_embed)
+    try:
+        return embed_fn(text)
+    except Exception:  # pragma: no cover - fallback for missing deps
+        logger.exception("Embedding failed, using simple embedding")
+        return _simple_embed(text)
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Return a summary for ``query`` using retrieved context."""
 
     query = event.get("query")
     emb = event.get("embedding")
-    search_payload = {"embedding": emb} if emb is not None else {"query": query}
+    if emb is None and query:
+        emb = _embed_query(query, event.get("embedModel"))
+    search_payload = {"embedding": emb} if emb is not None else {}
     resp = lambda_client.invoke(
         FunctionName=LAMBDA_FUNCTION,
         Payload=json.dumps(search_payload).encode("utf-8"),

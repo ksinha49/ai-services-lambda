@@ -548,6 +548,8 @@ def test_summarize_with_context_router(monkeypatch, config):
 
     module = load_lambda('summ_ctx', 'services/rag-retrieval/summarize-with-context-lambda/app.py')
     monkeypatch.setattr(module, 'lambda_client', type('C', (), {'invoke': staticmethod(fake_invoke)})())
+    monkeypatch.setattr(module, '_sbert_embed', lambda t: [0.1])
+    module._MODEL_MAP['sbert'] = module._sbert_embed
 
     sent = {}
     def fake_forward(payload):
@@ -556,7 +558,9 @@ def test_summarize_with_context_router(monkeypatch, config):
     monkeypatch.setattr(module, 'forward_to_routellm', fake_forward)
 
     out = module.lambda_handler({'query': 'hi', 'model': 'phi', 'temperature': 0.2}, {})
-    assert fake_invoke.calls[0] == {'query': 'hi'}
+    sent_payload = fake_invoke.calls[0]
+    assert 'embedding' in sent_payload
+    assert isinstance(sent_payload['embedding'], list)
     assert sent['payload'] == {'query': 'hi', 'model': 'phi', 'temperature': 0.2, 'context': 'ctx'}
     assert out['summary'] == {'text': 'ok'}
 

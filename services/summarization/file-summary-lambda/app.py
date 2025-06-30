@@ -57,40 +57,6 @@ if not logger.handlers:
 
 _s3_client = boto3.client("s3")
 
-def get_token() -> Dict[str, Any]:
-    """
-    Retrieve an API token from the external service.
-
-    Raises:
-        RuntimeError: On missing configuration.
-        HTTPStatusError: On non-2xx HTTP responses.
-    """
-    prefix = get_environment_prefix()
-    user = get_values_from_ssm(f"{prefix}/FILE_PROCESSING_FUNCTIONAL_USER")
-    url = get_values_from_ssm(f"{prefix}/AMERITAS_CHAT_TOKEN_URL")
-    if not user or not url:
-        raise RuntimeError("Missing functional user or token URL")
-
-    full_url = f"{url}?{urllib.parse.urlencode({'userId': user})}"
-    logger.info("Requesting API token from %s", url)
-    try:
-        resp = httpx.post(
-            full_url,
-            json={},  # per spec, empty body
-            headers={"Content-Type": "application/json"},
-            verify=CLIENT_CERT,
-        )
-        resp.raise_for_status()
-        logger.info("Token retrieved successfully")
-        return resp.json()
-    except HTTPStatusError as e:
-        logger.error("Token request failed [%d]: %s",
-                     e.response.status_code, e.response.text)
-        raise
-    except Exception:
-        logger.exception("Unexpected error fetching token")
-        raise
-
 
 def chat_with_collection(
     token: str,
