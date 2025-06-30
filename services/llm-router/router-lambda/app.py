@@ -64,13 +64,21 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Route prompt to appropriate LLM backend and return response."""
     logger.info("Received event: %s", event)
     prompt_text = _get_prompt_text(event)
-    backend = _choose_backend(prompt_text)
+    backend = event.get("backend")
+    strategy = event.get("strategy")
+
+    if not backend:
+        if strategy and strategy != "complexity":
+            logger.info("Strategy '%s' not implemented, using complexity", strategy)
+        backend = _choose_backend(prompt_text)
 
     url = BEDROCK_OPENAI_ENDPOINT if backend == "bedrock" else OLLAMA_ENDPOINT
     if not url:
         raise RuntimeError(f"{backend} endpoint not configured")
 
     payload = dict(event)
+    payload.pop("backend", None)
+    payload.pop("strategy", None)
     headers = {"Content-Type": "application/json"}
     if backend == "bedrock":
         headers["Authorization"] = f"Bearer {BEDROCK_API_KEY}" if BEDROCK_API_KEY else ""

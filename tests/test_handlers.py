@@ -479,6 +479,40 @@ def test_llm_router_lambda_handler(monkeypatch):
     assert calls[1][2]['Authorization'] == 'Bearer key'
 
 
+def test_llm_router_lambda_handler_backend_override(monkeypatch):
+    import sys
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINT', 'http://bedrock')
+    monkeypatch.setenv('BEDROCK_API_KEY', 'key')
+    monkeypatch.setenv('OLLAMA_ENDPOINT', 'http://ollama')
+    monkeypatch.setenv('OLLAMA_DEFAULT_MODEL', 'phi')
+    monkeypatch.setenv('PROMPT_COMPLEXITY_THRESHOLD', '3')
+    module = load_lambda('llm_router_lambda_override', 'services/llm-router/router-lambda/app.py')
+
+    class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+        def json(self):
+            return self._data
+        def raise_for_status(self):
+            pass
+
+    calls = []
+    def fake_post(url, json=None, headers=None):
+        calls.append((url, json, headers))
+        if url == 'http://bedrock':
+            return FakeResponse({'reply': 'bedrock'})
+        elif url == 'http://ollama':
+            return FakeResponse({'reply': 'ollama'})
+        raise ValueError('unexpected url')
+
+    monkeypatch.setattr(module.httpx, 'post', fake_post)
+
+    out = module.lambda_handler({'prompt': 'short text', 'backend': 'bedrock'}, {})
+    assert out['backend'] == 'bedrock'
+    assert calls[0][0] == 'http://bedrock'
+
+
 def test_llm_router_choose_backend_default(monkeypatch):
     import sys
     sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})

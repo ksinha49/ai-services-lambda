@@ -63,5 +63,8 @@ aws lambda invoke \
 ```
 
 The response will include a ``backend`` field indicating which service
-handled the request.
+handled the request. You may pass ``backend`` in the payload to force
+a particular destination (``bedrock`` or ``ollama``). When not
+provided, the router falls back to the complexity-based heuristic.
+An optional ``strategy`` field is accepted for future routing modes.
 
