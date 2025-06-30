@@ -22,9 +22,9 @@ def invoke_ollama(payload):
     return _invoke_ollama(payload)
 
 
-def invoke_bedrock_runtime(prompt, model_id=None):
+def invoke_bedrock_runtime(prompt, model_id=None, system_prompt=None):
     """Invoke the Bedrock runtime directly."""
-    return _invoke_bedrock_runtime(prompt, model_id)
+    return _invoke_bedrock_runtime(prompt, model_id, system_prompt)
 
 
 def invoke_bedrock_openai(payload):
