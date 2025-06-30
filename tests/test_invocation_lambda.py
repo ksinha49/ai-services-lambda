@@ -236,6 +236,94 @@ def test__invoke_bedrock_openai(monkeypatch):
     assert out == {'foo': 'bar'}
 
 
+def test_bedrock_openai_messages(monkeypatch):
+    sys.modules['httpx'].HTTPStatusError = type('E', (Exception,), {})
+    monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINTS', 'http://b1')
+    import importlib, llm_invocation.backends
+    importlib.reload(llm_invocation.backends)
+    module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
+
+    captured = {}
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return {'ok': True}
+
+        def raise_for_status(self):
+            pass
+
+    def fake_post(url, json=None, headers=None):
+        captured['json'] = json
+        return FakeResponse(json)
+
+    import llm_invocation.backends as backends
+    monkeypatch.setattr(backends.httpx, 'post', fake_post)
+
+    module.lambda_handler({'backend': 'bedrock', 'prompt': 'hi', 'system_prompt': 'sys'}, {})
+    messages = captured['json']['messages']
+    assert messages == [{'role': 'system', 'content': 'sys'}, {'role': 'user', 'content': 'hi'}]
+    assert 'prompt' not in captured['json']
+
+
+def test_invoke_bedrock_runtime_with_system(monkeypatch):
+    sys.modules['httpx'].HTTPStatusError = type('E', (Exception,), {})
+    monkeypatch.delenv('BEDROCK_OPENAI_ENDPOINTS', raising=False)
+    monkeypatch.delenv('BEDROCK_OPENAI_ENDPOINT', raising=False)
+    import importlib, llm_invocation.backends
+    importlib.reload(llm_invocation.backends)
+    module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
+
+    captured = {}
+
+    class FakeRuntime:
+        def invoke_model(self, body=None, modelId=None, contentType=None, accept=None):
+            captured['body'] = json.loads(body)
+            data = {'choices': [{'message': {'content': 'ok'}}]}
+            return {'body': io.BytesIO(json.dumps(data).encode())}
+
+    import llm_invocation.backends as backends
+    monkeypatch.setattr(backends.boto3, 'client', lambda name: FakeRuntime())
+
+    module.lambda_handler({'backend': 'bedrock', 'prompt': 'u', 'system_prompt': 's'}, {})
+    assert captured['body']['messages'] == [
+        {'role': 'system', 'content': 's'},
+        {'role': 'user', 'content': 'u'},
+    ]
+
+
+def test_ollama_system_prompt(monkeypatch):
+    sys.modules['httpx'].HTTPStatusError = type('E', (Exception,), {})
+    monkeypatch.setenv('OLLAMA_ENDPOINT', 'http://o')
+    import importlib, llm_invocation.backends
+    importlib.reload(llm_invocation.backends)
+    module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
+
+    captured = {}
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return {'ok': True}
+
+        def raise_for_status(self):
+            pass
+
+    def fake_post(url, json=None):
+        captured['json'] = json
+        return FakeResponse(json)
+
+    import llm_invocation.backends as backends
+    monkeypatch.setattr(backends.httpx, 'post', fake_post)
+
+    module.lambda_handler({'backend': 'ollama', 'prompt': 'hi', 'system_prompt': 'sys'}, {})
+    assert captured['json']['system'] == 'sys'
+
+
 def test_make_selector_round_robin():
     from llm_invocation.backends import _make_selector
 

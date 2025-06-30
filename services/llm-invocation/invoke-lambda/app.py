@@ -37,17 +37,28 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Invoke the selected backend and return the raw response."""
     backend = event.get("backend")
     prompt = event.get("prompt")
+    system_prompt = event.get("system_prompt")
     if not backend or not prompt:
         return {"message": "Missing backend or prompt"}
 
     payload = dict(event)
     payload.pop("backend", None)
+    payload.pop("system_prompt", None)
 
     try:
         if backend == "bedrock":
             if BEDROCK_OPENAI_ENDPOINTS:
+                if "prompt" in payload:
+                    messages = []
+                    if system_prompt is not None:
+                        messages.append({"role": "system", "content": system_prompt})
+                    messages.append({"role": "user", "content": prompt})
+                    payload["messages"] = messages
+                    payload.pop("prompt", None)
                 return invoke_bedrock_openai(payload)
-            return invoke_bedrock_runtime(prompt, payload.get("model"))
+            return invoke_bedrock_runtime(prompt, payload.get("model"), system_prompt)
+        if system_prompt is not None:
+            payload["system"] = system_prompt
         return invoke_ollama(payload)
     except HTTPStatusError as e:
         logger.error(
