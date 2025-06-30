@@ -26,10 +26,10 @@ Lambda.  The modules are:
 The router depends on a few environment variables which can be provided
 easily through AWS Parameter Store or the Lambda console:
 
-- ``BEDROCK_OPENAI_ENDPOINT`` – URL of a Bedrock OpenAI‑compatible
-  endpoint.
+- ``BEDROCK_OPENAI_ENDPOINTS`` – comma-separated Bedrock OpenAI‑compatible
+  endpoints.
 - ``BEDROCK_API_KEY`` – API key used when calling Bedrock.
-- ``OLLAMA_ENDPOINT`` – URL of the local Ollama service.
+- ``OLLAMA_ENDPOINTS`` – comma-separated URLs of the local Ollama services.
 - ``OLLAMA_DEFAULT_MODEL`` – model name passed to Ollama when not
   supplied in the payload.
 - ``PROMPT_COMPLEXITY_THRESHOLD`` – word count used by the heuristic
@@ -83,7 +83,7 @@ the payload directly to the configured endpoint:
 import httpx
 
 response = httpx.post(
-    os.environ["BEDROCK_OPENAI_ENDPOINT"],
+    os.environ["BEDROCK_OPENAI_ENDPOINTS"].split(",")[0],
     headers={"Authorization": f"Bearer {os.environ.get('BEDROCK_API_KEY', '')}"},
     json={"model": os.environ["STRONG_MODEL_ID"], "prompt": prompt},
 )

@@ -105,6 +105,13 @@ def router_layer_path():
     sys.path.insert(0, os.path.join(os.getcwd(), 'common/layers/router-layer/python'))
     yield
 
+
+@pytest.fixture(autouse=True)
+def invocation_layer_path():
+    import sys, os
+    sys.path.insert(0, os.path.join(os.getcwd(), 'common/layers/llm-invocation-layer/python'))
+    yield
+
 @pytest.fixture
 def validate_schema():
     def _check(obj):

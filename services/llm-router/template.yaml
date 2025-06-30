@@ -47,9 +47,9 @@ Resources:
         - !Ref RouterLayer
       Environment:
         Variables:
-          BEDROCK_OPENAI_ENDPOINT: !Ref BedrockOpenAIEndpoint
+          BEDROCK_OPENAI_ENDPOINTS: !Ref BedrockOpenAIEndpoint
           BEDROCK_API_KEY: !Ref BedrockApiKey
-          OLLAMA_ENDPOINT: !Ref OllamaEndpoint
+          OLLAMA_ENDPOINTS: !Ref OllamaEndpoint
           OLLAMA_DEFAULT_MODEL: !Ref OllamaDefaultModel
           PROMPT_COMPLEXITY_THRESHOLD: !Ref PromptComplexityThreshold
           LLM_INVOCATION_FUNCTION: !Ref LlmInvocationFunctionName
