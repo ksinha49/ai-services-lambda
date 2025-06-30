@@ -16,6 +16,7 @@ import logging
 import os
 from typing import Any, Dict
 
+import json
 from main_router import route_event
 
 import httpx
@@ -52,35 +53,46 @@ def _choose_backend(prompt: str) -> str:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Route prompt to appropriate LLM backend and return response."""
-    logger.info("Received event: %s", event)
-    backend = event.get("backend")
-    strategy = event.get("strategy")
+    """Entry point for the router Lambda."""
+    body_content = event.get("body")
+    if body_content is not None:
+        try:
+            payload = json.loads(body_content or "{}")
+        except json.JSONDecodeError:
+            return {"statusCode": 400, "body": json.dumps({"message": "Invalid JSON"})}
+    else:
+        payload = dict(event)
+
+    if not payload.get("prompt"):
+        return {"statusCode": 400, "body": json.dumps({"message": "Missing 'prompt'"})}
+
+    backend = payload.get("backend")
+    strategy = payload.get("strategy")
 
     if not backend:
         if strategy and strategy != "complexity":
             logger.info("Strategy '%s' not implemented, using complexity", strategy)
-        backend = route_event(event).get("backend")
+        backend = route_event(payload).get("backend")
 
     url = BEDROCK_OPENAI_ENDPOINT if backend == "bedrock" else OLLAMA_ENDPOINT
     if not url:
         raise RuntimeError(f"{backend} endpoint not configured")
 
-    payload = dict(event)
-    payload.pop("backend", None)
-    payload.pop("strategy", None)
+    request_payload = dict(payload)
+    request_payload.pop("backend", None)
+    request_payload.pop("strategy", None)
     headers = {"Content-Type": "application/json"}
     if backend == "bedrock":
         headers["Authorization"] = f"Bearer {BEDROCK_API_KEY}" if BEDROCK_API_KEY else ""
     else:
-        payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
+        request_payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
 
     try:
-        response = httpx.post(url, json=payload, headers=headers)
+        response = httpx.post(url, json=request_payload, headers=headers)
         response.raise_for_status()
         data = response.json()
         data["backend"] = backend
-        return data
+        return {"statusCode": 200, "body": json.dumps(data)}
     except HTTPStatusError as e:
         logger.error(
             "Request to %s failed [%d]: %s", backend, e.response.status_code, e.response.text
@@ -89,3 +101,5 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except Exception:
         logger.exception("Unexpected error in router lambda")
         raise
+
+

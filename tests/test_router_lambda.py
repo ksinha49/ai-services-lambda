@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 
 
@@ -13,14 +14,18 @@ def _make_fake_post(calls):
     class FakeResponse:
         def __init__(self, payload):
             self._payload = payload
+
         def json(self):
             return self._payload
+
         def raise_for_status(self):
             pass
+
     def fake_post(url, json=None, headers=None):
         payload = {"reply": "bedrock" if "bedrock" in url else "ollama"}
         calls.append((url, json, headers))
         return FakeResponse(payload)
+
     return fake_post
 
 
@@ -44,12 +49,16 @@ def test_lambda_handler(monkeypatch):
     calls = []
     monkeypatch.setattr(module.httpx, "post", _make_fake_post(calls))
 
-    out1 = module.lambda_handler({"prompt": "short"}, {})
-    assert out1["backend"] == "ollama"
+    event1 = {"body": json.dumps({"prompt": "short"})}
+    out1 = module.lambda_handler(event1, {})
+    body1 = json.loads(out1["body"])
+    assert body1["backend"] == "ollama"
     assert calls[0][0] == "http://ollama"
 
-    out2 = module.lambda_handler({"prompt": "one two three four"}, {})
-    assert out2["backend"] == "bedrock"
+    event2 = {"body": json.dumps({"prompt": "one two three four"})}
+    out2 = module.lambda_handler(event2, {})
+    body2 = json.loads(out2["body"])
+    assert body2["backend"] == "bedrock"
     assert calls[1][0] == "http://bedrock"
 
 
@@ -65,12 +74,16 @@ def test_lambda_handler_backend_override(monkeypatch):
     calls = []
     monkeypatch.setattr(module.httpx, "post", _make_fake_post(calls))
 
-    out1 = module.lambda_handler({"prompt": "short", "backend": "bedrock"}, {})
-    assert out1["backend"] == "bedrock"
+    event = {"body": json.dumps({"prompt": "short", "backend": "bedrock"})}
+    out = module.lambda_handler(event, {})
+    body = json.loads(out["body"])
+    assert body["backend"] == "bedrock"
     assert calls[0][0] == "http://bedrock"
 
-    out2 = module.lambda_handler({"prompt": "one two three four", "backend": "ollama"}, {})
-    assert out2["backend"] == "ollama"
+    event2 = {"body": json.dumps({"prompt": "one two three four", "backend": "ollama"})}
+    out2 = module.lambda_handler(event2, {})
+    body2 = json.loads(out2["body"])
+    assert body2["backend"] == "ollama"
     assert calls[1][0] == "http://ollama"
 
 
@@ -86,6 +99,8 @@ def test_lambda_handler_strategy(monkeypatch):
     calls = []
     monkeypatch.setattr(module.httpx, "post", _make_fake_post(calls))
 
-    out = module.lambda_handler({"prompt": "short", "strategy": "complexity"}, {})
-    assert out["backend"] == "ollama"
+    event = {"body": json.dumps({"prompt": "short", "strategy": "complexity"})}
+    out = module.lambda_handler(event, {})
+    body = json.loads(out["body"])
+    assert body["backend"] == "ollama"
     assert calls[0][0] == "http://ollama"
