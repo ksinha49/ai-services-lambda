@@ -245,12 +245,16 @@ Lambda along with the optional API endpoints for summarization and extraction:
 sam deploy \
   --template-file services/rag-retrieval/template.yaml \
   --stack-name rag-retrieval \
-  --parameter-overrides VectorSearchFunctionArn=<arn>
+  --parameter-overrides \
+    VectorSearchFunctionArn=<arn> \
+    RouteLlmEndpoint=<router-url>
 ```
 The summarization Lambda forwards its prompts through the LLM router. Ensure the
 router environment variables (e.g. `ROUTELLM_ENDPOINT`, `LLM_INVOCATION_FUNCTION`,
 and any `BEDROCK_*` or `OLLAMA_*` settings) are configured as described in
 [`docs/router_configuration.md`](docs/router_configuration.md).
+Inference options such as `backend`, `model`, or sampling parameters can be
+included in the request payload and are forwarded unchanged to the router.
 
 ### Deploying the Summarization Service
 This stack orchestrates the end‑to‑end summary workflow:

@@ -47,6 +47,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     context_text = " ".join(
         m.get("metadata", {}).get("text", "") for m in result.get("matches", [])
     )
-    summary = forward_to_routellm({"query": query, "context": context_text})
+    router_payload = {k: v for k, v in event.items() if k != "embedding"}
+    router_payload["context"] = context_text
+    summary = forward_to_routellm(router_payload)
     return {"summary": summary}
 

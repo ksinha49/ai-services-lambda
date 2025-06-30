@@ -554,7 +554,7 @@ def test_summarize_with_context_router(monkeypatch, config):
         return {'text': 'ok'}
     monkeypatch.setattr(module, 'forward_to_routellm', fake_forward)
 
-    out = module.lambda_handler({'query': 'hi'}, {})
+    out = module.lambda_handler({'query': 'hi', 'model': 'phi', 'temperature': 0.2}, {})
     assert fake_invoke.calls[0] == {'query': 'hi'}
-    assert sent['payload'] == {'query': 'hi', 'context': 'ctx'}
+    assert sent['payload'] == {'query': 'hi', 'model': 'phi', 'temperature': 0.2, 'context': 'ctx'}
     assert out['summary'] == {'text': 'ok'}
