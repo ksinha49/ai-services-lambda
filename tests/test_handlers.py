@@ -524,3 +524,37 @@ def test_llm_router_lambda_handler_default(monkeypatch):
     body2 = json.loads(out2['body'])
     assert body2['backend'] == 'bedrock'
     assert calls[1][1]['backend'] == 'bedrock'
+
+
+def test_summarize_with_context_router(monkeypatch, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/VECTOR_SEARCH_FUNCTION'] = 'vector-search'
+
+    # stub lambda invoke to return a single match with context text
+    class FakePayload:
+        def __init__(self, data):
+            self._data = data
+        def read(self):
+            return json.dumps(self._data).encode('utf-8')
+
+    def fake_invoke(FunctionName=None, Payload=None):
+        # capture payload sent to vector search
+        fake_invoke.calls.append(json.loads(Payload))
+        return {'Payload': FakePayload({'matches': [{'metadata': {'text': 'ctx'}}]})}
+
+    fake_invoke.calls = []
+
+    module = load_lambda('summ_ctx', 'services/rag-retrieval/summarize-with-context-lambda/app.py')
+    monkeypatch.setattr(module, 'lambda_client', type('C', (), {'invoke': staticmethod(fake_invoke)})())
+
+    sent = {}
+    def fake_forward(payload):
+        sent['payload'] = payload
+        return {'text': 'ok'}
+    monkeypatch.setattr(module, 'forward_to_routellm', fake_forward)
+
+    out = module.lambda_handler({'query': 'hi', 'model': 'phi', 'temperature': 0.2}, {})
+    assert fake_invoke.calls[0] == {'query': 'hi'}
+    assert sent['payload'] == {'query': 'hi', 'model': 'phi', 'temperature': 0.2, 'context': 'ctx'}
+    assert out['summary'] == {'text': 'ok'}
