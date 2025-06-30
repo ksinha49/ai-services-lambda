@@ -43,17 +43,6 @@ DEFAULT_PROMPT_COMPLEXITY_THRESHOLD = 20
 PROMPT_COMPLEXITY_THRESHOLD = int(
     os.environ.get("PROMPT_COMPLEXITY_THRESHOLD", str(DEFAULT_PROMPT_COMPLEXITY_THRESHOLD))
 )
-
-
-def _get_prompt_text(payload: Dict[str, Any]) -> str:
-    """Return prompt text for complexity calculation."""
-    if isinstance(payload.get("prompt"), str):
-        return payload.get("prompt", "")
-    if isinstance(payload.get("messages"), list):
-        return " ".join(str(m.get("content", "")) for m in payload["messages"] if isinstance(m, dict))
-    return ""
-
-
 def _choose_backend(prompt: str) -> str:
     """Return which backend to use based on prompt complexity."""
     complexity = len(prompt.split())
