@@ -6,9 +6,9 @@ Module: app.py
 Description:
   1. Read prompts from a local JSON file.
   2. Chat with an external summarization service to generate summaries.
-  3. Format summaries—including Markdown-style tables—into a Unicode‐capable PDF.
-  4. Fetch the original PDF from S3, merge summary pages before the original.
-  5. Upload the merged PDF back to S3.
+  3. Format summaries—including Markdown-style tables—into a Unicode-capable summary PDF.
+  4. Fetch the original document from S3, merge summary pages before the original.
+  5. Upload the merged document back to S3.
 Pre- and post-conditions are documented on the main handler.
 
 
@@ -245,7 +245,7 @@ def render_table(
     total_width: float,
 ) -> None:
     """
-    Draw a table at (x, y) on the PDF.
+    Draw a table at (x, y) within the document.
 
     Args:
         pdf: FPDF instance.
@@ -291,13 +291,13 @@ def remove_asterisks(text):
 
 def create_summary_pdf(summaries: List[str]) -> BytesIO:
     """
-    Build a PDF in memory containing each summary block.
+    Build a summary document in memory containing each summary block.
 
     Args:
         summaries: Raw summary strings.
 
     Returns:
-        BytesIO buffer of the PDF (cursor at 0).
+        BytesIO buffer of the summary PDF (cursor at 0).
     """
     prefix = get_environment_prefix()
     font_size = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
@@ -374,10 +374,10 @@ def create_summary_pdf(summaries: List[str]) -> BytesIO:
 
 def upload_buffer_to_s3(buffer: BytesIO, bucket: str, bucket_key: str) -> None:
     """
-    Upload a PDF buffer to S3.
+    Upload a summary PDF buffer to S3.
 
     Args:
-        buffer: BytesIO with PDF data.
+        buffer: BytesIO with summary PDF data.
         bucket: Destination S3 bucket.
         key:    Destination S3 key.
     """
@@ -445,7 +445,7 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 content = choice.get("message", {}).get("content", "")
                 summaries.append((title, content))
 
-        # Build, merge, and upload PDFs
+        # Build, merge, and upload summary PDF files
         summary_buf = create_summary_pdf(summaries)
 
         organic_file_key = event_body['organic_bucket_key']

@@ -53,7 +53,7 @@ Parameters:
 
   IDPBucketName:
     Type: String
-    Description: IDP bucket where PDFs are ingested
+    Description: IDP bucket where files are ingested
 
   IDPRawPrefix:
     Type: String
