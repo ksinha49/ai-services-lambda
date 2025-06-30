@@ -17,4 +17,3 @@ def route_event(event: Dict[str, Any]) -> Dict[str, Any]:
     """Route *event* through the cascading router and return the result."""
     router = CascadingRouter()
     return router.route(event)
-

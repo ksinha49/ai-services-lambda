@@ -427,7 +427,6 @@ def test_milvus_drop_lambda(monkeypatch):
 import sys
 
 def test_llm_router_choose_backend(monkeypatch):
-    import sys
     sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
     monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
     module = load_lambda('llm_router_app', 'services/llm-router/router-lambda/app.py')
@@ -436,7 +435,6 @@ def test_llm_router_choose_backend(monkeypatch):
 
 
 def test_llm_router_lambda_handler(monkeypatch):
-    import sys
     sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
     monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINT', 'http://bedrock')
     monkeypatch.setenv('BEDROCK_API_KEY', 'key')
@@ -464,23 +462,26 @@ def test_llm_router_lambda_handler(monkeypatch):
 
     monkeypatch.setattr(module.httpx, 'post', fake_post)
 
-    out1 = module.lambda_handler({'prompt': 'short text'}, {})
-    assert out1['backend'] == 'ollama'
-    assert out1['reply'] == 'ollama'
+    event1 = {'body': json.dumps({'prompt': 'short text'})}
+    out1 = module.lambda_handler(event1, {})
+    body1 = json.loads(out1['body'])
+    assert body1['backend'] == 'ollama'
+    assert body1['reply'] == 'ollama'
     assert calls[0][0] == 'http://ollama'
     assert calls[0][1]['model'] == 'phi'
     assert 'Authorization' not in calls[0][2]
 
-    out2 = module.lambda_handler({'prompt': 'one two three four'}, {})
-    assert out2['backend'] == 'bedrock'
-    assert out2['reply'] == 'bedrock'
+    event2 = {'body': json.dumps({'prompt': 'one two three four'})}
+    out2 = module.lambda_handler(event2, {})
+    body2 = json.loads(out2['body'])
+    assert body2['backend'] == 'bedrock'
+    assert body2['reply'] == 'bedrock'
     assert calls[1][0] == 'http://bedrock'
     assert 'model' not in calls[1][1]
     assert calls[1][2]['Authorization'] == 'Bearer key'
 
 
 def test_llm_router_lambda_handler_backend_override(monkeypatch):
-    import sys
     sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
     monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINT', 'http://bedrock')
     monkeypatch.setenv('BEDROCK_API_KEY', 'key')
@@ -508,13 +509,14 @@ def test_llm_router_lambda_handler_backend_override(monkeypatch):
 
     monkeypatch.setattr(module.httpx, 'post', fake_post)
 
-    out = module.lambda_handler({'prompt': 'short text', 'backend': 'bedrock'}, {})
-    assert out['backend'] == 'bedrock'
+    event = {'body': json.dumps({'prompt': 'short text', 'backend': 'bedrock'})}
+    out = module.lambda_handler(event, {})
+    body = json.loads(out['body'])
+    assert body['backend'] == 'bedrock'
     assert calls[0][0] == 'http://bedrock'
 
 
 def test_llm_router_choose_backend_default(monkeypatch):
-    import sys
     sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
     monkeypatch.delenv("PROMPT_COMPLEXITY_THRESHOLD", raising=False)
     module = load_lambda('llm_router_app_default', 'services/llm-router/router-lambda/app.py')
@@ -525,7 +527,6 @@ def test_llm_router_choose_backend_default(monkeypatch):
 
 
 def test_llm_router_lambda_handler_default(monkeypatch):
-    import sys
     sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
     monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINT', 'http://bedrock')
     monkeypatch.setenv('BEDROCK_API_KEY', 'key')
@@ -553,11 +554,15 @@ def test_llm_router_lambda_handler_default(monkeypatch):
 
     monkeypatch.setattr(module.httpx, 'post', fake_post)
 
-    out1 = module.lambda_handler({'prompt': 'short text'}, {})
-    assert out1['backend'] == 'ollama'
+    event1 = {'body': json.dumps({'prompt': 'short text'})}
+    out1 = module.lambda_handler(event1, {})
+    body1 = json.loads(out1['body'])
+    assert body1['backend'] == 'ollama'
     assert calls[0][0] == 'http://ollama'
 
     long_prompt = ' '.join(['w'] * 25)
-    out2 = module.lambda_handler({'prompt': long_prompt}, {})
-    assert out2['backend'] == 'bedrock'
+    event2 = {'body': json.dumps({'prompt': long_prompt})}
+    out2 = module.lambda_handler(event2, {})
+    body2 = json.loads(out2['body'])
+    assert body2['backend'] == 'bedrock'
     assert calls[1][0] == 'http://bedrock'
