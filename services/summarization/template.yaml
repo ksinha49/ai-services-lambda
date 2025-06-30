@@ -35,19 +35,7 @@ Parameters:
     Type: String
     Description: IAM Role ARN for Lambda functions
   
-  EventBridgeIAMRoleARN:
-    Type: String
-    Description: IAM Role ARN for event bridge rules
- 
-  FileuploadS3bucketName:
-    Type: String
-    Description: File upload s3 bucket name
-
   FileProcessingStepFunctionIAMRole:
-    Type: String
-    Description: IAM role ARN for step functions
-  
-  FileProcessingEmailId:
     Type: String
     Description: IAM role ARN for step functions
 
@@ -75,15 +63,6 @@ Parameters:
 Resources:
   # Layers - each defined separately
 
-  FileClassificationLambdaLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-classification-lambda-layer'
-      Description: Layer for file classification Lambda
-      ContentUri: ../../common/layers/file-classification-lambda-layer/
-      RetentionPolicy: Delete
-      CompatibleRuntimes:
-        - python3.13
 
   FileProcessingLambdaLayer:
     Type: AWS::Serverless::LayerVersion
@@ -119,35 +98,6 @@ Resources:
 
   # Lambdas - each defined separately
 
-  FileClassificationLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-classification'
-      Handler: app.lambda_handler
-      Runtime: python3.13
-      CodeUri: ./file-classification-lambda/
-      Role: !Ref LambdaIAMRoleARN
-      MemorySize: 1024                
-      Timeout: 60                     
-      EphemeralStorage:
-        Size: 2068  
-      Layers:
-        - !Ref FileClassificationLambdaLayer
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupID1 
-          - !Ref LambdaSecurityGroupID2
-        SubnetIds:
-          - !Ref LambdaSubnet1ID
-          - !Ref LambdaSubnet2ID
-      Environment:
-        Variables:
-          AWS_ACCOUNT_NAME: !Ref AWSAccountName
-      Events:
-        SQSTrigger:
-          Type: SQS
-          Properties:
-            Queue: !GetAtt FileUploadFIFOQueue.Arn
 
   FileProcessingLambdaFunction:
     Type: AWS::Serverless::Function
@@ -284,45 +234,6 @@ Resources:
             Resource: !Ref IngestionStateMachineArn
 
 
-  # SQS Queue for file upload events
-  FileUploadFIFOQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-queue.fifo'
-      FifoQueue: true
-      ContentBasedDeduplication: true
-      VisibilityTimeout: 90
-      
-  # SQS Dead letter Queue for unprocessed file upload events
-  FileUploadDeadLetterQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      QueueName: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-dead-letter-queue'
- 
-  FileUploadEventRule:
-    Type: AWS::Events::Rule
-    Properties:
-      Name: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-event-rule'
-      EventPattern:
-        source:
-          - aws.s3
-        detail-type:
-          - Object Created
-        detail:
-          bucket:
-            name:
-              - !Ref FileuploadS3bucketName
-          object:
-            key:
-              - prefix: "landing/ftp/"
-      Targets:
-        - Arn: !GetAtt FileUploadFIFOQueue.Arn
-          Id: FileUploadFIFOQueueTarget
-          RoleArn: !Ref EventBridgeIAMRoleARN
-          DeadLetterConfig:
-            Arn: !GetAtt FileUploadDeadLetterQueue.Arn
-          SqsParameters:
-            MessageGroupId: !Sub '${AWSAccountName}-${AWS::StackName}-file-upload-msg-id'
 
   FileProcessingStepFunction:
     Type: AWS::Serverless::StateMachine
