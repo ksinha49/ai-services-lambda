@@ -17,6 +17,11 @@ from heuristic_router import HeuristicRouter
 from predictive_router import PredictiveRouter
 from generative_router import GenerativeRouter
 
+__all__ = [
+    "CascadingRouter",
+    "handle_cascading_route",
+]
+
 
 class CascadingRouter:
     """Route requests through multiple strategies until one succeeds."""
@@ -33,4 +38,13 @@ class CascadingRouter:
             if resp is not None:
                 return resp
         raise RuntimeError("No router produced a response")
+
+
+def handle_cascading_route(prompt: str, config: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Route *prompt* using :class:`CascadingRouter` with optional *config*."""
+    event = {"prompt": prompt}
+    if config:
+        event.update(config)
+    router = CascadingRouter()
+    return router.route(event)
 

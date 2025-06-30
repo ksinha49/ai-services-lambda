@@ -5,6 +5,11 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
+__all__ = [
+    "HeuristicRouter",
+    "handle_heuristic_route",
+]
+
 DEFAULT_PROMPT_COMPLEXITY_THRESHOLD = 20
 PROMPT_COMPLEXITY_THRESHOLD = int(
     os.environ.get("PROMPT_COMPLEXITY_THRESHOLD", str(DEFAULT_PROMPT_COMPLEXITY_THRESHOLD))
@@ -31,4 +36,16 @@ class HeuristicRouter:
         else:
             event["backend"] = "ollama"
         return event
+
+
+def handle_heuristic_route(prompt: str, config: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    """Route *prompt* using :class:`HeuristicRouter` with optional *config*."""
+    event = {"prompt": prompt}
+    if config:
+        event.update(config)
+    router = HeuristicRouter()
+    result = router.try_route(event)
+    if result is None:
+        raise RuntimeError("Heuristic router returned no result")
+    return result
 
