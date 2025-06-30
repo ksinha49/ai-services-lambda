@@ -1,6 +1,7 @@
 import json
 import importlib.util
 import os
+import io
 import pytest
 
 
@@ -558,3 +559,93 @@ def test_summarize_with_context_router(monkeypatch, config):
     assert fake_invoke.calls[0] == {'query': 'hi'}
     assert sent['payload'] == {'query': 'hi', 'model': 'phi', 'temperature': 0.2, 'context': 'ctx'}
     assert out['summary'] == {'text': 'ok'}
+
+
+def test_text_chunk_event_overrides(monkeypatch, config):
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('chunk_override', 'services/rag-ingestion/text-chunk-lambda/app.py')
+    event = {'text': 'abcdef', 'chunk_size': 3, 'chunk_overlap': 1}
+    out = module.lambda_handler(event, {})
+    assert out['chunks'] == ['abc', 'cde', 'ef']
+
+
+def test_embed_event_override(monkeypatch, config):
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('embed_override', 'services/rag-ingestion/embed-lambda/app.py')
+    monkeypatch.setattr(module, '_openai_embed', lambda t: [9])
+    module._MODEL_MAP['openai'] = module._openai_embed
+    out = module.lambda_handler({'chunks': ['x'], 'embedModel': 'openai'}, {})
+    assert out['embeddings'] == [[9]]
+
+
+def test_vector_search_top_k(monkeypatch, config):
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    import types, sys
+    dummy = types.ModuleType('pymilvus')
+    dummy.Collection = type('Coll', (), {'__init__': lambda self, *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, 'pymilvus', dummy)
+    import common_utils.milvus_client as mc
+    monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
+
+    module = load_lambda('vector_search', 'services/vector-db/vector-search-lambda/app.py')
+    called = {}
+
+    def fake_search(self, embedding, top_k=5):
+        called['top_k'] = top_k
+        return [type('R', (), {'id': 1, 'score': 0.1, 'metadata': {}})]
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'search': fake_search})())
+    module.lambda_handler({'embedding': [0.1], 'top_k': 7}, {})
+    assert called['top_k'] == 7
+
+
+def test_file_processing_passthrough(monkeypatch):
+    module = load_lambda('file_proc2', 'services/summarization/file-processing-lambda/app.py')
+    monkeypatch.setattr(module, 'copy_file_to_idp', lambda b, k: 's3://dest/key')
+    event = {
+        'file': 's3://bucket/test.pdf',
+        'ingest_params': {'chunk_size': 2},
+    }
+    out = module.process_files(event, {})
+    assert out['ingest_params'] == {'chunk_size': 2}
+
+
+def test_summary_lambda_forwards(monkeypatch):
+    import types, sys
+    # ensure httpx provides Timeout and HTTPStatusError
+    sys.modules['httpx'].Timeout = object
+    sys.modules['httpx'].HTTPStatusError = type('E', (Exception,), {})
+    sys.modules['fpdf'] = types.ModuleType('fpdf')
+    sys.modules['fpdf'].FPDF = object
+    sys.modules['unidecode'] = types.ModuleType('unidecode')
+    sys.modules['unidecode'].unidecode = lambda x: x
+
+    module = load_lambda('sum_lambda', 'services/summarization/file-summary-lambda/app.py')
+    monkeypatch.setattr(module, 'read_prompts_from_json', lambda p: [{'query': 'hi', 'Title': 'T'}])
+    module.USER_PROMPTS_PATH = 'dummy'
+    captured = {}
+
+    class FakePayload:
+        def read(self):
+            return json.dumps({'choices': [{'message': {'content': 'ok'}}]}).encode()
+
+    def fake_invoke(FunctionName=None, Payload=None):
+        captured['payload'] = json.loads(Payload)
+        return {'Payload': FakePayload()}
+
+    monkeypatch.setattr(module, '_lambda_client', type('C', (), {'invoke': staticmethod(fake_invoke)})())
+    monkeypatch.setattr(module, 'upload_buffer_to_s3', lambda *a, **k: None)
+    monkeypatch.setattr(module, 'create_summary_pdf', lambda s: io.BytesIO(b'd'))
+
+    event = {
+        'collection_name': 'c',
+        'statusCode': 200,
+        'organic_bucket': 'b',
+        'organic_bucket_key': 'extracted/x.pdf',
+        'retrieve_params': {'top_k': 3},
+        'router_params': {'backend': 'bedrock'},
+    }
+    module.lambda_handler(event, {})
+    assert captured['payload'] == {'query': 'hi', 'top_k': 3, 'backend': 'bedrock'}

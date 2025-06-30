@@ -22,12 +22,14 @@ _handler.setFormatter(
 if not logger.handlers:
     logger.addHandler(_handler)
 
-EMBED_MODEL = get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "sbert")
+DEFAULT_EMBED_MODEL = (
+    get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "sbert")
+)
 _MAP_RAW = get_config("EMBED_MODEL_MAP") or os.environ.get("EMBED_MODEL_MAP", "{}")
 try:
-    EMBED_MODEL_MAP = json.loads(_MAP_RAW) if _MAP_RAW else {}
+    DEFAULT_EMBED_MODEL_MAP = json.loads(_MAP_RAW) if _MAP_RAW else {}
 except json.JSONDecodeError:
-    EMBED_MODEL_MAP = {}
+    DEFAULT_EMBED_MODEL_MAP = {}
 
 
 _SBERT_MODEL = None
@@ -94,6 +96,15 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     chunks = event.get("chunks", [])
     doc_type = event.get("docType") or event.get("type")
+    embed_model = event.get("embedModel", DEFAULT_EMBED_MODEL)
+    embed_map_raw = event.get("embedModelMap")
+    try:
+        embed_model_map = (
+            json.loads(embed_map_raw) if embed_map_raw else DEFAULT_EMBED_MODEL_MAP
+        )
+    except json.JSONDecodeError:
+        embed_model_map = DEFAULT_EMBED_MODEL_MAP
+
     embeddings: List[List[float]] = []
     for chunk in chunks:
         text = chunk
@@ -102,7 +113,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             text = chunk.get("text", "")
             meta = chunk.get("metadata", {})
             c_type = meta.get("docType") or meta.get("type") or c_type
-        model_name = EMBED_MODEL_MAP.get(c_type, EMBED_MODEL)
+        model_name = embed_model_map.get(c_type, embed_model)
         embed_fn = _MODEL_MAP.get(model_name, _sbert_embed)
         embeddings.append(embed_fn(text))
 

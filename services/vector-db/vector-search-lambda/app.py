@@ -34,7 +34,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if embedding is None:
         return {"matches": []}
 
-    results = client.search(embedding, top_k=TOP_K)
+    top_k = int(event.get("top_k", TOP_K))
+    results = client.search(embedding, top_k=top_k)
     matches = [
         {"id": r.id, "score": r.score, "metadata": r.metadata}
         for r in results
