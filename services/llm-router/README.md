@@ -38,6 +38,8 @@ easily through AWS Parameter Store or the Lambda console:
 - ``ROUTELLM_ENDPOINT`` – optional URL for an external RouteLLM router.
 - ``STRONG_MODEL_ID`` – identifier for the more capable Bedrock model.
 - ``WEAK_MODEL_ID`` – identifier for the lightweight model used for short prompts.
+- ``LLM_INVOCATION_FUNCTION`` – name of the Lambda function that actually
+  calls the selected LLM backend.
 
 ## Deployment
 

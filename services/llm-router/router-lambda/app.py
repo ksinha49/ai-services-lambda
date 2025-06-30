@@ -19,8 +19,7 @@ from typing import Any, Dict
 import json
 from main_router import route_event
 
-import httpx
-from httpx import HTTPStatusError
+import boto3
 
 __author__ = "Balakrishna"
 __version__ = "1.0.0"
@@ -35,10 +34,8 @@ _handler.setFormatter(
 if not logger.handlers:
     logger.addHandler(_handler)
 
-BEDROCK_OPENAI_ENDPOINT = os.environ.get("BEDROCK_OPENAI_ENDPOINT")
-BEDROCK_API_KEY = os.environ.get("BEDROCK_API_KEY")
-OLLAMA_ENDPOINT = os.environ.get("OLLAMA_ENDPOINT")
-OLLAMA_DEFAULT_MODEL = os.environ.get("OLLAMA_DEFAULT_MODEL", "")
+INVOCATION_FUNCTION = os.environ.get("LLM_INVOCATION_FUNCTION")
+lambda_client = boto3.client("lambda")
 
 DEFAULT_PROMPT_COMPLEXITY_THRESHOLD = 20
 PROMPT_COMPLEXITY_THRESHOLD = int(
@@ -74,31 +71,22 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             logger.info("Strategy '%s' not implemented, using complexity", strategy)
         backend = route_event(payload).get("backend")
 
-    url = BEDROCK_OPENAI_ENDPOINT if backend == "bedrock" else OLLAMA_ENDPOINT
-    if not url:
-        raise RuntimeError(f"{backend} endpoint not configured")
+    if not INVOCATION_FUNCTION:
+        raise RuntimeError("LLM_INVOCATION_FUNCTION not configured")
 
     request_payload = dict(payload)
-    request_payload.pop("backend", None)
+    request_payload["backend"] = backend
     request_payload.pop("strategy", None)
-    headers = {"Content-Type": "application/json"}
-    if backend == "bedrock":
-        headers["Authorization"] = f"Bearer {BEDROCK_API_KEY}" if BEDROCK_API_KEY else ""
-    else:
-        request_payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
 
     try:
-        response = httpx.post(url, json=request_payload, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+        resp = lambda_client.invoke(
+            FunctionName=INVOCATION_FUNCTION,
+            Payload=json.dumps(request_payload).encode("utf-8"),
+        )
+        data = json.loads(resp["Payload"].read())
         data["backend"] = backend
         return {"statusCode": 200, "body": json.dumps(data)}
-    except HTTPStatusError as e:
-        logger.error(
-            "Request to %s failed [%d]: %s", backend, e.response.status_code, e.response.text
-        )
-        raise
-    except Exception:
+    except Exception:  # pragma: no cover - unexpected invocation error
         logger.exception("Unexpected error in router lambda")
         raise
 

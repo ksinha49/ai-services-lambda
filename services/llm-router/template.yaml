@@ -18,6 +18,9 @@ Parameters:
   PromptComplexityThreshold:
     Type: String
     Default: '20'
+  LlmInvocationFunctionName:
+    Type: String
+    Default: ''
 
 Globals:
   Function:
@@ -49,6 +52,7 @@ Resources:
           OLLAMA_ENDPOINT: !Ref OllamaEndpoint
           OLLAMA_DEFAULT_MODEL: !Ref OllamaDefaultModel
           PROMPT_COMPLEXITY_THRESHOLD: !Ref PromptComplexityThreshold
+          LLM_INVOCATION_FUNCTION: !Ref LlmInvocationFunctionName
       Events:
         Api:
           Type: Api

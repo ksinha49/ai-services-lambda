@@ -27,6 +27,9 @@ Parameters:
   PromptComplexityThreshold:
     Type: String
     Default: '20'
+  LlmInvocationFunctionName:
+    Type: String
+    Default: ''
 
 Resources:
   IDPService:
@@ -75,6 +78,16 @@ Resources:
       Parameters:
         VectorSearchFunctionArn: !GetAtt VectorDBService.Outputs.VectorSearchFunctionArn
 
+  LLMInvocationService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/llm-invocation/template.yaml
+      Parameters:
+        BedrockOpenAIEndpoint: !Ref BedrockOpenAIEndpoint
+        BedrockApiKey: !Ref BedrockApiKey
+        OllamaEndpoint: !Ref OllamaEndpoint
+        OllamaDefaultModel: !Ref OllamaDefaultModel
+
   LLMRouterService:
     Type: AWS::Serverless::Application
     Properties:
@@ -85,4 +98,5 @@ Resources:
         OllamaEndpoint: !Ref OllamaEndpoint
         OllamaDefaultModel: !Ref OllamaDefaultModel
         PromptComplexityThreshold: !Ref PromptComplexityThreshold
+        LlmInvocationFunctionName: !GetAtt LLMInvocationService.Outputs.InvokeLLMLambdaArn
 
