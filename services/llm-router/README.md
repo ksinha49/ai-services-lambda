@@ -10,8 +10,9 @@ Lambda.  The modules are:
 
 - **main_router.py** – exposes ``route_event`` which orchestrates the
   routing flow.
-- **cascading_router.py** – combines multiple routing strategies and
-  tries them in sequence.
+- **cascading_router.py** – implements a *weak then strong* routing
+  pattern. It first calls a cheaper Bedrock model and only escalates to
+  a stronger model when the weak response fails a quality check.
 - **heuristic_router.py** – simple rule based routing using prompt
   length.
 - **predictive_router.py** – placeholder for ML based routing logic.
