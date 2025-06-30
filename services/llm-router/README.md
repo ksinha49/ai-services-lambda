@@ -35,6 +35,9 @@ easily through AWS Parameter Store or the Lambda console:
   router to decide when to switch from Ollama to Bedrock. When not set,
   the router defaults to a threshold of ``20`` words.
 - ``ROUTELLM_ENDPOINT`` – optional URL for an external RouteLLM router.
+- ``AWS_REGION`` – AWS region passed when creating the Bedrock runtime client.
+- ``STRONG_MODEL_ID`` – identifier for the more capable Bedrock model.
+- ``WEAK_MODEL_ID`` – identifier for the lightweight model used for short prompts.
 
 ## Deployment
 
@@ -67,4 +70,24 @@ handled the request. You may pass ``backend`` in the payload to force
 a particular destination (``bedrock`` or ``ollama``). When not
 provided, the router falls back to the complexity-based heuristic.
 An optional ``strategy`` field is accepted for future routing modes.
+
+## Bedrock OpenAI API Usage
+
+Calls to Bedrock are issued against its OpenAI‑compatible REST API using the
+``httpx`` package. When ``backend`` resolves to ``bedrock``, the Lambda forwards
+the payload directly to the configured endpoint:
+
+```python
+import httpx
+
+response = httpx.post(
+    os.environ["BEDROCK_OPENAI_ENDPOINT"],
+    headers={"Authorization": f"Bearer {os.environ.get('BEDROCK_API_KEY', '')}"},
+    json={"model": os.environ["STRONG_MODEL_ID"], "prompt": prompt},
+)
+```
+
+The ``AWS_REGION`` variable determines the region when constructing the endpoint
+URL. Model identifiers are provided by ``STRONG_MODEL_ID`` and
+``WEAK_MODEL_ID``.
 
