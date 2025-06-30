@@ -274,9 +274,9 @@ The router Lambda directs prompts to different Large Language Model back‑ends.
 
 ### Required environment variables
 
-- `BEDROCK_OPENAI_ENDPOINT` – URL of the Bedrock OpenAI‑compatible endpoint.
+- `BEDROCK_OPENAI_ENDPOINTS` – comma‑separated Bedrock OpenAI‑compatible endpoints.
 - `BEDROCK_API_KEY` – API key used when calling Bedrock.
-- `OLLAMA_ENDPOINT` – URL of the local Ollama service.
+- `OLLAMA_ENDPOINTS` – comma‑separated URLs of Ollama instances.
 - `OLLAMA_DEFAULT_MODEL` – model name passed to Ollama when one is not supplied.
 - `PROMPT_COMPLEXITY_THRESHOLD` – word count used by the router to decide when to switch from Ollama to Bedrock (defaults to `20`).
 - `ROUTELLM_ENDPOINT` – optional URL for forwarding requests to an external RouteLLM router.
