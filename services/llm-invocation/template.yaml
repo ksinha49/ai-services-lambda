@@ -33,6 +33,36 @@ Parameters:
   OllamaDefaultModel:
     Type: String
     Default: ''
+  OllamaNumCtx:
+    Type: String
+    Default: ''
+  OllamaRepeatLastN:
+    Type: String
+    Default: ''
+  OllamaRepeatPenalty:
+    Type: String
+    Default: ''
+  OllamaTemperature:
+    Type: String
+    Default: ''
+  OllamaSeed:
+    Type: String
+    Default: ''
+  OllamaStop:
+    Type: String
+    Default: ''
+  OllamaNumPredict:
+    Type: String
+    Default: ''
+  OllamaTopK:
+    Type: String
+    Default: ''
+  OllamaTopP:
+    Type: String
+    Default: ''
+  OllamaMinP:
+    Type: String
+    Default: ''
 
 Globals:
   Function:
@@ -58,6 +88,16 @@ Resources:
           BEDROCK_MAX_TOKENS_TO_SAMPLE: !Ref BedrockMaxTokensToSample
           OLLAMA_ENDPOINTS: !Ref OllamaEndpoint
           OLLAMA_DEFAULT_MODEL: !Ref OllamaDefaultModel
+          OLLAMA_NUM_CTX: !Ref OllamaNumCtx
+          OLLAMA_REPEAT_LAST_N: !Ref OllamaRepeatLastN
+          OLLAMA_REPEAT_PENALTY: !Ref OllamaRepeatPenalty
+          OLLAMA_TEMPERATURE: !Ref OllamaTemperature
+          OLLAMA_SEED: !Ref OllamaSeed
+          OLLAMA_STOP: !Ref OllamaStop
+          OLLAMA_NUM_PREDICT: !Ref OllamaNumPredict
+          OLLAMA_TOP_K: !Ref OllamaTopK
+          OLLAMA_TOP_P: !Ref OllamaTopP
+          OLLAMA_MIN_P: !Ref OllamaMinP
 
 Outputs:
   InvokeLLMLambdaArn:

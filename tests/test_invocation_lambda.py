@@ -163,3 +163,53 @@ def test_bedrock_openai_defaults(monkeypatch):
     assert sent['top_p'] == 0.8
     assert sent['top_k'] == 42
     assert sent['max_tokens_to_sample'] == 123
+
+
+def test_ollama_defaults(monkeypatch):
+    sys.modules['httpx'].HTTPStatusError = type('E', (Exception,), {})
+    monkeypatch.setenv('OLLAMA_ENDPOINTS', 'http://o1')
+    monkeypatch.setenv('OLLAMA_DEFAULT_MODEL', 'phi')
+    monkeypatch.setenv('OLLAMA_NUM_CTX', '99')
+    monkeypatch.setenv('OLLAMA_REPEAT_LAST_N', '7')
+    monkeypatch.setenv('OLLAMA_REPEAT_PENALTY', '1.2')
+    monkeypatch.setenv('OLLAMA_TEMPERATURE', '0.3')
+    monkeypatch.setenv('OLLAMA_SEED', '5')
+    monkeypatch.setenv('OLLAMA_STOP', 'END')
+    monkeypatch.setenv('OLLAMA_NUM_PREDICT', '12')
+    monkeypatch.setenv('OLLAMA_TOP_K', '23')
+    monkeypatch.setenv('OLLAMA_TOP_P', '0.8')
+    monkeypatch.setenv('OLLAMA_MIN_P', '0.02')
+    import importlib, llm_invocation.backends
+    importlib.reload(llm_invocation.backends)
+    module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
+
+    captured = {}
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+        def json(self):
+            return {'ok': True}
+        def raise_for_status(self):
+            pass
+
+    def fake_post(url, json=None):
+        captured['json'] = json
+        return FakeResponse(json)
+
+    import llm_invocation.backends as backends2
+    monkeypatch.setattr(backends2.httpx, 'post', fake_post)
+    module.lambda_handler({'backend': 'ollama', 'prompt': 'hi'}, {})
+    sent = captured['json']
+    assert sent['model'] == 'phi'
+    assert sent['num_ctx'] == 99
+    assert sent['repeat_last_n'] == 7
+    assert sent['repeat_penalty'] == 1.2
+    assert sent['temperature'] == 0.3
+    assert sent['seed'] == 5
+    assert sent['stop'] == 'END'
+    assert sent['num_predict'] == 12
+    assert sent['top_k'] == 23
+    assert sent['top_p'] == 0.8
+    assert sent['min_p'] == 0.02
+

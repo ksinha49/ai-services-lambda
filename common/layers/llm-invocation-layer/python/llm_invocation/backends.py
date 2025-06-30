@@ -37,6 +37,37 @@ BEDROCK_MAX_TOKENS_TO_SAMPLE = int(
     )
 )
 
+# Default sampling parameters for Ollama
+DEFAULT_OLLAMA_NUM_CTX = 4096
+DEFAULT_OLLAMA_REPEAT_LAST_N = 64
+DEFAULT_OLLAMA_REPEAT_PENALTY = 1.1
+DEFAULT_OLLAMA_TEMPERATURE = 0.7
+DEFAULT_OLLAMA_SEED = 42
+DEFAULT_OLLAMA_STOP = "AI assistant:"
+DEFAULT_OLLAMA_NUM_PREDICT = 42
+DEFAULT_OLLAMA_TOP_K = 40
+DEFAULT_OLLAMA_TOP_P = 0.9
+DEFAULT_OLLAMA_MIN_P = 0.05
+
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX)))
+OLLAMA_REPEAT_LAST_N = int(
+    os.environ.get("OLLAMA_REPEAT_LAST_N", str(DEFAULT_OLLAMA_REPEAT_LAST_N))
+)
+OLLAMA_REPEAT_PENALTY = float(
+    os.environ.get("OLLAMA_REPEAT_PENALTY", str(DEFAULT_OLLAMA_REPEAT_PENALTY))
+)
+OLLAMA_TEMPERATURE = float(
+    os.environ.get("OLLAMA_TEMPERATURE", str(DEFAULT_OLLAMA_TEMPERATURE))
+)
+OLLAMA_SEED = int(os.environ.get("OLLAMA_SEED", str(DEFAULT_OLLAMA_SEED)))
+OLLAMA_STOP = os.environ.get("OLLAMA_STOP", DEFAULT_OLLAMA_STOP)
+OLLAMA_NUM_PREDICT = int(
+    os.environ.get("OLLAMA_NUM_PREDICT", str(DEFAULT_OLLAMA_NUM_PREDICT))
+)
+OLLAMA_TOP_K = int(os.environ.get("OLLAMA_TOP_K", str(DEFAULT_OLLAMA_TOP_K)))
+OLLAMA_TOP_P = float(os.environ.get("OLLAMA_TOP_P", str(DEFAULT_OLLAMA_TOP_P)))
+OLLAMA_MIN_P = float(os.environ.get("OLLAMA_MIN_P", str(DEFAULT_OLLAMA_MIN_P)))
+
 
 def _get_endpoints(plural_var: str, single_var: str) -> List[str]:
     raw = os.environ.get(plural_var)
@@ -127,6 +158,17 @@ def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
 def invoke_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
     endpoint = choose_ollama_endpoint()
     payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
+
+    payload.setdefault("num_ctx", OLLAMA_NUM_CTX)
+    payload.setdefault("repeat_last_n", OLLAMA_REPEAT_LAST_N)
+    payload.setdefault("repeat_penalty", OLLAMA_REPEAT_PENALTY)
+    payload.setdefault("temperature", OLLAMA_TEMPERATURE)
+    payload.setdefault("seed", OLLAMA_SEED)
+    payload.setdefault("stop", OLLAMA_STOP)
+    payload.setdefault("num_predict", OLLAMA_NUM_PREDICT)
+    payload.setdefault("top_k", OLLAMA_TOP_K)
+    payload.setdefault("top_p", OLLAMA_TOP_P)
+    payload.setdefault("min_p", OLLAMA_MIN_P)
     resp = httpx.post(endpoint, json=payload)
     resp.raise_for_status()
     return resp.json()
