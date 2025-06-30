@@ -43,8 +43,12 @@ def test_invoke_bedrock_runtime(monkeypatch):
     module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
 
     class FakeRuntime:
-        def invoke_model(self, body=None, modelId=None):
-            data = {'content': {'text': 'resp'}}
+        def invoke_model(self, body=None, modelId=None, contentType=None, accept=None):
+            data = {
+                'choices': [
+                    {'message': {'content': 'resp'}}
+                ]
+            }
             return {'body': io.BytesIO(json.dumps(data).encode())}
 
     import llm_invocation.backends as backends

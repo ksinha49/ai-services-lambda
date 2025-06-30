@@ -51,18 +51,33 @@ choose_ollama_endpoint = _make_selector(OLLAMA_ENDPOINTS)
 
 
 def invoke_bedrock_runtime(prompt: str, model_id: str | None = None) -> Dict[str, Any]:
+    """Call Bedrock using its OpenAI compatible runtime."""
+
     runtime = boto3.client("bedrock-runtime")
     model_id = model_id or os.environ.get("STRONG_MODEL_ID") or os.environ.get("WEAK_MODEL_ID")
+
     body = json.dumps(
         {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 2048,
+            "model": model_id,
             "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 2048,
         }
     )
-    resp = runtime.invoke_model(body=body, modelId=model_id)
+
+    resp = runtime.invoke_model(
+        modelId=model_id,
+        body=body,
+        contentType="application/json",
+        accept="application/json",
+    )
+
     data = json.loads(resp.get("body").read())
-    return {"reply": data.get("content", {}).get("text", "")}
+    reply = (
+        data.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+    )
+    return {"reply": reply}
 
 
 def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
