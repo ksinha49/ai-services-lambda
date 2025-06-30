@@ -2,6 +2,7 @@ import importlib.util
 import json
 import io
 import sys
+import pytest
 
 
 def load_lambda(name, path):
@@ -212,4 +213,40 @@ def test_ollama_defaults(monkeypatch):
     assert sent['top_k'] == 23
     assert sent['top_p'] == 0.8
     assert sent['min_p'] == 0.02
+
+
+def test__invoke_bedrock_openai(monkeypatch):
+    sys.modules['httpx'].HTTPStatusError = type('E', (Exception,), {})
+    monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINTS', 'http://b1')
+    import importlib, llm_invocation.backends
+    importlib.reload(llm_invocation.backends)
+    module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
+
+    class FakeResponse:
+        def json(self):
+            return {'foo': 'bar'}
+
+        def raise_for_status(self):
+            pass
+
+    import llm_invocation.backends as backends
+    monkeypatch.setattr(backends.httpx, 'post', lambda url, json=None, headers=None: FakeResponse())
+
+    out = module.lambda_handler({'backend': 'bedrock', 'prompt': 'hi'}, {})
+    assert out == {'foo': 'bar'}
+
+
+def test_make_selector_round_robin():
+    from llm_invocation.backends import _make_selector
+
+    select = _make_selector(['a', 'b', 'c'])
+    assert [select() for _ in range(4)] == ['a', 'b', 'c', 'a']
+
+
+def test_make_selector_empty():
+    from llm_invocation.backends import _make_selector
+
+    select = _make_selector([])
+    with pytest.raises(RuntimeError):
+        select()
 
