@@ -34,7 +34,8 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
 )
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 # Initialize boto3 clients once
 ssm = boto3.client('ssm')

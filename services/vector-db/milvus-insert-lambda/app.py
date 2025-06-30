@@ -18,7 +18,8 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
 )
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 UPSERT = (get_config("MILVUS_UPSERT") or os.environ.get("MILVUS_UPSERT", "true")).lower() == "true"
 

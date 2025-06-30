@@ -53,7 +53,8 @@ _handler.setFormatter(logging.Formatter(
     "%(asctime)s %(levelname)s [%(name)s] %(message)s",
     "%Y-%m-%dT%H:%M:%S%z",
 ))
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 _s3_client = boto3.client("s3")
 _lambda_client = boto3.client("lambda")

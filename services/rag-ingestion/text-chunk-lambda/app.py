@@ -19,7 +19,8 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
 )
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 CHUNK_SIZE = int(get_config("CHUNK_SIZE") or os.environ.get("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(get_config("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "100"))
