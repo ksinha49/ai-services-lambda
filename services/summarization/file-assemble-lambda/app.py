@@ -20,6 +20,7 @@ Modified By: Koushik Sinha
 from __future__ import annotations
 import json
 import logging
+import os
 import boto3
 from PyPDF2 import PdfReader, PdfWriter
 import io
@@ -104,11 +105,17 @@ def assemble_files(event: dict, context, s3_client=s3_client) -> Optional[dict]:
         organic_file_key = event_body['organic_bucket_key']
         organic_bucket_name = event_body['organic_bucket']
         merged_file_key = organic_file_key.replace('extracted', 'merged')
-       
-        logger.info(f"Merging PDFs: {merged_file_key}")
-        merged_pdf_bytes = merge_pdfs(summary_file_content, organic_file_content)
-        #s3_client.put_object(Body='', Bucket=organic_bucket_name, Key=f"merged_files/{file_names[1]}", ACL='private')
-        final_response = upload_to_s3(merged_pdf_bytes, merged_file_key, organic_bucket_name, s3_client)
+
+        ext = os.path.splitext(organic_file_key)[1].lower()
+        if ext == '.pdf':
+            logger.info(f"Merging PDFs: {merged_file_key}")
+            merged_pdf_bytes = merge_pdfs(summary_file_content, organic_file_content)
+            final_response = upload_to_s3(merged_pdf_bytes, merged_file_key, organic_bucket_name, s3_client)
+            final_response['merged'] = True
+        else:
+            logger.info("Skipping merge for non-PDF file: %s", organic_file_key)
+            final_response = upload_to_s3(summary_file_content, merged_file_key, organic_bucket_name, s3_client)
+            final_response['merged'] = False
         return final_response
     except Exception as e:
         logger.error(f"Error assembling files: {str(e)}")
