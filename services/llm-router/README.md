@@ -32,7 +32,8 @@ easily through AWS Parameter Store or the Lambda console:
 - ``OLLAMA_DEFAULT_MODEL`` – model name passed to Ollama when not
   supplied in the payload.
 - ``PROMPT_COMPLEXITY_THRESHOLD`` – word count used by the heuristic
-  router to decide when to switch from Ollama to Bedrock.
+  router to decide when to switch from Ollama to Bedrock. When not set,
+  the router defaults to a threshold of ``20`` words.
 - ``ROUTELLM_ENDPOINT`` – optional URL for an external RouteLLM router.
 
 ## Deployment

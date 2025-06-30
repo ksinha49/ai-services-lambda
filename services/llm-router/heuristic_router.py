@@ -5,7 +5,10 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
 
-PROMPT_COMPLEXITY_THRESHOLD = int(os.environ.get("PROMPT_COMPLEXITY_THRESHOLD", "0"))
+DEFAULT_PROMPT_COMPLEXITY_THRESHOLD = 20
+PROMPT_COMPLEXITY_THRESHOLD = int(
+    os.environ.get("PROMPT_COMPLEXITY_THRESHOLD", str(DEFAULT_PROMPT_COMPLEXITY_THRESHOLD))
+)
 
 
 def _prompt_text(event: Dict[str, Any]) -> str:
