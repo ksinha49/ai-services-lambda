@@ -12,6 +12,21 @@ Parameters:
   MilvusCollection:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /rag/milvus/collection
+  BedrockOpenAIEndpoint:
+    Type: String
+    Default: ''
+  BedrockApiKey:
+    Type: String
+    Default: ''
+  OllamaEndpoint:
+    Type: String
+    Default: ''
+  OllamaDefaultModel:
+    Type: String
+    Default: ''
+  PromptComplexityThreshold:
+    Type: String
+    Default: '20'
 
 Resources:
   IDPService:
@@ -59,3 +74,15 @@ Resources:
       Location: services/rag-retrieval/template.yaml
       Parameters:
         VectorSearchFunctionArn: !GetAtt VectorDBService.Outputs.VectorSearchFunctionArn
+
+  LLMRouterService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/llm-router/template.yaml
+      Parameters:
+        BedrockOpenAIEndpoint: !Ref BedrockOpenAIEndpoint
+        BedrockApiKey: !Ref BedrockApiKey
+        OllamaEndpoint: !Ref OllamaEndpoint
+        OllamaDefaultModel: !Ref OllamaDefaultModel
+        PromptComplexityThreshold: !Ref PromptComplexityThreshold
+
