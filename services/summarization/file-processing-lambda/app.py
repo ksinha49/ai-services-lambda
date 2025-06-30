@@ -5,7 +5,7 @@
 Module: app.py
 Description:
   1. Retrieves SSM parameters using a proxy configuration.
-  2. Copies the uploaded PDF to the IDP bucket so downstream services can
+  2. Copies the uploaded file to the IDP bucket so downstream services can
      automatically process the document.
 
 Version: 1.0.2
@@ -41,8 +41,8 @@ if not logger.handlers:
 
 _s3_client = boto3.client("s3")
 
-def copy_pdf_to_idp(bucket_name: str, bucket_key: str) -> str:
-    """Copy the PDF to the IDP bucket RAW_PREFIX and return the destination URI."""
+def copy_file_to_idp(bucket_name: str, bucket_key: str) -> str:
+    """Copy the file to the IDP bucket RAW_PREFIX and return the destination URI."""
 
     prefix = get_environment_prefix()
     idp_bucket = get_values_from_ssm(f"{prefix}/IDP_BUCKET")
@@ -66,12 +66,12 @@ def copy_pdf_to_idp(bucket_name: str, bucket_key: str) -> str:
 
 
 def process_files(event: dict, context) -> dict:
-    """Copy the uploaded PDF to the IDP bucket and return its location."""
+    """Copy the uploaded file to the IDP bucket and return its location."""
 
     try:
-        bucket_name, bucket_key = parse_s3_uri(event["pdffile"])
+        bucket_name, bucket_key = parse_s3_uri(event["file"])
         logger.info("Copying %s/%s to IDP bucket", bucket_name, bucket_key)
-        dest_uri = copy_pdf_to_idp(bucket_name, bucket_key)
+        dest_uri = copy_file_to_idp(bucket_name, bucket_key)
 
         document_id = os.path.splitext(os.path.basename(bucket_key))[0]
 
