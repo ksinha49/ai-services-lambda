@@ -83,8 +83,11 @@ Resources:
       RetentionPolicy: Delete
   InvokeLLMLambda:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
     Properties:
-      CodeUri: ./invoke-lambda/
+      Handler: invoke-lambda/app.lambda_handler
+      CodeUri: ./
       Layers:
         - !Ref LlmInvocationLayer
       Environment:
