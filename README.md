@@ -45,7 +45,6 @@ Each capability lives in its own directory, fostering a clean, modular structure
   - **.github/**
     - **workflows/**
       - `deploy.yml`  
-  - `requirements.txt`  
   - `README.md`  
   - …other config files…
 
@@ -99,10 +98,13 @@ Each capability lives in its own directory, fostering a clean, modular structure
    ```bash
    git clone https://github.com/ameritascorp/aio-enterprise-ai-services.git
    cd aio-enterprise-ai-services
-2. **Install** dependencies
-   ```bash
-   pip install -r requirements.txt
-   
+   ```
+2. **Dependencies**
+   Each Lambda's Python packages are installed into a
+   dedicated layer directory under `common/layers/`. These layers
+   bundle the requirements for that function, so the repository does
+   not include a root-level `requirements.txt`.
+
 ---
 
 ## Configuration
