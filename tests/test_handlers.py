@@ -477,3 +477,53 @@ def test_llm_router_lambda_handler(monkeypatch):
     assert calls[1][0] == 'http://bedrock'
     assert 'model' not in calls[1][1]
     assert calls[1][2]['Authorization'] == 'Bearer key'
+
+
+def test_llm_router_choose_backend_default(monkeypatch):
+    import sys
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.delenv("PROMPT_COMPLEXITY_THRESHOLD", raising=False)
+    module = load_lambda('llm_router_app_default', 'services/llm-router/router-lambda/app.py')
+    short_prompt = ' '.join(['w'] * 5)
+    long_prompt = ' '.join(['w'] * 25)
+    assert module._choose_backend(short_prompt) == 'ollama'
+    assert module._choose_backend(long_prompt) == 'bedrock'
+
+
+def test_llm_router_lambda_handler_default(monkeypatch):
+    import sys
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINT', 'http://bedrock')
+    monkeypatch.setenv('BEDROCK_API_KEY', 'key')
+    monkeypatch.setenv('OLLAMA_ENDPOINT', 'http://ollama')
+    monkeypatch.setenv('OLLAMA_DEFAULT_MODEL', 'phi')
+    monkeypatch.delenv('PROMPT_COMPLEXITY_THRESHOLD', raising=False)
+    module = load_lambda('llm_router_lambda_default', 'services/llm-router/router-lambda/app.py')
+
+    class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+        def json(self):
+            return self._data
+        def raise_for_status(self):
+            pass
+
+    calls = []
+    def fake_post(url, json=None, headers=None):
+        calls.append((url, json, headers))
+        if url == 'http://bedrock':
+            return FakeResponse({'reply': 'bedrock'})
+        elif url == 'http://ollama':
+            return FakeResponse({'reply': 'ollama'})
+        raise ValueError('unexpected url')
+
+    monkeypatch.setattr(module.httpx, 'post', fake_post)
+
+    out1 = module.lambda_handler({'prompt': 'short text'}, {})
+    assert out1['backend'] == 'ollama'
+    assert calls[0][0] == 'http://ollama'
+
+    long_prompt = ' '.join(['w'] * 25)
+    out2 = module.lambda_handler({'prompt': long_prompt}, {})
+    assert out2['backend'] == 'bedrock'
+    assert calls[1][0] == 'http://bedrock'
