@@ -41,6 +41,13 @@ Resources:
     Type: AWS::Serverless::Application
     Properties:
       Location: services/summarization/template.yaml
+      Parameters:
+        FileAssembleFunctionArn: !GetAtt FileAssemblyService.Outputs.FileAssembleFunctionArn
+
+  FileAssemblyService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/file-assembly/template.yaml
 
   ZipProcessingService:
     Type: AWS::Serverless::Application

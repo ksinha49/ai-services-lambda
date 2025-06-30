@@ -68,17 +68,12 @@ Parameters:
     Type: String
     Description: ARN of the RAG retrieval summary Lambda
 
+  FileAssembleFunctionArn:
+    Type: String
+    Description: ARN of the file assemble Lambda
+
 Resources:
   # Layers - each defined separately
-  FileAssembleLambdaLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !Sub '${AWSAccountName}-${AWS::StackName}-file-assemble-lambda-layer'
-      Description: Layer for file assemble Lambda
-      ContentUri: ../../common/layers/file-assemble-lambda-layer/
-      RetentionPolicy: Delete
-      CompatibleRuntimes:
-        - python3.13
 
   FileClassificationLambdaLayer:
     Type: AWS::Serverless::LayerVersion
@@ -123,30 +118,6 @@ Resources:
 
 
   # Lambdas - each defined separately
-  FileAssembleLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-file-assemble'
-      Handler: app.lambda_handler
-      Runtime: python3.13
-      CodeUri: ./file-assemble-lambda/
-      Role: !Ref LambdaIAMRoleARN
-      MemorySize: 1024                
-      Timeout: 600                      
-      EphemeralStorage:
-        Size: 2068  
-      Layers:
-        - !Ref FileAssembleLambdaLayer
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupID1
-          - !Ref LambdaSecurityGroupID2
-        SubnetIds:
-          - !Ref LambdaSubnet1ID
-          - !Ref LambdaSubnet2ID
-        Environment:
-          Variables:
-            AWS_ACCOUNT_NAME: !Ref AWSAccountName
 
   FileClassificationLambdaFunction:
     Type: AWS::Serverless::Function
@@ -439,7 +410,7 @@ Resources:
             Resource: arn:aws:states:::lambda:invoke
             Output: '{% $states.result.Payload %}'
             Arguments:
-              FunctionName: !GetAtt FileAssembleLambdaFunction.Arn
+              FunctionName: !Ref FileAssembleFunctionArn
               Payload: '{% $states.input %}'
             Retry:
               - ErrorEquals:

@@ -27,9 +27,8 @@ Each capability lives in its own directory, fostering a clean, modular structure
 
 - **aio-enterprise-ai-services/**
   - **lambda/**
-    - **file-assemble/**
-      - **app/**  
-        - `*.py`  
+    - **file-assembly/**
+      - **file-assemble-lambda/app.py**
     - **file-classification/**
       - **app/**  
         - `*.py`  
