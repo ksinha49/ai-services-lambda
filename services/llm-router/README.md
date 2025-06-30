@@ -1,67 +1,36 @@
 # LLM Router Service
 
-This service routes user prompts to different Large Language Model (LLM)
-back‑ends.  It acts as a thin gateway in front of other services such as
-Amazon Bedrock or a locally hosted Ollama instance.
+This service routes prompts to different Large Language Model backends such as Amazon Bedrock or a local Ollama instance. `router-lambda/app.py` implements the Lambda entry point and relies on utilities shipped in the shared layer `common/layers/router-layer`.
 
-``router-lambda/app.py`` implements the Lambda function entry point.  The
-logic is split into small modules which can be reused outside of the
-Lambda.  The modules are:
+The routing logic is split into small modules which can also be reused outside the Lambda:
 
-- **main_router.py** – exposes ``route_event`` which orchestrates the
-  routing flow.
-- **cascading_router.py** – implements a *weak then strong* routing
-  pattern. It first calls a cheaper Bedrock model and only escalates to
-  a stronger model when the weak response fails a quality check.
-- **heuristic_router.py** – simple rule based routing using prompt
-  length.
+- **main_router.py** – exposes `route_event` orchestrating the routing flow.
+- **cascading_router.py** – implements a *weak then strong* strategy that tries a cheaper model first and escalates if the response fails a quality check.
+- **heuristic_router.py** – simple rule based routing by prompt length.
 - **predictive_router.py** – placeholder for ML based routing logic.
-- **generative_router.py** – fallback that always selects a backend so a
-  response is returned.
-- **routellm_integration.py** – helper for forwarding a request to an
-  external RouteLLM service.
+- **generative_router.py** – fallback that always selects a backend so a reply is returned.
+- **routellm_integration.py** – helper for forwarding a request to an external RouteLLM service.
+
+## Parameters
+
+`template.yaml` exposes a few parameters that become environment variables:
+
+| Parameter | Environment variable | Description |
+|-----------|----------------------|-------------|
+| `BedrockOpenAIEndpoint` | `BEDROCK_OPENAI_ENDPOINTS` | Comma-separated Bedrock OpenAI endpoints |
+| `BedrockApiKey` | `BEDROCK_API_KEY` | API key when calling Bedrock |
+| `OllamaEndpoint` | `OLLAMA_ENDPOINTS` | URLs of Ollama services |
+| `OllamaDefaultModel` | `OLLAMA_DEFAULT_MODEL` | Default model when none supplied |
+| `PromptComplexityThreshold` | `PROMPT_COMPLEXITY_THRESHOLD` | Word threshold used by the heuristic router |
+| `LlmInvocationFunctionName` | `LLM_INVOCATION_FUNCTION` | Name of the Lambda that invokes the selected backend |
 
 ## Environment variables
 
-The router depends on a few environment variables which can be provided
-easily through AWS Parameter Store or the Lambda console:
-
-- ``BEDROCK_OPENAI_ENDPOINTS`` – comma-separated Bedrock OpenAI‑compatible
-  endpoints.
-- ``BEDROCK_API_KEY`` – API key used when calling Bedrock.
-- ``BEDROCK_TEMPERATURE`` – sampling temperature for Bedrock models (default ``0.5``).
-- ``BEDROCK_NUM_CTX`` – context length for Bedrock calls (default ``4096``).
-- ``BEDROCK_MAX_TOKENS`` – maximum tokens to generate (default ``2048``).
-- ``BEDROCK_TOP_P`` – nucleus sampling parameter (default ``0.9``).
-- ``BEDROCK_TOP_K`` – top‑k sampling parameter (default ``50``).
-- ``BEDROCK_MAX_TOKENS_TO_SAMPLE`` – maximum tokens Bedrock should sample (default ``2048``).
-- ``OLLAMA_ENDPOINTS`` – comma-separated URLs of the local Ollama services.
-- ``OLLAMA_DEFAULT_MODEL`` – model name passed to Ollama when not
-  supplied in the payload.
-- ``OLLAMA_NUM_CTX`` – context length for Ollama requests (default ``4096``).
-- ``OLLAMA_REPEAT_LAST_N`` – repetition window size for Ollama (default ``64``).
-- ``OLLAMA_REPEAT_PENALTY`` – repetition penalty for Ollama (default ``1.1``).
-- ``OLLAMA_TEMPERATURE`` – sampling temperature for Ollama models (default ``0.7``).
-- ``OLLAMA_SEED`` – random seed for generation (default ``42``).
-- ``OLLAMA_STOP`` – stop sequence for Ollama (default ``"AI assistant:"``).
-- ``OLLAMA_NUM_PREDICT`` – number of tokens to predict (default ``42``).
-- ``OLLAMA_TOP_K`` – top‑k sampling parameter (default ``40``).
-- ``OLLAMA_TOP_P`` – nucleus sampling parameter (default ``0.9``).
-- ``OLLAMA_MIN_P`` – minimum probability threshold (default ``0.05``).
-- ``PROMPT_COMPLEXITY_THRESHOLD`` – word count used by the heuristic
-  router to decide when to switch from Ollama to Bedrock. When not set,
-  the router defaults to a threshold of ``20`` words.
-- ``ROUTELLM_ENDPOINT`` – optional URL for an external RouteLLM router.
-- ``STRONG_MODEL_ID`` – identifier for the more capable Bedrock model.
-- ``WEAK_MODEL_ID`` – identifier for the lightweight model used for short prompts.
-- ``LLM_INVOCATION_FUNCTION`` – name of the Lambda function that actually
-  calls the selected LLM backend.
+In addition to the parameters above the Lambda accepts optional tuning variables for both Bedrock and Ollama such as `BEDROCK_TEMPERATURE`, `BEDROCK_NUM_CTX`, `OLLAMA_REPEAT_PENALTY`, etc. See `template.yaml` for the complete list and default values.
 
 ## Deployment
 
-The router can be deployed with SAM like the other services in this
-repository.  Assuming the variables above are stored in Parameter Store,
-you can deploy the Lambda with:
+Deploy the router with SAM:
 
 ```bash
 sam deploy \
@@ -69,13 +38,9 @@ sam deploy \
   --stack-name llm-router
 ```
 
-(If ``template.yaml`` does not yet exist, copy one of the other service
-templates as a starting point.)
-
 ## Usage
 
-The Lambda expects an OpenAI style payload.  Example invocation using the
-AWS CLI:
+Send an OpenAI-style payload to the Lambda. For example using the AWS CLI:
 
 ```bash
 aws lambda invoke \
@@ -83,25 +48,4 @@ aws lambda invoke \
   --payload '{"prompt": "Tell me a joke"}' out.json
 ```
 
-The response will include a ``backend`` field indicating which service
-handled the request. You may pass ``backend`` in the payload to force
-a particular destination (``bedrock`` or ``ollama``). When not
-provided, the router falls back to the complexity-based heuristic.
-An optional ``strategy`` field is accepted for future routing modes.
-
-## Bedrock OpenAI API Usage
-
-Calls to Bedrock are issued against its OpenAI‑compatible REST API using the
-``httpx`` package. When ``backend`` resolves to ``bedrock``, the Lambda forwards
-the payload directly to the configured endpoint:
-
-```python
-import httpx
-
-response = httpx.post(
-    os.environ["BEDROCK_OPENAI_ENDPOINTS"].split(",")[0],
-    headers={"Authorization": f"Bearer {os.environ.get('BEDROCK_API_KEY', '')}"},
-    json={"model": os.environ["STRONG_MODEL_ID"], "prompt": prompt},
-)
-```
-Model identifiers are provided by ``STRONG_MODEL_ID`` and ``WEAK_MODEL_ID``.
+The response includes a `backend` field indicating which service handled the request. You may set `backend` in the payload to force a specific destination. When omitted the router uses the heuristic strategy described above.
