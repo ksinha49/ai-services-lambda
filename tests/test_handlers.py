@@ -423,3 +423,57 @@ def test_milvus_drop_lambda(monkeypatch):
     res = module.lambda_handler({}, {})
     assert called['dropped'] is True
     assert res['dropped'] is True
+
+import sys
+
+def test_llm_router_choose_backend(monkeypatch):
+    import sys
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
+    module = load_lambda('llm_router_app', 'services/llm-router/router-lambda/app.py')
+    assert module._choose_backend('one two') == 'ollama'
+    assert module._choose_backend('one two three four') == 'bedrock'
+
+
+def test_llm_router_lambda_handler(monkeypatch):
+    import sys
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.setenv('BEDROCK_OPENAI_ENDPOINT', 'http://bedrock')
+    monkeypatch.setenv('BEDROCK_API_KEY', 'key')
+    monkeypatch.setenv('OLLAMA_ENDPOINT', 'http://ollama')
+    monkeypatch.setenv('OLLAMA_DEFAULT_MODEL', 'phi')
+    monkeypatch.setenv('PROMPT_COMPLEXITY_THRESHOLD', '3')
+    module = load_lambda('llm_router_lambda', 'services/llm-router/router-lambda/app.py')
+
+    class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+        def json(self):
+            return self._data
+        def raise_for_status(self):
+            pass
+
+    calls = []
+    def fake_post(url, json=None, headers=None):
+        calls.append((url, json, headers))
+        if url == 'http://bedrock':
+            return FakeResponse({'reply': 'bedrock'})
+        elif url == 'http://ollama':
+            return FakeResponse({'reply': 'ollama'})
+        raise ValueError('unexpected url')
+
+    monkeypatch.setattr(module.httpx, 'post', fake_post)
+
+    out1 = module.lambda_handler({'prompt': 'short text'}, {})
+    assert out1['backend'] == 'ollama'
+    assert out1['reply'] == 'ollama'
+    assert calls[0][0] == 'http://ollama'
+    assert calls[0][1]['model'] == 'phi'
+    assert 'Authorization' not in calls[0][2]
+
+    out2 = module.lambda_handler({'prompt': 'one two three four'}, {})
+    assert out2['backend'] == 'bedrock'
+    assert out2['reply'] == 'bedrock'
+    assert calls[1][0] == 'http://bedrock'
+    assert 'model' not in calls[1][1]
+    assert calls[1][2]['Authorization'] == 'Bearer key'
