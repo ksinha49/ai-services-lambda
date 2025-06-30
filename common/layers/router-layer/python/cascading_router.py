@@ -13,6 +13,10 @@ import json
 import os
 from typing import Any, Dict, Optional
 
+from heuristic_router import HeuristicRouter
+from predictive_router import PredictiveRouter
+from generative_router import GenerativeRouter
+
 __all__ = [
     "CascadingRouter",
     "handle_cascading_route",
@@ -37,18 +41,17 @@ class CascadingRouter:
                 return resp
         raise RuntimeError("No router produced a response")
 
-def invoke_bedrock_model(bedrock_runtime: Any, model_id: str, prompt: str) -> str:
-    """Invoke a Bedrock model and return the generated text."""
-    body = json.dumps(
-        {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 2048,
-            "messages": [{"role": "user", "content": prompt}],
-        }
+def invoke_bedrock_model(lambda_client: Any, model_id: str, prompt: str) -> str:
+    """Invoke the llm invocation lambda for a Bedrock model."""
+    fn = os.environ.get("LLM_INVOCATION_FUNCTION")
+    if not fn:
+        raise RuntimeError("LLM_INVOCATION_FUNCTION not set")
+    resp = lambda_client.invoke(
+        FunctionName=fn,
+        Payload=json.dumps({"backend": "bedrock", "prompt": prompt, "model": model_id}).encode("utf-8"),
     )
-    response = bedrock_runtime.invoke_model(body=body, modelId=model_id)
-    response_body = json.loads(response.get("body").read())
-    return response_body["content"]["text"]
+    data = json.loads(resp["Payload"].read())
+    return data.get("reply", "")
 
 
 def is_response_sufficient(response: str) -> bool:
@@ -76,23 +79,23 @@ def handle_cascading_route(
     The function first calls the cheaper *weak* model.  If
     :func:`is_response_sufficient` determines the reply is inadequate it
     escalates to the more powerful model. ``config`` may contain a
-    ``bedrock_runtime`` client along with optional ``weak_model_id`` and
-    ``strong_model_id`` values.  Missing identifiers are read from the
-    ``WEAK_MODEL_ID`` and ``STRONG_MODEL_ID`` environment variables
-    respectively, and a runtime client is lazily created when not
+    ``lambda_client`` for invoking the LLM lambda along with optional
+    ``weak_model_id`` and ``strong_model_id`` values.  Missing identifiers
+    are read from the ``WEAK_MODEL_ID`` and ``STRONG_MODEL_ID``
+    environment variables respectively.  A client is created when not
     supplied.
     """
     config = config or {}
-    bedrock_runtime = config.get("bedrock_runtime")
-    if bedrock_runtime is None:
+    lambda_client = config.get("lambda_client")
+    if lambda_client is None:
         import boto3
 
-        bedrock_runtime = boto3.client("bedrock-runtime")
+        lambda_client = boto3.client("lambda")
 
     weak_model_id = config.get("weak_model_id") or os.environ.get("WEAK_MODEL_ID")
     strong_model_id = config.get("strong_model_id") or os.environ.get("STRONG_MODEL_ID")
 
-    weak_model_response = invoke_bedrock_model(bedrock_runtime, weak_model_id, prompt)
+    weak_model_response = invoke_bedrock_model(lambda_client, weak_model_id, prompt)
 
     if is_response_sufficient(weak_model_response):
         return {
@@ -102,7 +105,7 @@ def handle_cascading_route(
             "trace": ["Attempted weak model, response was sufficient."],
         }
 
-    strong_model_response = invoke_bedrock_model(bedrock_runtime, strong_model_id, prompt)
+    strong_model_response = invoke_bedrock_model(lambda_client, strong_model_id, prompt)
     return {
         "routed_by": "cascading",
         "model_used": strong_model_id,

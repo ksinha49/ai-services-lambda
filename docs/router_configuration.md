@@ -14,6 +14,7 @@ This document details the environment variables used by the router Lambda and ho
 | `ROUTELLM_ENDPOINT` | Optional URL for forwarding requests to a RouteLLM service. |
 | `STRONG_MODEL_ID` | Identifier for the more capable Bedrock model. |
 | `WEAK_MODEL_ID` | Identifier for the lightweight model used with shorter prompts. |
+| `LLM_INVOCATION_FUNCTION` | Name of the Lambda used for actual model invocation. |
 
 ## Setting Values with Parameter Store
 

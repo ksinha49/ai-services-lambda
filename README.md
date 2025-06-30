@@ -280,6 +280,7 @@ The router Lambda directs prompts to different Large Language Model back‑ends.
 - `OLLAMA_DEFAULT_MODEL` – model name passed to Ollama when one is not supplied.
 - `PROMPT_COMPLEXITY_THRESHOLD` – word count used by the router to decide when to switch from Ollama to Bedrock (defaults to `20`).
 - `ROUTELLM_ENDPOINT` – optional URL for forwarding requests to an external RouteLLM router.
+- `LLM_INVOCATION_FUNCTION` – name of the Lambda used for actual model invocation.
 
 ### Example invocation
 

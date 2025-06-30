@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lambda to invoke Bedrock or Ollama models.
+
+Parameters:
+  BedrockOpenAIEndpoint:
+    Type: String
+    Default: ''
+  BedrockApiKey:
+    Type: String
+    Default: ''
+  OllamaEndpoint:
+    Type: String
+    Default: ''
+  OllamaDefaultModel:
+    Type: String
+    Default: ''
+
+Globals:
+  Function:
+    Handler: app.lambda_handler
+    Runtime: python3.13
+    Timeout: 60
+    MemorySize: 512
+
+Resources:
+  InvokeLLMLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./invoke-lambda/
+      Environment:
+        Variables:
+          BEDROCK_OPENAI_ENDPOINT: !Ref BedrockOpenAIEndpoint
+          BEDROCK_API_KEY: !Ref BedrockApiKey
+          OLLAMA_ENDPOINT: !Ref OllamaEndpoint
+          OLLAMA_DEFAULT_MODEL: !Ref OllamaDefaultModel
+
+Outputs:
+  InvokeLLMLambdaArn:
+    Description: ARN of the invocation lambda
+    Value: !GetAtt InvokeLLMLambda.Arn
