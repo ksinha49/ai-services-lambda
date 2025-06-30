@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from .heuristic_router import HeuristicRouter
-from .predictive_router import PredictiveRouter
-from .generative_router import GenerativeRouter
+from heuristic_router import HeuristicRouter
+from predictive_router import PredictiveRouter
+from generative_router import GenerativeRouter
 
 
 class CascadingRouter:
