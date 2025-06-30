@@ -268,9 +268,33 @@ sam deploy \
 
 Ensure Parameter Store keys `IDP_BUCKET`, `RAW_PREFIX` and `TEXT_DOC_PREFIX` exist so the Lambdas can locate the IDP resources.
 
+## LLM Router Service
+
+The router Lambda directs prompts to different Large Language Model back‑ends. It typically sits in front of Amazon Bedrock and a local Ollama instance, choosing a destination based on the prompt length.
+
+### Required environment variables
+
+- `BEDROCK_OPENAI_ENDPOINT` – URL of the Bedrock OpenAI‑compatible endpoint.
+- `BEDROCK_API_KEY` – API key used when calling Bedrock.
+- `OLLAMA_ENDPOINT` – URL of the local Ollama service.
+- `OLLAMA_DEFAULT_MODEL` – model name passed to Ollama when one is not supplied.
+- `PROMPT_COMPLEXITY_THRESHOLD` – word count used by the router to decide when to switch from Ollama to Bedrock (defaults to `20`).
+- `ROUTELLM_ENDPOINT` – optional URL for forwarding requests to an external RouteLLM router.
+
+### Example invocation
+
+```bash
+aws lambda invoke \
+  --function-name llm-router \
+  --payload '{"prompt": "Write a short poem"}' out.json
+```
+
+The router counts the words in the prompt. If the count meets or exceeds `PROMPT_COMPLEXITY_THRESHOLD` the request goes to Bedrock, otherwise it is sent to Ollama. The response includes a `backend` field indicating which service handled the prompt.
+
 ## Documentation
 
 For details on how extracted text should be structured, see [docs/idp_output_format.md](docs/idp_output_format.md).
+Additional configuration guidance for the router can be found in [docs/router_configuration.md](docs/router_configuration.md).
 
 
    
