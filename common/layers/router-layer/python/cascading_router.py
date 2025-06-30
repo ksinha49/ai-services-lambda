@@ -1,16 +1,10 @@
-"""Cascading routing logic for selecting an LLM backend.
+"""Cascading routing logic used by the router Lambda.
 
-The :class:`CascadingRouter` orchestrates a sequence of routing
-strategies:
-
-1. :class:`HeuristicRouter` for simple rule based decisions.
-2. :class:`PredictiveRouter` for ML driven routing.
-3. :class:`GenerativeRouter` as a final fallback.
-
-``handle_cascading_route`` exposes the *weak then strong* pattern used
-by the router Lambda.  It first tries a cheaper Bedrock model and only
-escalates to a more powerful one when the initial response fails a
-quality check.
+``handle_cascading_route`` implements the *weak then strong* pattern. It
+invokes a cheaper Bedrock model first and escalates to a stronger model
+only when :func:`is_response_sufficient` deems the weak model response
+inadequate.  The :class:`CascadingRouter` class from an earlier design is
+retained for compatibility but is not required for this strategy.
 """
 
 from __future__ import annotations
