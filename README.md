@@ -289,7 +289,7 @@ aws lambda invoke \
   --payload '{"prompt": "Write a short poem"}' out.json
 ```
 
-The router counts the words in the prompt. If the count meets or exceeds `PROMPT_COMPLEXITY_THRESHOLD` the request goes to Bedrock, otherwise it is sent to Ollama. The response includes a `backend` field indicating which service handled the prompt.
+The router counts the words in the prompt. If the count meets or exceeds `PROMPT_COMPLEXITY_THRESHOLD` the request goes to Bedrock, otherwise it is sent to Ollama. Requests may optionally include a `backend` field to force a specific destination (``bedrock`` or ``ollama``). A ``strategy`` field can also be provided for future routing modes. When ``backend`` is not supplied the router falls back to the complexity-based logic. The response always includes a `backend` field indicating which service handled the prompt.
 
 ## Documentation
 

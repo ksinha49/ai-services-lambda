@@ -51,3 +51,41 @@ def test_lambda_handler(monkeypatch):
     out2 = module.lambda_handler({"prompt": "one two three four"}, {})
     assert out2["backend"] == "bedrock"
     assert calls[1][0] == "http://bedrock"
+
+
+def test_lambda_handler_backend_override(monkeypatch):
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.setenv("BEDROCK_OPENAI_ENDPOINT", "http://bedrock")
+    monkeypatch.setenv("BEDROCK_API_KEY", "key")
+    monkeypatch.setenv("OLLAMA_ENDPOINT", "http://ollama")
+    monkeypatch.setenv("OLLAMA_DEFAULT_MODEL", "phi")
+    monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
+
+    module = load_lambda("router_lambda_override", "services/llm-router/router-lambda/app.py")
+    calls = []
+    monkeypatch.setattr(module.httpx, "post", _make_fake_post(calls))
+
+    out1 = module.lambda_handler({"prompt": "short", "backend": "bedrock"}, {})
+    assert out1["backend"] == "bedrock"
+    assert calls[0][0] == "http://bedrock"
+
+    out2 = module.lambda_handler({"prompt": "one two three four", "backend": "ollama"}, {})
+    assert out2["backend"] == "ollama"
+    assert calls[1][0] == "http://ollama"
+
+
+def test_lambda_handler_strategy(monkeypatch):
+    sys.modules["httpx"].HTTPStatusError = type("E", (Exception,), {})
+    monkeypatch.setenv("BEDROCK_OPENAI_ENDPOINT", "http://bedrock")
+    monkeypatch.setenv("BEDROCK_API_KEY", "key")
+    monkeypatch.setenv("OLLAMA_ENDPOINT", "http://ollama")
+    monkeypatch.setenv("OLLAMA_DEFAULT_MODEL", "phi")
+    monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
+
+    module = load_lambda("router_lambda_strategy", "services/llm-router/router-lambda/app.py")
+    calls = []
+    monkeypatch.setattr(module.httpx, "post", _make_fake_post(calls))
+
+    out = module.lambda_handler({"prompt": "short", "strategy": "complexity"}, {})
+    assert out["backend"] == "ollama"
+    assert calls[0][0] == "http://ollama"
