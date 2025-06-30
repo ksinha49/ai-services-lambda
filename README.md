@@ -322,6 +322,7 @@ The router counts the words in the prompt. If the count meets or exceeds `PROMPT
 
 For details on how extracted text should be structured, see [docs/idp_output_format.md](docs/idp_output_format.md).
 Additional configuration guidance for the router can be found in [docs/router_configuration.md](docs/router_configuration.md).
+An overview of the summarization state machine is available in [docs/summarization_workflow.md](docs/summarization_workflow.md).
 
 
    

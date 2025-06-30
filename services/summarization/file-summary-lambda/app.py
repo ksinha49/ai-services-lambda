@@ -4,11 +4,10 @@
 """
 Module: app.py
 Description:
-  1. Read prompts from a local JSON file.
-  2. Chat with an external summarization service to generate summaries.
-  3. Format summaries—including Markdown-style tables—into a Unicode-capable summary PDF.
-  4. Fetch the original document from S3, merge summary pages before the original.
-  5. Upload the merged document back to S3.
+  1. Receive pre-generated summaries from the state machine.
+  2. Format summaries—including Markdown-style tables—into a Unicode-capable summary PDF.
+  3. Fetch the original document from S3, merge summary pages before the original.
+  4. Upload the merged document back to S3.
 Pre- and post-conditions are documented on the main handler.
 
 
