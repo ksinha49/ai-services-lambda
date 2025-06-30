@@ -27,10 +27,21 @@ Globals:
     MemorySize: 512
 
 Resources:
+  RouterLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: llm-router-layer
+      Description: Helpers for router lambda
+      ContentUri: ../../common/layers/router-layer/
+      CompatibleRuntimes:
+        - python3.13
+      RetentionPolicy: Delete
   RouterLambda:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./router-lambda/
+      Layers:
+        - !Ref RouterLayer
       Environment:
         Variables:
           BEDROCK_OPENAI_ENDPOINT: !Ref BedrockOpenAIEndpoint
