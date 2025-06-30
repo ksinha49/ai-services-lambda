@@ -12,6 +12,9 @@ This document details the environment variables used by the router Lambda and ho
 | `OLLAMA_DEFAULT_MODEL` | Default model name if one is not supplied in the payload. |
 | `PROMPT_COMPLEXITY_THRESHOLD` | Word count threshold that determines when to switch from Ollama to Bedrock (defaults to `20`). |
 | `ROUTELLM_ENDPOINT` | Optional URL for forwarding requests to a RouteLLM service. |
+| `AWS_REGION` | Region of the Bedrock OpenAI endpoint. |
+| `STRONG_MODEL_ID` | Identifier for the more capable Bedrock model. |
+| `WEAK_MODEL_ID` | Identifier for the lightweight model used with shorter prompts. |
 
 ## Setting Values with Parameter Store
 
