@@ -26,12 +26,28 @@ Lambda.  The modules are:
 The router depends on a few environment variables which can be provided
 easily through AWS Parameter Store or the Lambda console:
 
-- ``BEDROCK_OPENAI_ENDPOINT`` – URL of a Bedrock OpenAI‑compatible
-  endpoint.
+- ``BEDROCK_OPENAI_ENDPOINTS`` – comma-separated Bedrock OpenAI‑compatible
+  endpoints.
 - ``BEDROCK_API_KEY`` – API key used when calling Bedrock.
-- ``OLLAMA_ENDPOINT`` – URL of the local Ollama service.
+- ``BEDROCK_TEMPERATURE`` – sampling temperature for Bedrock models (default ``0.5``).
+- ``BEDROCK_NUM_CTX`` – context length for Bedrock calls (default ``4096``).
+- ``BEDROCK_MAX_TOKENS`` – maximum tokens to generate (default ``2048``).
+- ``BEDROCK_TOP_P`` – nucleus sampling parameter (default ``0.9``).
+- ``BEDROCK_TOP_K`` – top‑k sampling parameter (default ``50``).
+- ``BEDROCK_MAX_TOKENS_TO_SAMPLE`` – maximum tokens Bedrock should sample (default ``2048``).
+- ``OLLAMA_ENDPOINTS`` – comma-separated URLs of the local Ollama services.
 - ``OLLAMA_DEFAULT_MODEL`` – model name passed to Ollama when not
   supplied in the payload.
+- ``OLLAMA_NUM_CTX`` – context length for Ollama requests (default ``4096``).
+- ``OLLAMA_REPEAT_LAST_N`` – repetition window size for Ollama (default ``64``).
+- ``OLLAMA_REPEAT_PENALTY`` – repetition penalty for Ollama (default ``1.1``).
+- ``OLLAMA_TEMPERATURE`` – sampling temperature for Ollama models (default ``0.7``).
+- ``OLLAMA_SEED`` – random seed for generation (default ``42``).
+- ``OLLAMA_STOP`` – stop sequence for Ollama (default ``"AI assistant:"``).
+- ``OLLAMA_NUM_PREDICT`` – number of tokens to predict (default ``42``).
+- ``OLLAMA_TOP_K`` – top‑k sampling parameter (default ``40``).
+- ``OLLAMA_TOP_P`` – nucleus sampling parameter (default ``0.9``).
+- ``OLLAMA_MIN_P`` – minimum probability threshold (default ``0.05``).
 - ``PROMPT_COMPLEXITY_THRESHOLD`` – word count used by the heuristic
   router to decide when to switch from Ollama to Bedrock. When not set,
   the router defaults to a threshold of ``20`` words.
@@ -83,7 +99,7 @@ the payload directly to the configured endpoint:
 import httpx
 
 response = httpx.post(
-    os.environ["BEDROCK_OPENAI_ENDPOINT"],
+    os.environ["BEDROCK_OPENAI_ENDPOINTS"].split(",")[0],
     headers={"Authorization": f"Bearer {os.environ.get('BEDROCK_API_KEY', '')}"},
     json={"model": os.environ["STRONG_MODEL_ID"], "prompt": prompt},
 )
