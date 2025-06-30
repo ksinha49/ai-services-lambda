@@ -52,8 +52,8 @@ Each capability lives in its own directory, fostering a clean, modular structure
 
 ## Key Features
 
-### 1. File Assembly 
-- Combine summary and original PDF files  
+### 1. File Assembly
+- Combine summary and original files
 - Organize directory structure for downstream processing  
 
 ### 2. File Classification 
@@ -88,7 +88,8 @@ Each capability lives in its own directory, fostering a clean, modular structure
 
 ### 9. Summarization
 - Generate context-aware summaries using retrieved text chunks
-- Merge the summary pages with the original PDF
+- Merge the summary pages with the original file
+- Supports summarization for any file type handled by the IDP pipeline
 
 ---
 
@@ -258,10 +259,10 @@ included in the request payload and are forwarded unchanged to the router.
 
 ### Deploying the Summarization Service
 This stack orchestrates the end‑to‑end summary workflow:
-1. `file-processing` copies PDFs to `IDP_BUCKET/RAW_PREFIX`.
+1. `file-processing` copies uploaded files to `IDP_BUCKET/RAW_PREFIX`.
 2. The IDP pipeline extracts text to `TEXT_DOC_PREFIX`.
 3. New text files start the ingestion state machine (`IngestionStateMachineArn`) to chunk and embed the pages.
-4. Once ingestion completes, the summarization state machine calls the RAG retrieval summary Lambda (`RAG_SUMMARY_FUNCTION_ARN`) and merges the output with the original PDF.
+4. Once ingestion completes, the summarization state machine calls the RAG retrieval summary Lambda (`RAG_SUMMARY_FUNCTION_ARN`) and merges the output with the original file.
 
 Deploy with the required parameters:
 
