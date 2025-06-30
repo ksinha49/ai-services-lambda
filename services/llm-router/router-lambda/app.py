@@ -16,7 +16,7 @@ import logging
 import os
 from typing import Any, Dict
 
-from llm_router import route_event
+from main_router import route_event
 
 import httpx
 from httpx import HTTPStatusError

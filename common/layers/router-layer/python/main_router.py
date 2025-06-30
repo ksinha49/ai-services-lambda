@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from .cascading_router import CascadingRouter
+from cascading_router import CascadingRouter
 
 
 def route_event(event: Dict[str, Any]) -> Dict[str, Any]:
