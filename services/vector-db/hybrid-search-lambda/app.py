@@ -36,11 +36,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     embedding = event.get("embedding")
     keywords: List[str] = event.get("keywords", [])
+    top_k = int(event.get("top_k", TOP_K))
     res = collection.search(
         [embedding],
         "embedding",
         {"metric_type": "L2"},
-        limit=TOP_K,
+        limit=top_k,
         output_fields=["metadata"],
     )
     matches = [
@@ -55,5 +56,5 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 filtered.append(m)
         matches = filtered
 
-    return {"matches": matches[:TOP_K]}
+    return {"matches": matches[:top_k]}
 

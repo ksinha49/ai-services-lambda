@@ -75,10 +75,19 @@ def process_files(event: dict, context) -> dict:
 
         document_id = os.path.splitext(os.path.basename(bucket_key))[0]
 
-        return {
+        result = {
             "document_id": document_id,
             "s3_location": dest_uri,
         }
+        for key in (
+            "ingest_params",
+            "retrieve_params",
+            "router_params",
+            "llm_params",
+        ):
+            if key in event:
+                result[key] = event[key]
+        return result
     except Exception as exc:
         logger.error("Failed to process file: %s", exc)
         raise

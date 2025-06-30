@@ -384,7 +384,7 @@ Resources:
             Resource: arn:aws:states:::states:startExecution.sync
             Parameters:
               StateMachineArn: !Ref IngestionStateMachineArn
-              Input: '{% {"documentId": $states.input.body.document_id} %}'
+              Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params} %}'
             Next: file_summary
           file_summary:
             Type: Task

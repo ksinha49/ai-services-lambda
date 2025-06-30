@@ -435,9 +435,15 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for p in prompts:
             raw_query = p.get("query", "")
             title = p.get("Title", "")
+            payload = {"query": raw_query}
+            for key in ("retrieve_params", "router_params", "llm_params"):
+                if key in event_body:
+                    param = event_body.get(key) or {}
+                    if isinstance(param, dict):
+                        payload.update(param)
             resp = _lambda_client.invoke(
                 FunctionName=RAG_SUMMARY_FUNCTION_ARN,
-                Payload=json.dumps({"query": raw_query}).encode("utf-8"),
+                Payload=json.dumps(payload).encode("utf-8"),
             )
             payload = json.loads(resp["Payload"].read())
             summary_json = payload.get("summary", payload)
