@@ -19,7 +19,8 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
 )
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 HOST = get_config("MILVUS_HOST") or os.environ.get("MILVUS_HOST", "localhost")
 PORT = int(get_config("MILVUS_PORT") or os.environ.get("MILVUS_PORT", "19530"))

@@ -21,7 +21,8 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
 )
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 LAMBDA_FUNCTION = get_config("VECTOR_SEARCH_FUNCTION") or os.environ.get("VECTOR_SEARCH_FUNCTION")
 SUMMARY_ENDPOINT = get_config("SUMMARY_ENDPOINT") or os.environ.get("SUMMARY_ENDPOINT")

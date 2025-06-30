@@ -19,7 +19,8 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
 )
-logger.addHandler(_handler)
+if not logger.handlers:
+    logger.addHandler(_handler)
 
 EMBED_MODEL = get_config("EMBED_MODEL") or os.environ.get("EMBED_MODEL", "sbert")
 _MAP_RAW = get_config("EMBED_MODEL_MAP") or os.environ.get("EMBED_MODEL_MAP", "{}")
