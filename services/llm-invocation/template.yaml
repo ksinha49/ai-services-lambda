@@ -72,10 +72,21 @@ Globals:
     MemorySize: 512
 
 Resources:
+  LlmInvocationLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: llm-invocation-layer
+      Description: Helpers for invoking LLMs
+      ContentUri: ../../common/layers/llm-invocation-layer/
+      CompatibleRuntimes:
+        - python3.13
+      RetentionPolicy: Delete
   InvokeLLMLambda:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./invoke-lambda/
+      Layers:
+        - !Ref LlmInvocationLayer
       Environment:
         Variables:
           BEDROCK_OPENAI_ENDPOINTS: !Ref BedrockOpenAIEndpoint

@@ -13,12 +13,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from llm_invocation.backends import (
-    BEDROCK_OPENAI_ENDPOINTS,
+from llm_invoke import (
     invoke_bedrock_openai,
     invoke_bedrock_runtime,
     invoke_ollama,
 )
+from llm_invocation.backends import BEDROCK_OPENAI_ENDPOINTS
 from httpx import HTTPStatusError
 
 logger = logging.getLogger(__name__)
