@@ -212,3 +212,4 @@ def test_ollama_defaults(monkeypatch):
     assert sent['top_k'] == 23
     assert sent['top_p'] == 0.8
     assert sent['min_p'] == 0.02
+

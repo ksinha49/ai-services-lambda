@@ -158,6 +158,7 @@ def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
 def invoke_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
     endpoint = choose_ollama_endpoint()
     payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
+
     payload.setdefault("num_ctx", OLLAMA_NUM_CTX)
     payload.setdefault("repeat_last_n", OLLAMA_REPEAT_LAST_N)
     payload.setdefault("repeat_penalty", OLLAMA_REPEAT_PENALTY)
