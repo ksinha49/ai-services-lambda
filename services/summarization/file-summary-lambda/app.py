@@ -57,8 +57,6 @@ if not logger.handlers:
     logger.addHandler(_handler)
 
 _s3_client = boto3.client("s3")
-_lambda_client = boto3.client("lambda")
-RAG_SUMMARY_FUNCTION_ARN = os.environ.get("RAG_SUMMARY_FUNCTION_ARN")
 
 def get_token() -> Dict[str, Any]:
     """
@@ -427,29 +425,14 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"statusCode": 500, "statusMessage": msg}
 
     try:
-        prompts = read_prompts_from_json(USER_PROMPTS_PATH)
-        if prompts is None:
-            raise RuntimeError("Unable to read prompts")
+        if not isinstance(event_body.get("summaries"), list):
+            raise RuntimeError("summaries list missing")
 
-        summaries: List[str] = []
-        for p in prompts:
-            raw_query = p.get("query", "")
-            title = p.get("Title", "")
-            payload = {"query": raw_query}
-            for key in ("retrieve_params", "router_params", "llm_params"):
-                if key in event_body:
-                    param = event_body.get(key) or {}
-                    if isinstance(param, dict):
-                        payload.update(param)
-            resp = _lambda_client.invoke(
-                FunctionName=RAG_SUMMARY_FUNCTION_ARN,
-                Payload=json.dumps(payload).encode("utf-8"),
-            )
-            payload = json.loads(resp["Payload"].read())
-            summary_json = payload.get("summary", payload)
-            for choice in summary_json.get("choices", []):
-                content = choice.get("message", {}).get("content", "")
-                summaries.append((title, content))
+        summaries: List[tuple[str, str]] = []
+        for item in event_body.get("summaries", []):
+            title = item.get("Title", "")
+            content = item.get("content", "")
+            summaries.append((title, content))
 
         # Build, merge, and upload summary PDF files
         summary_buf = create_summary_pdf(summaries)

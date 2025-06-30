@@ -385,6 +385,29 @@ Resources:
             Parameters:
               StateMachineArn: !Ref IngestionStateMachineArn
               Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params} %}'
+            Next: run_prompts
+          run_prompts:
+            Type: Map
+            ItemsPath: $.body.prompts
+            ResultPath: $.run_prompts
+            MaxConcurrency: 10
+            Iterator:
+              StartAt: summarize
+              States:
+                summarize:
+                  Type: Task
+                  Resource: arn:aws:states:::lambda:invoke
+                  Output: '{% $states.result.Payload.summary.choices[0].message.content %}'
+                  Arguments:
+                    FunctionName: !Ref RagSummaryFunctionArn
+                    Payload: '{% {"query": $$Map.Item.Value.query, "retrieve_params": $states.input.body.retrieve_params, "router_params": $states.input.body.router_params, "llm_params": $states.input.body.llm_params} %}'
+                  Next: add_title
+                add_title:
+                  Type: Pass
+                  Parameters:
+                    Title.$: $$Map.Item.Value.Title
+                    content.$: $
+                  End: true
             Next: file_summary
           file_summary:
             Type: Task
@@ -392,7 +415,7 @@ Resources:
             Output: '{% $states.result.Payload %}'
             Arguments:
               FunctionName: !GetAtt FileSummaryLambdaFunction.Arn
-              Payload: '{% $states.input %}'
+              Payload: '{% $merge([$states.input, {"summaries": $.run_prompts}]) %}'
             Retry:
               - ErrorEquals:
                   - States.TaskFailed
