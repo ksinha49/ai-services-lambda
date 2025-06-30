@@ -6,9 +6,9 @@ This document details the environment variables used by the router Lambda and ho
 
 | Name | Description |
 | ---- | ----------- |
-| `BEDROCK_OPENAI_ENDPOINT` | URL of the Bedrock endpoint implementing the OpenAI API. |
+| `BEDROCK_OPENAI_ENDPOINTS` | Comma‑separated Bedrock endpoints implementing the OpenAI API. |
 | `BEDROCK_API_KEY` | API key to authenticate when calling Bedrock. |
-| `OLLAMA_ENDPOINT` | URL of the local Ollama service. |
+| `OLLAMA_ENDPOINTS` | Comma‑separated URLs of the local Ollama services. |
 | `OLLAMA_DEFAULT_MODEL` | Default model name if one is not supplied in the payload. |
 | `PROMPT_COMPLEXITY_THRESHOLD` | Word count threshold that determines when to switch from Ollama to Bedrock (defaults to `20`). |
 | `ROUTELLM_ENDPOINT` | Optional URL for forwarding requests to a RouteLLM service. |

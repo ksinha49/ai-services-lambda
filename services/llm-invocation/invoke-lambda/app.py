@@ -10,13 +10,15 @@ routing strategies can delegate all model interactions here.
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 from typing import Any, Dict
 
-import boto3
-import httpx
+from llm_invocation.backends import (
+    BEDROCK_OPENAI_ENDPOINTS,
+    invoke_bedrock_openai,
+    invoke_bedrock_runtime,
+    invoke_ollama,
+)
 from httpx import HTTPStatusError
 
 logger = logging.getLogger(__name__)
@@ -28,41 +30,7 @@ _handler.setFormatter(
 if not logger.handlers:
     logger.addHandler(_handler)
 
-BEDROCK_OPENAI_ENDPOINT = os.environ.get("BEDROCK_OPENAI_ENDPOINT")
-BEDROCK_API_KEY = os.environ.get("BEDROCK_API_KEY")
-OLLAMA_ENDPOINT = os.environ.get("OLLAMA_ENDPOINT")
-OLLAMA_DEFAULT_MODEL = os.environ.get("OLLAMA_DEFAULT_MODEL", "")
 
-
-def _invoke_bedrock_runtime(prompt: str, model_id: str | None = None) -> Dict[str, Any]:
-    runtime = boto3.client("bedrock-runtime")
-    model_id = model_id or os.environ.get("STRONG_MODEL_ID") or os.environ.get("WEAK_MODEL_ID")
-    body = json.dumps(
-        {
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 2048,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-    )
-    resp = runtime.invoke_model(body=body, modelId=model_id)
-    data = json.loads(resp.get("body").read())
-    return {"reply": data.get("content", {}).get("text", "")}
-
-
-def _invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
-    headers = {"Content-Type": "application/json"}
-    if BEDROCK_API_KEY:
-        headers["Authorization"] = f"Bearer {BEDROCK_API_KEY}"
-    resp = httpx.post(BEDROCK_OPENAI_ENDPOINT, json=payload, headers=headers)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _invoke_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
-    payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
-    resp = httpx.post(OLLAMA_ENDPOINT, json=payload)
-    resp.raise_for_status()
-    return resp.json()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -77,10 +45,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     try:
         if backend == "bedrock":
-            if BEDROCK_OPENAI_ENDPOINT:
-                return _invoke_bedrock_openai(payload)
-            return _invoke_bedrock_runtime(prompt, payload.get("model"))
-        return _invoke_ollama(payload)
+            if BEDROCK_OPENAI_ENDPOINTS:
+                return invoke_bedrock_openai(payload)
+            return invoke_bedrock_runtime(prompt, payload.get("model"))
+        return invoke_ollama(payload)
     except HTTPStatusError as e:
         logger.error(
             "LLM request failed [%d]: %s", e.response.status_code, e.response.text
