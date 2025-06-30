@@ -9,7 +9,7 @@ def load_lambda(name, path):
 
 
 def test_assemble_skips_merge(monkeypatch, s3_stub):
-    module = load_lambda('assemble', 'services/summarization/file-assemble-lambda/app.py')
+    module = load_lambda('assemble', 'services/file-assembly/file-assemble-lambda/app.py')
 
     s3_stub.objects[('bucket', 'extracted/test.docx')] = b'orig'
     s3_stub.objects[('bucket', 'summary/test.pdf')] = b'sum'
@@ -40,7 +40,7 @@ def test_assemble_skips_merge(monkeypatch, s3_stub):
 
 
 def test_assemble_merges(monkeypatch, s3_stub):
-    module = load_lambda('assemble2', 'services/summarization/file-assemble-lambda/app.py')
+    module = load_lambda('assemble2', 'services/file-assembly/file-assemble-lambda/app.py')
 
     s3_stub.objects[('bucket', 'extracted/test.pdf')] = b'orig'
     s3_stub.objects[('bucket', 'summary/test.pdf')] = b'sum'
