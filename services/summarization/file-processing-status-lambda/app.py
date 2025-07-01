@@ -16,6 +16,7 @@ Modified By: Koushik Sinha
 from __future__ import annotations
 import boto3
 import logging
+from common_utils import configure_logger
 import os
 from common_utils.get_ssm import (
     get_values_from_ssm,
@@ -28,15 +29,8 @@ __version__ = "1.0.2"  # Version number of the module
 __modified_by__ = "Koushik Sinha"
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = configure_logger(__name__)
 
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
 
 
 # No proxy configuration is required for SSM access when running within AWS.

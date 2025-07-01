@@ -20,6 +20,7 @@ Modified By: Koushik Sinha
 from __future__ import annotations
 import json
 import logging
+from common_utils import configure_logger
 import os
 import boto3
 from PyPDF2 import PdfReader, PdfWriter
@@ -38,14 +39,7 @@ Logging Configuration:
     * Add the stream handler to the logger
 """
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
+logger = configure_logger(__name__)
 
 # Initialize the S3 client once at module load time and reuse it
 s3_client = boto3.client("s3")

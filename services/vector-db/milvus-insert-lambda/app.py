@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import logging
+from common_utils import configure_logger
 from typing import Any, List
 
 from common_utils import MilvusClient, VectorItem
@@ -17,14 +18,7 @@ __author__ = "Koushik Sinha"
 __version__ = "1.0.0"
 __modified_by__ = "Koushik Sinha"
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
+logger = configure_logger(__name__)
 
 UPSERT = (get_config("MILVUS_UPSERT") or os.environ.get("MILVUS_UPSERT", "true")).lower() == "true"
 
