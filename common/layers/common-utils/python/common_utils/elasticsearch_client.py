@@ -2,8 +2,16 @@
 
 from __future__ import annotations
 
+# Module Metadata
+__author__ = "Koushik Sinha"
+__version__ = "1.0.0"
+__modified_by__ = "Koushik Sinha"
+
 import os
+import logging
 from typing import Any, Iterable, List, Optional
+
+logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover - optional dependency
     from elasticsearch import Elasticsearch

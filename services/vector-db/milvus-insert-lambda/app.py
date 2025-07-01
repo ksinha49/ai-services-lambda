@@ -12,6 +12,11 @@ from typing import Any, List
 from common_utils import MilvusClient, VectorItem
 from common_utils.get_ssm import get_config
 
+# Module Metadata
+__author__ = "Koushik Sinha"
+__version__ = "1.0.0"
+__modified_by__ = "Koushik Sinha"
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
