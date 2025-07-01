@@ -29,3 +29,14 @@ Deploy the stack with SAM:
 ```bash
 sam deploy --template-file services/vector-db/template.yaml
 ```
+
+## Outputs
+
+The stack exports the ARNs of both search functions:
+
+- `VectorSearchFunctionArn` – ARN of the vector search Lambda
+- `HybridSearchFunctionArn` – ARN of the hybrid search Lambda
+
+These values are referenced by other services. For example, `rag-retrieval`
+sets the `VECTOR_SEARCH_FUNCTION` environment variable to one of these ARNs to
+toggle between pure vector search and hybrid search.

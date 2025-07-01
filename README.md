@@ -39,11 +39,18 @@ Splits text documents into overlapping chunks, generates embeddings using
 
 #### vector-db
 Provides Lambda functions for creating collections, inserting, updating and
-searching embeddings stored in Milvus.
+searching embeddings stored in Milvus. Similarity search is implemented in
+`vector-search-lambda` for pure vector queries and `hybrid-search-lambda` for
+vector search with optional keyword filtering. The stack exports the ARNs
+`VectorSearchFunctionArn` and `HybridSearchFunctionArn` for these functions.
 
 #### rag-retrieval
 Queries the vector database for relevant context and forwards results to
-summarization, content extraction or entity extraction endpoints.
+summarization, content extraction or entity extraction endpoints. The retrieval
+Lambdas invoke whichever search function name is stored in the
+`VECTOR_SEARCH_FUNCTION` environment variable. Pointing this variable to the
+`HybridSearchFunctionArn` exported by the `vector-db` stack toggles the service
+from pure vector search to hybrid search.
 
 #### summarization
 Step Function workflow that copies a file to the IDP bucket, waits for text
@@ -154,7 +161,9 @@ environment. The table below summarises the most common variables.
 
 ### RAG Retrieval
 
-- `VECTOR_SEARCH_FUNCTION` – Lambda used for vector search.
+ - `VECTOR_SEARCH_FUNCTION` – ARN or name of the search Lambda. Set this to
+   `VectorSearchFunctionArn` for pure similarity search or
+   `HybridSearchFunctionArn` to enable keyword filtering.
 - `SUMMARY_ENDPOINT` – optional summarization service URL.
 - `CONTENT_ENDPOINT` – endpoint for content extraction.
 - `ENTITIES_ENDPOINT` – endpoint for entity extraction.

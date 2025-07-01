@@ -1,6 +1,8 @@
 # RAG Retrieval Service
 
 This service exposes several Lambda functions that retrieve text from a vector database and forward the results to downstream APIs for summarization or extraction.
+The retrieval logic calls the search Lambda defined by the `VECTOR_SEARCH_FUNCTION` environment variable. Pointing this variable to the
+`HybridSearchFunctionArn` exported by the vector‑db stack switches from pure vector similarity search to hybrid search with keyword filtering.
 
 ## Lambdas and API Endpoints
 
@@ -15,7 +17,7 @@ This service exposes several Lambda functions that retrieve text from a vector d
 
 ## Environment variables
 
-- `VECTOR_SEARCH_FUNCTION` – ARN or name of the Lambda used for vector search.
+- `VECTOR_SEARCH_FUNCTION` – ARN or name of the search Lambda. Set this to `VectorSearchFunctionArn` for pure similarity search or `HybridSearchFunctionArn` to include keyword filtering.
 - `RERANK_FUNCTION` – optional Lambda used to re-rank search results.
 - `SUMMARY_ENDPOINT` – optional HTTP endpoint for a summarization service.
 - `CONTENT_ENDPOINT` – URL used by `extract-content`.
