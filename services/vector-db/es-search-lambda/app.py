@@ -22,7 +22,13 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Search for the best matching documents."""
+    """Triggered to perform a vector search against Elasticsearch.
+
+    1. Uses the given embedding to query the index for similar documents.
+    2. Limits the response to ``top_k`` results.
+
+    Returns the list of matching documents.
+    """
 
     embedding: List[float] | None = event.get("embedding")
     if embedding is None:

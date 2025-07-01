@@ -22,7 +22,12 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Drop the index."""
+    """Triggered to delete the Elasticsearch index.
+
+    1. Calls the client ``drop_index`` method to remove the index entirely.
+
+    Returns ``{"dropped": True}`` when successful.
+    """
 
     client.drop_index()
     return {"dropped": True}

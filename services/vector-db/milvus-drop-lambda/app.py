@@ -22,7 +22,12 @@ client = MilvusClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Drop the collection."""
+    """Triggered to drop the entire Milvus collection.
+
+    1. Invokes the client's ``drop_collection`` method.
+
+    Returns ``{"dropped": True}`` when the collection has been removed.
+    """
 
     client.drop_collection()
     return {"dropped": True}

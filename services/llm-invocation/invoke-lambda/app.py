@@ -33,7 +33,14 @@ logger = configure_logger(__name__)
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Invoke the selected backend and return the raw response."""
+    """Triggered by the router to invoke a specific LLM backend.
+
+    1. Validates the request parameters and selects the appropriate backend
+       implementation.
+    2. Forwards the prompt to Bedrock or Ollama and captures the response.
+
+    Returns the raw backend response as a dictionary.
+    """
     backend = event.get("backend")
     prompt = event.get("prompt")
     system_prompt = event.get("system_prompt")

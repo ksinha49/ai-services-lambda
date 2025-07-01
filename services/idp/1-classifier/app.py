@@ -91,6 +91,15 @@ def _iter_records(event: dict) -> Iterable[dict]:
         yield record
 
 def lambda_handler(event: dict, context) -> dict:
+    """Triggered by new files in ``RAW_PREFIX``.
+
+    1. Iterates over S3 event records and classifies each object into
+       Office or PDF storage locations.
+    2. Any errors are logged but do not stop processing.
+
+    Returns a 200 response indicating completion.
+    """
+
     logger.info("Received event: %s", event)
     for rec in _iter_records(event):
         try:

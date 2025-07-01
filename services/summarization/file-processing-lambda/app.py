@@ -92,16 +92,12 @@ def _response(status: int, body: dict) -> dict:
 
 
 def lambda_handler(event: dict, context) -> dict:
-    """
-    The main Lambda handler.
+    """Triggered after a file upload to start processing.
 
-    Args:
-        event (dict): The Lambda event.
-        context: The Lambda context.
+    1. Copies the file to the IDP bucket so subsequent steps can operate on it.
+    2. Returns the destination URI or an error message.
 
-    Returns:
-        dict: A dictionary containing the result of the assembly operation. 
-              If an error occurs, returns a suitable response for the caller.
+    Returns an HTTP style response with status and body.
     """
 
     logger.info("Starting Lambda function...")

@@ -22,7 +22,12 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Insert the provided documents."""
+    """Triggered to index new documents in Elasticsearch.
+
+    1. Inserts the ``documents`` list into the configured index.
+
+    Returns a count of how many documents were inserted.
+    """
 
     documents: Iterable[dict] = event.get("documents", [])
     inserted = client.insert(documents)

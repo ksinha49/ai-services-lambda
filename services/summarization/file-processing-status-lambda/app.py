@@ -79,15 +79,12 @@ def _response(status: int, body: dict) -> dict:
 
 
 def lambda_handler(event: dict, context) -> dict:
-    """
-    The main Lambda handler.
+    """Triggered periodically to poll processing status.
 
-    Args:
-        event (dict): The Lambda event.
-        context: The Lambda context.
+    1. Checks S3 for the text output produced by the IDP pipeline.
+    2. Updates the event with the current status and collection details.
 
-    Returns:
-        dict: The updated event with the file processing status and collection name.
+    Returns an HTTP style response with the status information.
     """
 
     logger.info("Starting Lambda function...")

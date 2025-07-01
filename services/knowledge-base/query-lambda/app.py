@@ -21,7 +21,13 @@ lambda_client = boto3.client("lambda")
 
 
 def lambda_handler(event: dict, context: object) -> dict:
-    """Forward ``event`` to the summarization Lambda."""
+    """Triggered by API queries against the knowledge base.
+
+    1. Forwards the request payload to the summarization Lambda specified by
+       ``SUMMARY_FUNCTION_ARN``.
+
+    Returns the JSON response from that function.
+    """
 
     resp = lambda_client.invoke(
         FunctionName=SUMMARY_FUNCTION_ARN,

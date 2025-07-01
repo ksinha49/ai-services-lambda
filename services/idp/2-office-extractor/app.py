@@ -132,6 +132,14 @@ def _process_record(record: dict) -> None:
     logger.info("Wrote %s", dest_key)
 
 def lambda_handler(event: dict, context: dict) -> dict:
+    """Triggered by Office files arriving in ``OFFICE_PREFIX``.
+
+    1. Reads each S3 record and extracts text from DOCX, PPTX or XLSX files.
+    2. Writes the resulting Markdown pages to ``TEXT_DOC_PREFIX``.
+
+    Returns a 200 status once processing completes.
+    """
+
     logger.info("Received event for 2-office-extractor: %s", event)
     for rec in _iter_records(event):
         try:

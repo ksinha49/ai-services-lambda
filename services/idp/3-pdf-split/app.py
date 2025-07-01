@@ -115,7 +115,14 @@ def _handle_record(record: dict) -> None:
     _split_pdf(bucket_name, pdf_page_prefix, key)
 
 def lambda_handler(event: dict, context: dict) -> dict:
-    """Entry point for the Lambda function."""
+    """Triggered by PDFs uploaded to ``PDF_RAW_PREFIX``.
+
+    1. For each S3 record, splits the PDF into page files under
+       ``PDF_PAGE_PREFIX`` and writes a ``manifest.json``.
+    2. Errors per record are logged and processing continues.
+
+    Returns a 200 response on completion.
+    """
     logger.info("Received event for 3-pdf-split: %s", event)
     for rec in _iter_records(event):
         try:

@@ -30,7 +30,14 @@ lambda_client = boto3.client("lambda")
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Invoke the content service with text from vector search results."""
+    """Triggered during retrieval to fetch structured content.
+
+    1. Performs a vector search using ``VECTOR_SEARCH_FUNCTION`` and gathers the
+       text from the returned matches.
+    2. Sends the query and context to the external content service.
+
+    Returns the service response in a ``content`` field.
+    """
 
     query = event.get("query")
     emb = event.get("embedding")

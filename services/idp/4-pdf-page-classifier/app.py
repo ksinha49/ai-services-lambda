@@ -118,7 +118,15 @@ def _handle_record(record: dict) -> None:
     _copy_page(bucket_name, pdf_page_prefix, key, body, prefix)
 
 def lambda_handler(event: dict, context: dict) -> dict:
-    """Entry point for the Lambda function."""
+    """Triggered by pages output from ``3-pdf-split``.
+
+    1. Determines if each page contains embedded text and copies it to either
+       ``PDF_TEXT_PAGE_PREFIX`` or ``PDF_SCAN_PAGE_PREFIX``.
+    2. Logs any errors but continues processing remaining records.
+
+    Returns a standard 200 response.
+    """
+
     logger.info("Received event for 4-pdf-page-classifier: %s", event)
     for rec in _iter_records(event):
         try:
