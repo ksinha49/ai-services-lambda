@@ -28,7 +28,17 @@ def lambda_handler(event: dict, context: object) -> dict:
 
     payload = {"text": text}
     doc_type = event.get("docType") or event.get("type")
+    metadata = {}
     if doc_type:
         payload["docType"] = doc_type
+        metadata["docType"] = doc_type
+
+    for key in ("department", "team", "user"):
+        value = event.get(key)
+        if value:
+            metadata[key] = value
+
+    if metadata:
+        payload["metadata"] = metadata
     sfn.start_execution(stateMachineArn=STATE_MACHINE_ARN, input=json.dumps(payload))
     return {"started": True}

@@ -22,11 +22,12 @@ def test_kb_ingest(monkeypatch):
     module = load_lambda('ingest', 'services/knowledge-base/ingest-lambda/app.py')
     module.sfn = FakeSFN()
     module.STATE_MACHINE_ARN = 'arn'
-    out = module.lambda_handler({'text': 't', 'docType': 'pdf'}, {})
+    out = module.lambda_handler({'text': 't', 'docType': 'pdf', 'department': 'HR'}, {})
     assert out['started'] is True
     assert calls['arn'] == 'arn'
     assert calls['input']['text'] == 't'
     assert calls['input']['docType'] == 'pdf'
+    assert calls['input']['metadata']['department'] == 'HR'
 
 
 def test_kb_query(monkeypatch):
@@ -40,5 +41,5 @@ def test_kb_query(monkeypatch):
     module = load_lambda('query', 'services/knowledge-base/query-lambda/app.py')
     module.lambda_client = FakeLambda()
     module.SUMMARY_FUNCTION_ARN = 'arn'
-    out = module.lambda_handler({'query': 'hi'}, {})
-    assert out['result']['query'] == 'hi'
+    out = module.lambda_handler({'query': 'hi', 'team': 'x'}, {})
+    assert out['result']['team'] == 'x'

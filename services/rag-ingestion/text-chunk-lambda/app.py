@@ -44,11 +44,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     text = event.get("text", "")
     doc_type = event.get("docType") or event.get("type")
+    metadata = event.get("metadata", {})
     chunk_size = int(event.get("chunk_size", DEFAULT_CHUNK_SIZE))
     overlap = int(event.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP))
     chunks = chunk_text(text, chunk_size, overlap)
-    payload: Dict[str, Any] = {"chunks": chunks}
+    chunk_list = [
+        {"text": c, "metadata": {**metadata, "docType": doc_type} if doc_type else {**metadata}}
+        for c in chunks
+    ]
+    payload: Dict[str, Any] = {"chunks": chunk_list}
     if doc_type:
         payload["docType"] = doc_type
+    if metadata:
+        payload["metadata"] = metadata
     return payload
 
