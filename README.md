@@ -92,7 +92,7 @@ the retrieval and summarization stack.
 Refer to [INSTALL.md](INSTALL.md) for detailed steps. In short:
 
 ```bash
-git clone https://github.com/ameritascorp/ai-services-lambda.git
+git clone https://github.com/ameritascorp/aio-enterprise-ai-services.git
 cd ai-services-lambda
 sam build
 ```
