@@ -41,15 +41,27 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     query = event.get("query")
     emb = event.get("embedding")
-    resp = lambda_client.invoke(
-        FunctionName=LAMBDA_FUNCTION,
-        Payload=json.dumps({"embedding": emb}).encode("utf-8"),
-    )
-    result = json.loads(resp["Payload"].read())
+    logger.info("Invoking vector search function %s", LAMBDA_FUNCTION)
+    try:
+        resp = lambda_client.invoke(
+            FunctionName=LAMBDA_FUNCTION,
+            Payload=json.dumps({"embedding": emb}).encode("utf-8"),
+        )
+        result = json.loads(resp["Payload"].read())
+    except Exception:
+        logger.exception("Vector search invocation failed")
+        return {"content": {}}
+    logger.info("Vector search returned %d matches", len(result.get("matches", [])))
     context_text = " ".join(
         m.get("metadata", {}).get("text", "") for m in result.get("matches", [])
     )
-    r = httpx.post(CONTENT_ENDPOINT, json={"query": query, "context": context_text})
-    r.raise_for_status()
+    logger.info("Calling content service at %s", CONTENT_ENDPOINT)
+    try:
+        r = httpx.post(CONTENT_ENDPOINT, json={"query": query, "context": context_text})
+        r.raise_for_status()
+    except Exception:
+        logger.exception("Content service request failed")
+        return {"content": {}}
+    logger.info("Content service returned status %s", r.status_code)
     return {"content": r.json()}
 

@@ -73,6 +73,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     query = event.get("query") or ""
     matches: List[Dict[str, Any]] = event.get("matches", [])
     top_k = int(event.get("top_k", TOP_K))
+    logger.info("Re-ranking %d matches with top_k=%s", len(matches), top_k)
     texts = [m.get("metadata", {}).get("text", "") for m in matches]
     scores = _score_pairs(query, texts) if query else [0.0] * len(matches)
     reranked = [
@@ -80,4 +81,5 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for i, m in enumerate(matches)
     ]
     reranked.sort(key=lambda x: x.get("rerank_score", 0.0), reverse=True)
+    logger.info("Returning %d re-ranked matches", min(len(reranked), top_k))
     return {"matches": reranked[:top_k]}
