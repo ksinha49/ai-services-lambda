@@ -25,6 +25,8 @@ _CE_MODEL = None
 
 
 def _load_model():
+    """Return a :class:`CrossEncoder` model, downloading it on first use."""
+
     global _CE_MODEL
     if _CE_MODEL is not None:
         return _CE_MODEL
@@ -48,6 +50,8 @@ def _load_model():
 
 
 def _score_pairs(query: str, docs: List[str]) -> List[float]:
+    """Score each document for *query* using the loaded cross encoder."""
+
     model = _load_model()
     if model is None:
         return [0.0] * len(docs)

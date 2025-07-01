@@ -64,6 +64,8 @@ class PredictiveRouter:
     """Predict the best backend using a Bedrock model."""
 
     def __init__(self) -> None:
+        """Initialize AWS Lambda client and model identifiers from env vars."""
+
         self.lambda_client = boto3.client("lambda")
         self.weak_model_id = os.environ.get("WEAK_MODEL_ID")
         self.strong_model_id = os.environ.get("STRONG_MODEL_ID")
@@ -74,6 +76,8 @@ class PredictiveRouter:
         return invoke_classifier(self.lambda_client, self.weak_model_id, prompt)
 
     def try_route(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Return a routing decision for *event* or ``None`` when undecidable."""
+
         prompt = str(event.get("prompt", ""))
         if not prompt:
             return None
