@@ -30,7 +30,14 @@ lambda_client = boto3.client("lambda")
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Return extracted entities for the supplied query."""
+    """Triggered during retrieval to extract entities from results.
+
+    1. Runs a vector search via ``VECTOR_SEARCH_FUNCTION`` to gather context
+       for the query.
+    2. Posts the query and context to the configured entity extraction service.
+
+    Returns a dictionary with the extracted entities.
+    """
 
     query = event.get("query")
     emb = event.get("embedding")

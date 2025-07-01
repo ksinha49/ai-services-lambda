@@ -22,7 +22,13 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Run hybrid search with optional keywords."""
+    """Triggered to search Elasticsearch using vectors and keywords.
+
+    1. Queries the index with the supplied embedding and optional keywords.
+    2. Returns the combined relevance results limited to ``top_k``.
+
+    Returns a dictionary containing the ``matches`` list.
+    """
 
     embedding = event.get("embedding")
     if embedding is None:

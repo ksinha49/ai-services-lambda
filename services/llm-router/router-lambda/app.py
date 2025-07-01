@@ -44,7 +44,14 @@ def _choose_backend(prompt: str) -> str:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Entry point for the router Lambda."""
+    """Triggered by HTTP or Lambda invocations to route LLM prompts.
+
+    1. Parses the request payload and chooses a backend based on the provided
+       strategy or prompt complexity.
+    2. Invokes the LLM invocation Lambda with the selected backend.
+
+    Returns the backend response wrapped in an HTTP style object.
+    """
     body_content = event.get("body")
     if body_content is not None:
         try:

@@ -22,7 +22,13 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Delete the provided IDs from Elasticsearch."""
+    """Triggered to remove documents from Elasticsearch.
+
+    1. Deletes the document IDs supplied in the event using the Elasticsearch
+       client.
+
+    Returns a dictionary showing how many were deleted.
+    """
 
     ids: Iterable[str] = event.get("ids", [])
     deleted = client.delete(ids)

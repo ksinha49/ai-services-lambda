@@ -421,7 +421,14 @@ def _response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Lambda handler entry point."""
+    """Triggered by the state machine to produce a summary PDF.
+
+    1. Formats the summary text into a PDF and merges it with the source
+       document from S3.
+    2. Uploads the merged file and returns its location.
+
+    Returns a response dictionary with status and file path.
+    """
     try:
         body = process_for_summary(event, context)
         status = body.get("statusCode", 200)

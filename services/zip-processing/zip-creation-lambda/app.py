@@ -242,15 +242,13 @@ def assemble_zip_files(event, s3_client=s3_client):
           
 
 def lambda_handler(event: dict, context) -> dict:
-    """
-    The main entry point of the Lambda function.
+    """Triggered by the workflow to package summary outputs.
 
-    Args:
-        event (dict): The input data.
-        context: The Lambda execution context.
+    1. Downloads the metadata and summary PDFs from S3 and zips them into a
+       single archive.
+    2. Stores the archive in the outbound folder for delivery.
 
-    Returns:
-        dict: A dictionary with the status of the assembly process.
+    Returns a dictionary indicating success or failure.
     """
 
     return assemble_zip_files(event, s3_client)

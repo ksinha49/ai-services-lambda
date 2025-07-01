@@ -22,7 +22,12 @@ client = MilvusClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Delete the provided IDs from Milvus."""
+    """Triggered to remove items from a Milvus collection.
+
+    1. Deletes the vector IDs listed in ``ids`` using the Milvus client.
+
+    Returns a dictionary reporting how many items were deleted.
+    """
 
     ids: Iterable[int] = event.get("ids", [])
     deleted = client.delete(ids)

@@ -26,7 +26,13 @@ client = MilvusClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Insert provided embeddings into Milvus."""
+    """Triggered to add embeddings to Milvus.
+
+    1. Creates ``VectorItem`` objects for each embedding and optional metadata.
+    2. Inserts the items using ``upsert`` behaviour if configured.
+
+    Returns the number of vectors inserted.
+    """
 
     embeddings: List[List[float]] = event.get("embeddings", [])
     metadatas: List[Any] = event.get("metadatas", [])

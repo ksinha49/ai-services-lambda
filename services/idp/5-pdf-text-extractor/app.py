@@ -208,7 +208,14 @@ def _handle_record(record: dict) -> None:
     logger.info("Wrote %s", dest_key)
 
 def lambda_handler(event: dict, context: dict) -> dict:
-    """Entry point for the Lambda function."""
+    """Triggered by pages in ``PDF_TEXT_PAGE_PREFIX``.
+
+    1. Extracts embedded text using ``fitz`` and converts it to Markdown.
+    2. Writes the output under ``TEXT_PAGE_PREFIX`` for downstream steps.
+
+    Returns a 200 status after processing all records.
+    """
+
     logger.info("Received event for 5-pdf-text-extractor: %s", event)
     for rec in _iter_records(event):
         try:

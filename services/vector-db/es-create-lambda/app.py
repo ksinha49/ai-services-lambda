@@ -22,7 +22,12 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Create the index."""
+    """Triggered to provision an Elasticsearch index if absent.
+
+    1. Calls the Elasticsearch client to create the index.
+
+    Returns ``{"created": True}`` when the operation succeeds.
+    """
 
     client.create_index()
     return {"created": True}

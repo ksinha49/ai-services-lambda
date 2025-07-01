@@ -159,7 +159,14 @@ def _handle_record(record: dict) -> None:
 
 
 def lambda_handler(event: dict, context: dict) -> dict:
-    """Entry point for the Lambda function."""
+    """Triggered when page-level text outputs are written.
+
+    1. Checks if all pages for a document exist based on ``manifest.json`` and
+       combines them into a single JSON under ``TEXT_DOC_PREFIX``.
+    2. Continues processing remaining records even if errors occur.
+
+    Returns a 200 response upon completion.
+    """
 
     logger.info("Received event for 7-combine: %s", event)
     for rec in _iter_records(event):

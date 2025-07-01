@@ -22,7 +22,13 @@ client = MilvusClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Create the collection."""
+    """Triggered to create a Milvus collection if missing.
+
+    1. Reads the desired vector dimension from the event or defaults.
+    2. Invokes the client ``create_collection`` method.
+
+    Returns ``{"created": True}`` when successful.
+    """
 
     dimension = int(event.get("dimension", 768))
     client.create_collection(dimension=dimension)

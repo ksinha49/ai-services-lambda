@@ -105,7 +105,13 @@ def _handle_record(record: dict) -> None:
         logger.error("Failed to post %s", key)
 
 def lambda_handler(event: dict, context: dict) -> dict:
-    """Entry point for the Lambda function."""
+    """Triggered when final outputs appear in S3.
+
+    1. Reads each record and posts the payload to an external API endpoint.
+    2. Logs success or failure for each upload attempt.
+
+    Returns a 200 status to signal completion to the workflow.
+    """
 
     logger.info("Received event for 8-output: %s", event)
     for rec in _iter_records(event):

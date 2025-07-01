@@ -22,7 +22,12 @@ client = ElasticsearchClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Update the provided documents."""
+    """Triggered to update existing Elasticsearch documents.
+
+    1. Updates the documents supplied in ``documents`` using the client.
+
+    Returns the number of documents updated.
+    """
 
     documents: Iterable[dict] = event.get("documents", [])
     updated = client.update(documents)

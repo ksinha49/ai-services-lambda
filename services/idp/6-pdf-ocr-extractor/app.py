@@ -165,7 +165,13 @@ def _handle_record(record: dict) -> None:
     logger.info("Wrote %s", dest_key)
 
 def lambda_handler(event: dict, context: dict) -> dict:
-    """Entry point for the Lambda function."""
+    """Triggered by scanned pages in ``PDF_SCAN_PAGE_PREFIX``.
+
+    1. Rasterises each page and performs OCR using the configured engine.
+    2. Stores the recognised text as Markdown under ``TEXT_PAGE_PREFIX``.
+
+    Returns a 200 response after all records are handled.
+    """
 
     logger.info("Received event for 6-pdf-ocr-extractor: %s", event)
     for rec in _iter_records(event):

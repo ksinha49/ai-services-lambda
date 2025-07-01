@@ -43,7 +43,14 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> List[str]:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Return chunked text for ingestion."""
+    """Triggered by API or workflow requests to split text.
+
+    1. Splits the input text into overlapping chunks and optionally extracts
+       entities from each chunk.
+    2. Packages the chunks and metadata for the embedding step.
+
+    Returns a dictionary containing the chunk list.
+    """
 
     text = event.get("text", "")
     doc_type = event.get("docType") or event.get("type")

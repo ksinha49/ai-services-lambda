@@ -91,7 +91,13 @@ _MODEL_MAP = {
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Return vector embeddings for the provided chunks."""
+    """Triggered by the ingestion workflow to embed text chunks.
+
+    1. Selects an embedding model based on document type or configuration.
+    2. Generates embeddings for each chunk and preserves any metadata.
+
+    Returns the list of embeddings and corresponding metadata.
+    """
 
     chunks = event.get("chunks", [])
     doc_type = event.get("docType") or event.get("type")

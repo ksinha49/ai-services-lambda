@@ -43,15 +43,13 @@ ssm = boto3.client('ssm')
 
 
 def lambda_handler(event: dict, context) -> dict:
-    """
-    The main Lambda handler.
+    """Triggered by API upload events to start classification.
 
-    Args:
-        event (dict): The Lambda event.
-        context: The Lambda context.
+    1. Looks up the Step Function ARN from SSM and starts an execution with the
+       provided event payload.
+    2. Errors are logged and returned in the response.
 
-    Returns:
-        dict: A dictionary containing the result of the execution start operation.
+    Returns a dictionary indicating success.
     """
 
     input_json = json.dumps(event)

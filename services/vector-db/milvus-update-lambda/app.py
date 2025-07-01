@@ -22,7 +22,14 @@ client = MilvusClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Update the provided embeddings in Milvus."""
+    """Triggered to update vectors in Milvus.
+
+    1. Builds ``VectorItem`` objects from the provided embeddings, metadata and
+       IDs.
+    2. Calls the client's ``update`` method to overwrite existing vectors.
+
+    Returns the count of vectors updated.
+    """
 
     embeddings: List[List[float]] = event.get("embeddings", [])
     metadatas: List[Any] = event.get("metadatas", [])

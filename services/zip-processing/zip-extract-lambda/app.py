@@ -163,5 +163,12 @@ def getFileName(bucket_key):
     return file_name
 
 def lambda_handler(event: dict, context: dict):
+    """Triggered when a ZIP file is uploaded for extraction.
+
+    1. Unpacks PDFs from the archive and uploads them to the inbound folder for
+       processing.
+    2. Returns the list of extracted file keys.
+    """
+
     result = extract_zip_file(event)
     return result

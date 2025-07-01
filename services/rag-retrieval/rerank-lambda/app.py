@@ -62,7 +62,13 @@ def _score_pairs(query: str, docs: List[str]) -> List[float]:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Return matches re-ranked by the cross encoder."""
+    """Triggered after vector search to refine results.
+
+    1. Scores each match against the query using a cross-encoder model.
+    2. Sorts the matches by score and trims the list to ``top_k`` entries.
+
+    Returns the re-ranked matches in descending order.
+    """
 
     query = event.get("query") or ""
     matches: List[Dict[str, Any]] = event.get("matches", [])

@@ -21,7 +21,13 @@ sfn = boto3.client("stepfunctions")
 
 
 def lambda_handler(event: dict, context: object) -> dict:
-    """Trigger the RAG ingestion state machine."""
+    """Triggered by API requests to ingest a document.
+
+    1. Builds a payload from ``event`` and starts the ingestion state machine.
+    2. Optional metadata fields are forwarded to the workflow.
+
+    Returns ``{"started": True}`` if the workflow was invoked.
+    """
 
     text = event.get("text")
     if not text:

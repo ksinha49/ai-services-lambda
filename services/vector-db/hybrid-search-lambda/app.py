@@ -31,7 +31,14 @@ collection = Collection(COLLECTION_NAME)
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Search Milvus using a vector embedding and optional keywords."""
+    """Triggered to run a hybrid keyword and vector search.
+
+    1. Searches Milvus with the provided embedding and retrieves the top
+       matches.
+    2. Optionally filters the results by keywords before returning them.
+
+    Returns the best matches up to ``top_k`` entries.
+    """
 
     embedding = event.get("embedding")
     keywords: List[str] = event.get("keywords", [])

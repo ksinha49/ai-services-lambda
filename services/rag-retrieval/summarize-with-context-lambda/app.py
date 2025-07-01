@@ -118,7 +118,15 @@ def _embed_query(text: str, model: str | None = None) -> list[float]:
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Return a summary for ``query`` using retrieved context."""
+    """Triggered by API calls requesting a contextual summary.
+
+    1. Performs a vector search (and optional re-ranking) to gather context for
+       the query.
+    2. Sends the query and context to an external summarization service via the
+       router integration.
+
+    Returns a dictionary containing the generated summary.
+    """
 
     query = event.get("query")
     emb = event.get("embedding")

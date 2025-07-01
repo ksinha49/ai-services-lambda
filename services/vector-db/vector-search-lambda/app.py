@@ -27,7 +27,14 @@ client = MilvusClient()
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Search embeddings and return best matches."""
+    """Triggered to perform a vector similarity search.
+
+    1. Uses the provided embedding to query Milvus for the top matching
+       documents.
+    2. Applies optional metadata filtering before returning the results.
+
+    Returns a dictionary of match objects sorted by score.
+    """
 
     embedding: List[float] | None = event.get("embedding")
     if embedding is None:

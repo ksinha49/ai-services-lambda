@@ -153,16 +153,13 @@ def _response(status: int, body: dict) -> dict:
 
 
 def lambda_handler(event: dict, context) -> Optional[dict]:
-    """
-    The main Lambda handler.
+    """Triggered by the state machine to merge PDFs.
 
-    Args:
-        event (dict): The Lambda event.
-        context: The Lambda context.
+    1. Calls ``assemble_files`` to download the original and summary PDFs
+       from S3 and uploads the merged result.
+    2. Wraps the outcome in an HTTP style response for the workflow.
 
-    Returns:
-        dict: A dictionary containing the result of the assembly operation. 
-              If an error occurs, returns a suitable response for the caller.
+    Returns the response payload with status information.
     """
 
     logger.info("Starting Lambda function...")
