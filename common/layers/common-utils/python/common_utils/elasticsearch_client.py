@@ -1,0 +1,105 @@
+"""Lightweight wrapper around the ``elasticsearch`` client."""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Iterable, List, Optional
+
+try:  # pragma: no cover - optional dependency
+    from elasticsearch import Elasticsearch
+except Exception:  # pragma: no cover - allow import without elasticsearch
+    Elasticsearch = None  # type: ignore
+
+
+class ElasticsearchClient:
+    """Minimal Elasticsearch helper for Lambda functions."""
+
+    def __init__(self, url: Optional[str] = None, index_prefix: Optional[str] = None) -> None:
+        self.url = url or os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+        self.index_prefix = index_prefix or os.environ.get("ELASTICSEARCH_INDEX_PREFIX", "docs")
+
+        if Elasticsearch is None:  # pragma: no cover - imported module missing
+            raise ImportError("elasticsearch package is required to use ElasticsearchClient")
+
+        self.client = Elasticsearch(self.url)
+
+    # ------------------------------------------------------------------
+    # CRUD operations
+    # ------------------------------------------------------------------
+    def _index(self, name: Optional[str] = None) -> str:
+        return f"{self.index_prefix}-{name}" if name else self.index_prefix
+
+    def insert(self, documents: Iterable[dict], index: Optional[str] = None) -> int:
+        idx = self._index(index)
+        count = 0
+        for doc in documents:
+            doc_id = doc.get("id")
+            body = {k: v for k, v in doc.items() if k != "id"}
+            self.client.index(index=idx, id=doc_id, document=body)
+            count += 1
+        return count
+
+    def delete(self, ids: Iterable[str], index: Optional[str] = None) -> int:
+        idx = self._index(index)
+        count = 0
+        for doc_id in ids:
+            self.client.delete(index=idx, id=doc_id, ignore=[404])
+            count += 1
+        return count
+
+    def update(self, documents: Iterable[dict], index: Optional[str] = None) -> int:
+        idx = self._index(index)
+        count = 0
+        for doc in documents:
+            doc_id = doc.get("id")
+            body = {k: v for k, v in doc.items() if k != "id"}
+            self.client.index(index=idx, id=doc_id, document=body)
+            count += 1
+        return count
+
+    def create_index(self, index: Optional[str] = None) -> None:
+        idx = self._index(index)
+        self.client.indices.create(index=idx, ignore=400)
+
+    def drop_index(self, index: Optional[str] = None) -> None:
+        idx = self._index(index)
+        self.client.indices.delete(index=idx, ignore=[400, 404])
+
+    def search(self, embedding: List[float], top_k: int = 5, index: Optional[str] = None) -> List[dict]:
+        idx = self._index(index)
+        if embedding is None:
+            return []
+        query = {
+            "knn": {
+                "field": "embedding",
+                "query_vector": embedding,
+                "k": top_k,
+                "num_candidates": top_k,
+            }
+        }
+        res = self.client.search(index=idx, query=query, size=top_k)
+        hits = res.get("hits", {}).get("hits", [])
+        return [
+            {"id": h.get("_id"), "score": h.get("_score"), "metadata": h.get("_source", {}).get("metadata")}
+            for h in hits
+        ]
+
+    def hybrid_search(self, embedding: List[float], keywords: Iterable[str] | None = None, top_k: int = 5, index: Optional[str] = None) -> List[dict]:
+        idx = self._index(index)
+        if embedding is None:
+            return []
+        knn = {
+            "field": "embedding",
+            "query_vector": embedding,
+            "k": top_k,
+            "num_candidates": top_k,
+        }
+        query: dict[str, Any] = {"bool": {"must": {"knn": knn}}}
+        if keywords:
+            query["bool"].setdefault("filter", []).append({"match": {"text": " ".join(keywords)}})
+        res = self.client.search(index=idx, query=query, size=top_k)
+        hits = res.get("hits", {}).get("hits", [])
+        return [
+            {"id": h.get("_id"), "score": h.get("_score"), "metadata": h.get("_source", {}).get("metadata")}
+            for h in hits
+        ]

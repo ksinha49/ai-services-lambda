@@ -9,16 +9,25 @@ This service manages Milvus collections and provides simple search Lambdas. It c
 - **milvus-update-lambda/app.py** – update existing embeddings
 - **vector-search-lambda/app.py** – query the collection by vector
 - **hybrid-search-lambda/app.py** – vector search with optional keyword filtering
+- **es-create-lambda/app.py** – create an Elasticsearch index
+- **es-drop-lambda/app.py** – delete the Elasticsearch index
+- **es-insert-lambda/app.py** – insert documents into Elasticsearch
+- **es-delete-lambda/app.py** – delete Elasticsearch documents by ID
+- **es-update-lambda/app.py** – update Elasticsearch documents
+- **es-search-lambda/app.py** – search the Elasticsearch index
+- **es-hybrid-search-lambda/app.py** – vector + keyword search on Elasticsearch
 
 ## Parameters and environment variables
 
-`template.yaml` exposes three required parameters. Each one becomes an environment variable for all Lambdas in this stack:
+`template.yaml` exposes several required parameters. Each one becomes an environment variable for all Lambdas in this stack:
 
 | Parameter        | Environment variable | Description                  |
 | ---------------- | -------------------- | ---------------------------- |
 | `MilvusHost`     | `MILVUS_HOST`        | Milvus server hostname or IP |
 | `MilvusPort`     | `MILVUS_PORT`        | Milvus service port          |
 | `MilvusCollection` | `MILVUS_COLLECTION` | Target collection name       |
+| `ElasticsearchUrl` | `ELASTICSEARCH_URL` | Elasticsearch endpoint       |
+| `ElasticsearchIndexPrefix` | `ELASTICSEARCH_INDEX_PREFIX` | Prefix for index names |
 
 Values are typically stored in AWS Systems Manager Parameter Store and passed to `sam deploy`.
 
@@ -32,10 +41,12 @@ sam deploy --template-file services/vector-db/template.yaml
 
 ## Outputs
 
-The stack exports the ARNs of both search functions:
+The stack exports the ARNs of the search functions:
 
-- `VectorSearchFunctionArn` – ARN of the vector search Lambda
-- `HybridSearchFunctionArn` – ARN of the hybrid search Lambda
+- `VectorSearchFunctionArn` – ARN of the Milvus vector search Lambda
+- `HybridSearchFunctionArn` – ARN of the Milvus hybrid search Lambda
+- `EsSearchFunctionArn` – ARN of the Elasticsearch search Lambda
+- `EsHybridSearchFunctionArn` – ARN of the Elasticsearch hybrid search Lambda
 
 These values are referenced by other services. For example, `rag-retrieval`
 sets the `VECTOR_SEARCH_FUNCTION` environment variable to one of these ARNs to
