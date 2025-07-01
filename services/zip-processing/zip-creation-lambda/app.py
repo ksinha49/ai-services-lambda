@@ -114,6 +114,8 @@ def parse_multiple_tags(xml_content, tags):
     return actual_tag_content
 
 def extract_dynamic_path(path):
+    """Remove the date-based prefix inserted by the ingestion pipeline."""
+
     # Define the length of the dynamic prefix
     prefix_length = 8  # Length of "2025/06/23/20/16/29"
     logger.info(f"path:{path}")
