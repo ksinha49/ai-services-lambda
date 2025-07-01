@@ -12,6 +12,12 @@ Parameters:
   MilvusCollection:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /rag/milvus/collection
+  ElasticsearchUrl:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/elasticsearch/url
+  ElasticsearchIndexPrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/elasticsearch/index
 
 Globals:
   Function:
@@ -91,6 +97,69 @@ Resources:
           MILVUS_PORT: !Ref MilvusPort
           MILVUS_COLLECTION: !Ref MilvusCollection
 
+  EsInsertFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-insert-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
+  EsDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-delete-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
+  EsUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-update-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
+  EsCreateIndexFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-create-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
+  EsDropIndexFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-drop-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
+  EsSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-search-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
+  EsHybridSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./es-hybrid-search-lambda/
+      Environment:
+        Variables:
+          ELASTICSEARCH_URL: !Ref ElasticsearchUrl
+          ELASTICSEARCH_INDEX_PREFIX: !Ref ElasticsearchIndexPrefix
+
 Outputs:
   MilvusInsertFunctionArn:
     Description: ARN of the Milvus insert Lambda
@@ -113,3 +182,24 @@ Outputs:
   HybridSearchFunctionArn:
     Description: ARN of the hybrid search Lambda
     Value: !GetAtt HybridSearchFunction.Arn
+  EsInsertFunctionArn:
+    Description: ARN of the Elasticsearch insert Lambda
+    Value: !GetAtt EsInsertFunction.Arn
+  EsDeleteFunctionArn:
+    Description: ARN of the Elasticsearch delete Lambda
+    Value: !GetAtt EsDeleteFunction.Arn
+  EsUpdateFunctionArn:
+    Description: ARN of the Elasticsearch update Lambda
+    Value: !GetAtt EsUpdateFunction.Arn
+  EsCreateIndexFunctionArn:
+    Description: ARN of the Elasticsearch create index Lambda
+    Value: !GetAtt EsCreateIndexFunction.Arn
+  EsDropIndexFunctionArn:
+    Description: ARN of the Elasticsearch drop index Lambda
+    Value: !GetAtt EsDropIndexFunction.Arn
+  EsSearchFunctionArn:
+    Description: ARN of the Elasticsearch search Lambda
+    Value: !GetAtt EsSearchFunction.Arn
+  EsHybridSearchFunctionArn:
+    Description: ARN of the Elasticsearch hybrid search Lambda
+    Value: !GetAtt EsHybridSearchFunction.Arn

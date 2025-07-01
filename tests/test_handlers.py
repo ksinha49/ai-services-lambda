@@ -443,6 +443,94 @@ def test_milvus_drop_lambda(monkeypatch):
     assert called['dropped'] is True
     assert res['dropped'] is True
 
+
+def test_es_insert_lambda(monkeypatch):
+    module = load_lambda('es_insert', 'services/vector-db/es-insert-lambda/app.py')
+    captured = {}
+
+    def fake_insert(self, docs):
+        captured['docs'] = list(docs)
+        return len(captured['docs'])
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'insert': fake_insert})())
+    res = module.lambda_handler({'documents': [{'id': '1', 'text': 'a'}]}, {})
+    assert captured['docs'][0]['id'] == '1'
+    assert res['inserted'] == 1
+
+
+def test_es_delete_lambda(monkeypatch):
+    module = load_lambda('es_delete', 'services/vector-db/es-delete-lambda/app.py')
+    called = {}
+
+    def fake_delete(self, ids):
+        called['ids'] = list(ids)
+        return len(called['ids'])
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'delete': fake_delete})())
+    res = module.lambda_handler({'ids': ['1', '2']}, {})
+    assert called['ids'] == ['1', '2']
+    assert res['deleted'] == 2
+
+
+def test_es_update_lambda(monkeypatch):
+    module = load_lambda('es_update', 'services/vector-db/es-update-lambda/app.py')
+    captured = {}
+
+    def fake_update(self, docs):
+        captured['docs'] = list(docs)
+        return len(captured['docs'])
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'update': fake_update})())
+    res = module.lambda_handler({'documents': [{'id': '1', 'text': 'x'}]}, {})
+    assert captured['docs'][0]['text'] == 'x'
+    assert res['updated'] == 1
+
+
+def test_es_create_lambda(monkeypatch):
+    module = load_lambda('es_create', 'services/vector-db/es-create-lambda/app.py')
+    called = {'created': False}
+    monkeypatch.setattr(module, 'client', type('C', (), {'create_index': lambda self: called.__setitem__('created', True)})())
+    res = module.lambda_handler({}, {})
+    assert called['created'] is True
+    assert res['created'] is True
+
+
+def test_es_drop_lambda(monkeypatch):
+    module = load_lambda('es_drop', 'services/vector-db/es-drop-lambda/app.py')
+    called = {'dropped': False}
+    monkeypatch.setattr(module, 'client', type('C', (), {'drop_index': lambda self: called.__setitem__('dropped', True)})())
+    res = module.lambda_handler({}, {})
+    assert called['dropped'] is True
+    assert res['dropped'] is True
+
+
+def test_es_search_lambda(monkeypatch):
+    module = load_lambda('es_search', 'services/vector-db/es-search-lambda/app.py')
+    captured = {}
+
+    def fake_search(self, embedding, top_k=5):
+        captured['top_k'] = top_k
+        return [{'id': '1'}]
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'search': fake_search})())
+    out = module.lambda_handler({'embedding': [0.1], 'top_k': 3}, {})
+    assert captured['top_k'] == 3
+    assert out['matches'][0]['id'] == '1'
+
+
+def test_es_hybrid_search_lambda(monkeypatch):
+    module = load_lambda('es_hybrid', 'services/vector-db/es-hybrid-search-lambda/app.py')
+    captured = {}
+
+    def fake_search(self, embedding, keywords=None, top_k=5):
+        captured['kw'] = list(keywords)
+        return [{'id': '1'}]
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'hybrid_search': fake_search})())
+    out = module.lambda_handler({'embedding': [0.1], 'keywords': ['x']}, {})
+    assert captured['kw'] == ['x']
+    assert out['matches'][0]['id'] == '1'
+
 import sys
 
 def test_llm_router_choose_backend(monkeypatch):

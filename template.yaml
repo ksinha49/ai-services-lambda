@@ -12,6 +12,12 @@ Parameters:
   MilvusCollection:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /rag/milvus/collection
+  ElasticsearchUrl:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/elasticsearch/url
+  ElasticsearchIndexPrefix:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /rag/elasticsearch/index
   BedrockOpenAIEndpoint:
     Type: String
     Default: ''
@@ -64,6 +70,8 @@ Resources:
         MilvusHost: !Ref MilvusHost
         MilvusPort: !Ref MilvusPort
         MilvusCollection: !Ref MilvusCollection
+        ElasticsearchUrl: !Ref ElasticsearchUrl
+        ElasticsearchIndexPrefix: !Ref ElasticsearchIndexPrefix
 
   RagIngestionService:
     Type: AWS::Serverless::Application

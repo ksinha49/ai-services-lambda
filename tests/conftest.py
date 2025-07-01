@@ -97,6 +97,16 @@ def external_stubs():
         },
     )
     _stub_module("numpy", {"frombuffer": lambda *a, **k: [], "uint8": int, "reshape": lambda *a, **k: [], "mean": lambda x: 0, "ndarray": object})
+    class DummyES:
+        def __init__(self, *a, **k):
+            self.indices = types.SimpleNamespace(create=lambda **kw: None, delete=lambda **kw: None)
+        def index(self, **kw):
+            pass
+        def delete(self, **kw):
+            pass
+        def search(self, **kw):
+            return {"hits": {"hits": []}}
+    _stub_module("elasticsearch", {"Elasticsearch": DummyES})
     yield
 
 

@@ -5,6 +5,7 @@ from .get_ssm import (
     get_config,
 )
 from .milvus_client import MilvusClient, VectorItem, SearchResult, GetResult
+from .elasticsearch_client import ElasticsearchClient
 
 __all__ = [
     "get_values_from_ssm",
@@ -15,4 +16,5 @@ __all__ = [
     "VectorItem",
     "SearchResult",
     "GetResult",
+    "ElasticsearchClient",
 ]
