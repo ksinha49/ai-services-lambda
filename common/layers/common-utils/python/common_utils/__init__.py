@@ -1,3 +1,8 @@
+# Module Metadata
+__author__ = "Koushik Sinha"
+__version__ = "1.0.0"
+__modified_by__ = "Koushik Sinha"
+
 from .get_ssm import (
     get_values_from_ssm,
     get_environment_prefix,

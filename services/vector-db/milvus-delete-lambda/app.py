@@ -10,6 +10,11 @@ from typing import Any, Dict, Iterable
 
 from common_utils import MilvusClient
 
+# Module Metadata
+__author__ = "Koushik Sinha"
+__version__ = "1.0.0"
+__modified_by__ = "Koushik Sinha"
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()

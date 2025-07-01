@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+# Module Metadata
+__author__ = "Koushik Sinha"
+__version__ = "1.0.0"
+__modified_by__ = "Koushik Sinha"
+
 import os
 import re
+import logging
 from typing import Iterable, List
+
+logger = logging.getLogger(__name__)
 
 _NLP = None
 

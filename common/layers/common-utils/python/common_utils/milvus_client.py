@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+# Module Metadata
+__author__ = "Koushik Sinha"
+__version__ = "1.0.0"
+__modified_by__ = "Koushik Sinha"
+
 import json
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Optional
+
+logger = logging.getLogger(__name__)
 
 try:  # pragma: no cover - optional dependency
     from pymilvus import Collection, connections
