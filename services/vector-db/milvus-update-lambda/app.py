@@ -41,5 +41,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         item_id = ids[idx] if idx < len(ids) else None
         items.append(VectorItem(embedding=embedding, metadata=metadata, id=item_id))
 
-    updated = client.update(items)
+    try:
+        updated = client.update(items)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to update vectors in Milvus")
+        return {"error": str(exc)}
     return {"updated": updated}

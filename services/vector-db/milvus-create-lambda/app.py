@@ -31,5 +31,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
 
     dimension = int(event.get("dimension", 768))
-    client.create_collection(dimension=dimension)
+    try:
+        client.create_collection(dimension=dimension)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to create Milvus collection")
+        return {"error": str(exc)}
     return {"created": True}

@@ -36,5 +36,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     keywords: Iterable[str] = event.get("keywords", [])
     top_k = int(event.get("top_k", 5))
-    results = client.hybrid_search(embedding, keywords=keywords, top_k=top_k)
+    try:
+        results = client.hybrid_search(embedding, keywords=keywords, top_k=top_k)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Elasticsearch hybrid search failed")
+        return {"error": str(exc), "matches": []}
     return {"matches": results}

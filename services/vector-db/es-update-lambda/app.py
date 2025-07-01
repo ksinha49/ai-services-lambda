@@ -30,5 +30,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
 
     documents: Iterable[dict] = event.get("documents", [])
-    updated = client.update(documents)
+    try:
+        updated = client.update(documents)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to update documents in Elasticsearch")
+        return {"error": str(exc)}
     return {"updated": updated}

@@ -29,5 +29,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns ``{"dropped": True}`` when the collection has been removed.
     """
 
-    client.drop_collection()
+    try:
+        client.drop_collection()
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to drop Milvus collection")
+        return {"error": str(exc)}
     return {"dropped": True}
