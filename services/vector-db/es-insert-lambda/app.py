@@ -30,5 +30,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
 
     documents: Iterable[dict] = event.get("documents", [])
-    inserted = client.insert(documents)
+    try:
+        inserted = client.insert(documents)
+    except Exception:  # pragma: no cover - runtime safety
+        logger.exception("Failed to insert documents into Elasticsearch")
+        return {"inserted": 0}
     return {"inserted": inserted}

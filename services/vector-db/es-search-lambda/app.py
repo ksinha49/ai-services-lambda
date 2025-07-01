@@ -35,5 +35,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"matches": []}
 
     top_k = int(event.get("top_k", 5))
-    results = client.search(embedding, top_k=top_k)
+    try:
+        results = client.search(embedding, top_k=top_k)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Elasticsearch search failed")
+        return {"error": str(exc), "matches": []}
     return {"matches": results}

@@ -29,5 +29,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns ``{"created": True}`` when the operation succeeds.
     """
 
-    client.create_index()
+    try:
+        client.create_index()
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to create Elasticsearch index")
+        return {"error": str(exc)}
     return {"created": True}

@@ -30,5 +30,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
 
     ids: Iterable[int] = event.get("ids", [])
-    deleted = client.delete(ids)
+    try:
+        deleted = client.delete(ids)
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to delete from Milvus")
+        return {"error": str(exc)}
     return {"deleted": deleted}

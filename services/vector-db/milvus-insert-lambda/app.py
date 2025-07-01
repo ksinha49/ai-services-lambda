@@ -44,6 +44,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         item_id = ids[idx] if idx < len(ids) else None
         items.append(VectorItem(embedding=embedding, metadata=metadata, id=item_id))
 
-    inserted = client.insert(items, upsert=UPSERT)
+    try:
+        inserted = client.insert(items, upsert=UPSERT)
+    except Exception:  # pragma: no cover - runtime safety
+        logger.exception("Failed to insert vectors into Milvus")
+        return {"inserted": 0}
     return {"inserted": inserted}
 

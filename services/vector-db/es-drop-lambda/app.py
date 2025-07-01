@@ -29,5 +29,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns ``{"dropped": True}`` when successful.
     """
 
-    client.drop_index()
+    try:
+        client.drop_index()
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.exception("Failed to drop Elasticsearch index")
+        return {"error": str(exc)}
     return {"dropped": True}
