@@ -94,4 +94,7 @@ Outputs:
   RerankFunctionArn:
     Description: ARN of the re-rank Lambda
     Value: !GetAtt RerankFunction.Arn
+  SummarizeWithContextFunctionArn:
+    Description: ARN of the summarize-with-context Lambda
+    Value: !GetAtt SummarizeWithContextFunction.Arn
 

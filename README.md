@@ -15,6 +15,7 @@ The repository includes the following directories under `services/`:
 - `summarization` – Step Function workflow orchestrating file processing and summary generation
 - `llm-router` – routes prompts via heuristic, predictive and cascading strategies to Amazon Bedrock or local Ollama
 - `llm-invocation` – forwards OpenAI-style requests to a specific LLM backend
+- `knowledge-base` – ingest text snippets and query them through the retrieval stack
 
 Shared dependencies are packaged as layers in `common/layers/`.
 
@@ -63,6 +64,10 @@ cascading strategies.
 #### llm-invocation
 Forwards OpenAI-style requests to the chosen LLM backend with configurable
 generation parameters.
+
+#### knowledge-base
+Provides a lightweight API to ingest short text documents and query them using
+the retrieval and summarization stack.
 
 ## Repository Structure
 
