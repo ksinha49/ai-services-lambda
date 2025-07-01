@@ -12,12 +12,15 @@ import logging
 from typing import Any, Dict, List
 
 from common_utils.get_ssm import get_config
+from common_utils import extract_entities
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
 _handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+    logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z"
+    )
 )
 if not logger.handlers:
     logger.addHandler(_handler)
@@ -28,6 +31,9 @@ DEFAULT_CHUNK_SIZE = int(
 DEFAULT_CHUNK_OVERLAP = int(
     get_config("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "100")
 )
+EXTRACT_ENTITIES = (
+    get_config("EXTRACT_ENTITIES") or os.environ.get("EXTRACT_ENTITIES", "false")
+).lower() == "true"
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int) -> List[str]:
@@ -49,13 +55,20 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     overlap = int(event.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP))
     chunks = chunk_text(text, chunk_size, overlap)
     chunk_list = [
-        {"text": c, "metadata": {**metadata, "docType": doc_type} if doc_type else {**metadata}}
+        {
+            "text": c,
+            "metadata": {**metadata, "docType": doc_type} if doc_type else {**metadata},
+        }
         for c in chunks
     ]
+    if EXTRACT_ENTITIES:
+        for chunk in chunk_list:
+            ents = extract_entities(chunk["text"])
+            if ents:
+                chunk.setdefault("metadata", {})["entities"] = ents
     payload: Dict[str, Any] = {"chunks": chunk_list}
     if doc_type:
         payload["docType"] = doc_type
     if metadata:
         payload["metadata"] = metadata
     return payload
-

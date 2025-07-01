@@ -148,6 +148,7 @@ environment. The table below summarises the most common variables.
 
 - `CHUNK_SIZE` – characters per chunk.
 - `CHUNK_OVERLAP` – overlap between chunks.
+- `EXTRACT_ENTITIES` – set to `true` to add entity metadata to chunks.
 - `EMBED_MODEL` – default embedding provider.
 - `EMBED_MODEL_MAP` – JSON mapping of document types to models.
 - `SBERT_MODEL` – SentenceTransformer model path or name.
