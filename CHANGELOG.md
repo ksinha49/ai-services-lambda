@@ -3,10 +3,7 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-- Ongoing improvements, documentation updates, and refactoring.
-
-## [0.6.0] - 2025-07-01
+## [1.0.6] - 2025-07-01
 ### Added
 - Detailed logging utilities across services for consistent diagnostics.
 - Knowledge base service enabling lightweight text ingestion and retrieval.
@@ -22,7 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 - Minor bugs in RAG retrieval and vector search services.
 
-## [0.5.0] - 2025-06-30
+## [1.0.5] - 2025-06-30
 ### Added
 - LLM router service with heuristic, predictive, generative, and cascading strategies.
 - LLM invocation service supporting multiple backends (Bedrock, Ollama).
@@ -33,7 +30,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - Updated SAM templates and deployment docs for new services.
 
-## [0.4.0] - 2025-06-29
+## [1.0.4] - 2025-06-29
 ### Added
 - Vector DB service with Milvus management operations.
 - RAG ingestion service for chunking text and generating embeddings.
@@ -45,7 +42,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Refactored project structure into service-specific directories.
 - Improved PDF handling and text extraction using `fitz`.
 
-## [0.3.0] - 2025-06-28
+## [1.0.3] - 2025-06-28
 ### Added
 - Intelligent Document Processing (IDP) pipeline including:
   - Classification, PDF splitting, text extraction, OCR, and combine stages.
@@ -56,7 +53,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - Unified SSM configuration loading and Lambda responses.
 
-## [0.2.0] - 2025-06-27
+## [1.0.2] - 2025-06-27
 ### Added
 - Shared utilities module (`get_ssm.py`) for fetching configuration.
 - Consistent response structure for Lambda functions.
@@ -65,9 +62,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - Refactored S3 client initialization across services.
 
-## [0.1.0] - 2025-06-27
+## [1.0.1] - 2025-06-27
 ### Added
-- Initial repository structure and README.
+- Repository structure refactored for services and README added.
 - Base SAM template for the pipeline.
 
 ## [1.0.0] - 2025-05-29
