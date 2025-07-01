@@ -21,6 +21,8 @@ class GenerativeRouter:
     """Directly call an LLM backend when other routers do not apply."""
 
     def try_route(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Return *event* with a ``backend`` key set to ``'bedrock'``."""
+
         # This stub simply marks the backend for later handling
         event = dict(event)
         event.setdefault("backend", "bedrock")
