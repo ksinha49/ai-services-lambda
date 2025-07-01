@@ -18,6 +18,11 @@ from __future__ import annotations
 import os
 import boto3
 import logging
+try:
+    from botocore.exceptions import ClientError
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
+    class ClientError(Exception):
+        pass
 from common_utils import configure_logger
 from common_utils.get_ssm import (
     get_values_from_ssm,
@@ -82,7 +87,7 @@ def process_files(event: dict, context) -> dict:
             if key in event:
                 result[key] = event[key]
         return result
-    except Exception as exc:
+    except (KeyError, ClientError) as exc:
         logger.error("Failed to process file: %s", exc)
         raise
 
@@ -104,7 +109,9 @@ def lambda_handler(event: dict, context) -> dict:
     try:
         final_response = process_files(event, context)
         return _response(200, final_response)
-    except Exception as e:
-        error_message = f"An unexpected error occurred: {str(e)}"
-        logger.error(error_message)
-        return _response(500, {"error": error_message})
+    except KeyError as exc:
+        logger.error("Missing key in request: %s", exc)
+        return _response(400, {"error": str(exc)})
+    except ClientError as exc:
+        logger.error("AWS client error: %s", exc)
+        return _response(500, {"error": str(exc)})
