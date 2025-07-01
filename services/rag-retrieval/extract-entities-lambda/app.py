@@ -23,6 +23,8 @@ __modified_by__ = "Koushik Sinha"
 
 logger = configure_logger(__name__)
 
+RERAISE_ERRORS = os.environ.get("RERAISE_ERRORS", "false").lower() == "true"
+
 LAMBDA_FUNCTION = get_config("VECTOR_SEARCH_FUNCTION") or os.environ.get("VECTOR_SEARCH_FUNCTION")
 ENTITIES_ENDPOINT = get_config("ENTITIES_ENDPOINT") or os.environ.get("ENTITIES_ENDPOINT")
 
@@ -48,9 +50,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             Payload=json.dumps({"embedding": emb}).encode("utf-8"),
         )
         result = json.loads(resp["Payload"].read())
-    except Exception:
+    except Exception as exc:
         logger.exception("Vector search invocation failed")
-        return {"entities": {}}
+        if RERAISE_ERRORS:
+            raise
+        return {"error": f"Vector search invocation failed: {exc}", "entities": {}}
     logger.info("Vector search returned %d matches", len(result.get("matches", [])))
     context_text = " ".join(
         m.get("metadata", {}).get("text", "") for m in result.get("matches", [])
@@ -59,9 +63,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         r = httpx.post(ENTITIES_ENDPOINT, json={"query": query, "context": context_text})
         r.raise_for_status()
-    except Exception:
+    except Exception as exc:
         logger.exception("Entity extraction service request failed")
-        return {"entities": {}}
+        if RERAISE_ERRORS:
+            raise
+        return {"error": f"Entity extraction service request failed: {exc}", "entities": {}}
     logger.info("Entity extraction service returned status %s", r.status_code)
     return {"entities": r.json()}
 
