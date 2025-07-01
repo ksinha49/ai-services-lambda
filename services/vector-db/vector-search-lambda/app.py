@@ -41,7 +41,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"matches": []}
 
     top_k = int(event.get("top_k", TOP_K))
-    results = client.search(embedding, top_k=top_k)
+    logger.info("Searching Milvus with top_k=%s", top_k)
+    try:
+        results = client.search(embedding, top_k=top_k)
+    except Exception:
+        logger.exception("Milvus search failed")
+        return {"matches": []}
+    logger.info("Milvus returned %d results", len(results))
     matches = [{"id": r.id, "score": r.score, "metadata": r.metadata} for r in results]
 
     department = event.get("department")
@@ -49,6 +55,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     user = event.get("user")
     entities: List[str] | None = event.get("entities")
     if department or team or user or entities:
+        logger.info(
+            "Filtering %d matches by department=%s team=%s user=%s entities=%s",
+            len(matches),
+            department,
+            team,
+            user,
+            entities,
+        )
         filtered = []
         for m in matches:
             md = m.get("metadata", {}) or {}
@@ -64,5 +78,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     continue
             filtered.append(m)
         matches = filtered
+        logger.info("Filtered down to %d matches", len(matches))
 
     return {"matches": matches}

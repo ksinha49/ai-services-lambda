@@ -131,6 +131,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     query = event.get("query")
     emb = event.get("embedding")
     if emb is None and query:
+        logger.info("Embedding query using model %s", event.get("embedModel"))
         emb = _embed_query(query, event.get("embedModel"))
     search_payload = {"embedding": emb} if emb is not None else {}
     if RERANK_FUNCTION:
@@ -138,24 +139,45 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     for key in ("department", "team", "user"):
         if key in event:
             search_payload[key] = event[key]
-    resp = lambda_client.invoke(
-        FunctionName=LAMBDA_FUNCTION,
-        Payload=json.dumps(search_payload).encode("utf-8"),
+    logger.info(
+        "Invoking vector search function %s with payload %s",
+        LAMBDA_FUNCTION,
+        search_payload,
     )
-    result = json.loads(resp["Payload"].read())
+    try:
+        resp = lambda_client.invoke(
+            FunctionName=LAMBDA_FUNCTION,
+            Payload=json.dumps(search_payload).encode("utf-8"),
+        )
+        result = json.loads(resp["Payload"].read())
+    except Exception:
+        logger.exception("Vector search invocation failed")
+        return {"summary": ""}
+    logger.info("Vector search returned %d matches", len(result.get("matches", [])))
     matches = result.get("matches", [])
     if RERANK_FUNCTION and query:
         rerank_payload = {"query": query, "matches": matches, "top_k": SEARCH_CANDIDATES}
-        rresp = lambda_client.invoke(
-            FunctionName=RERANK_FUNCTION,
-            Payload=json.dumps(rerank_payload).encode("utf-8"),
-        )
-        matches = json.loads(rresp["Payload"].read()).get("matches", matches)
+        logger.info("Invoking rerank function %s with %d candidates", RERANK_FUNCTION, len(matches))
+        try:
+            rresp = lambda_client.invoke(
+                FunctionName=RERANK_FUNCTION,
+                Payload=json.dumps(rerank_payload).encode("utf-8"),
+            )
+            matches = json.loads(rresp["Payload"].read()).get("matches", matches)
+        except Exception:
+            logger.exception("Rerank invocation failed")
+    logger.info("Using %d matches after rerank", len(matches))
     context_text = " ".join(
         m.get("metadata", {}).get("text", "") for m in matches
     )
     router_payload = {k: v for k, v in event.items() if k != "embedding"}
     router_payload["context"] = context_text
-    summary = forward_to_routellm(router_payload)
+    logger.info("Forwarding payload to router at %s", ROUTELLM_ENDPOINT)
+    try:
+        summary = forward_to_routellm(router_payload)
+    except Exception:
+        logger.exception("RouterLLM request failed")
+        return {"summary": ""}
+    logger.info("Router returned summary length %d", len(summary) if summary else 0)
     return {"summary": summary}
 
