@@ -115,3 +115,11 @@ Resources:
         PromptComplexityThreshold: !Ref PromptComplexityThreshold
         LlmInvocationFunctionName: !GetAtt LLMInvocationService.Outputs.InvokeLLMLambdaArn
 
+  KnowledgeBaseService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/knowledge-base/template.yaml
+      Parameters:
+        IngestionStateMachineArn: !GetAtt RagIngestionService.Outputs.IngestionStateMachineArn
+        SummarizeFunctionArn: !GetAtt RagRetrievalService.Outputs.SummarizeWithContextFunctionArn
+
