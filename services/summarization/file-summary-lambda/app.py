@@ -32,6 +32,14 @@ from datetime import datetime
 import boto3
 import httpx
 from httpx import Timeout, HTTPStatusError
+try:
+    from botocore.exceptions import ClientError, BotoCoreError
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
+    class ClientError(Exception):
+        pass
+
+    class BotoCoreError(Exception):
+        pass
 from common_utils.get_ssm import (
     get_values_from_ssm,
     get_environment_prefix,
@@ -138,9 +146,9 @@ def read_prompts_from_json(file_path: str) -> Optional[List[Dict[str, Any]]]:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        logger.error("Prompts file not found: %s", file_path)
+        logger.exception("Prompts file not found: %s", file_path)
     except json.JSONDecodeError:
-        logger.error("Invalid JSON in prompts file: %s", file_path)
+        logger.exception("Invalid JSON in prompts file: %s", file_path)
     except Exception:
         logger.exception("Unexpected error reading prompts")
     return None
@@ -337,12 +345,16 @@ def upload_buffer_to_s3(buffer: BytesIO, bucket: str, bucket_key: str) -> None:
         bucket: Destination S3 bucket.
         key:    Destination S3 key.
     """
-    _s3_client.put_object(
-        Bucket=bucket,
-        Key=bucket_key,
-        Body=buffer.getvalue(),
-        ContentType="application/pdf",
-    )
+    try:
+        _s3_client.put_object(
+            Bucket=bucket,
+            Key=bucket_key,
+            Body=buffer.getvalue(),
+            ContentType="application/pdf",
+        )
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception("Failed to upload summary PDF to S3")
+        raise RuntimeError("Unable to upload summary PDF") from exc
     logger.info("Uploaded PDF to s3://%s/%s", bucket, bucket_key)
 
 
@@ -410,6 +422,16 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "statusMessage": "Summarization  PDF uploaded",
         }
 
+    except FileNotFoundError as exc:
+        logger.exception("Required resource missing")
+        msg = f"Missing file: {exc}" if exc.filename else "Required file missing"
+        return {"statusCode": 500, "statusMessage": msg}
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception("AWS error during summary processing")
+        return {"statusCode": 502, "statusMessage": "Storage service error"}
+    except ValueError as exc:
+        logger.exception("Invalid input for summary processing")
+        return {"statusCode": 400, "statusMessage": str(exc)}
     except Exception as e:
         logger.exception("process_for_summary failed")
         return {"statusCode": 500, "statusMessage": str(e)}
@@ -433,6 +455,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         body = process_for_summary(event, context)
         status = body.get("statusCode", 200)
         return _response(status, body)
+    except (ClientError, BotoCoreError) as exc:
+        logger.exception("AWS error invoking Lambda")
+        return _response(502, {"statusMessage": "AWS service error"})
+    except ValueError as exc:
+        logger.exception("Invalid request to lambda_handler")
+        return _response(400, {"statusMessage": str(exc)})
     except Exception as e:
         logger.exception("lambda_handler failed")
         return _response(500, {"statusMessage": str(e)})
