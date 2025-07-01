@@ -1,345 +1,194 @@
 # Enterprise AI Services
 
-**Enterprise AI Services** provides a suite of reusable, modular AWS Lambda microservices for a fully serverless AI stack. Each microservice encapsulates a discrete file-centric task—assembling, classifying, processing, compressing, or extracting files—so you can:
+Enterprise AI Services is a collection of AWS Lambda microservices for building serverless document processing workflows. Each service focuses on a specific task such as OCR extraction, PDF assembly or embedding generation.
 
-- **Rapidly compose** end-to-end AI workflows by wiring together independent Lambda functions  
-- **Scale transparently** under variable loads without provisioning or managing servers  
-- **Reuse common components** across projects to accelerate development and enforce consistency  
-- **Maintain clear separation of concerns**, making each microservice easier to test, update, and deploy  
-
-Whether you’re building on-demand OCR pipelines, metadata-driven classification, vector embedding generators, or ZIP-based packaging utilities, this repository gives you production-ready, serverless building blocks for any AI-powered file workflow.  .
-
-## Overview
-
-The **Enterprise AI Services** project provides a suite of AWS Lambda functions to handle various file-related operations:
-
-- **Assemble** summary and original files  
-- **Process** files via OCR and vector embeddings  
-- **Classify** files based on metadata or content  
-- **Compress** and **extract** ZIP archives  
-- **Track** processing status  
-
-Each capability lives in its own directory, fostering a clean, modular structure that’s easy to extend and maintain.
-
----
-
-## Folder Structure
-
-- **aio-enterprise-ai-services/**
-  - **lambda/**
-    - **file-assembly/**
-      - **file-assemble-lambda/app.py**
-    - **file-classification/**
-      - **app/**  
-        - `*.py`  
-    - **file-processing-status/**
-      - **app/**  
-        - `*.py`  
-    - **file-processing/**
-      - **app/**
-        - `*.py`  
-    - **zip-processing/**
-      - **zip-creation-lambda/app.py**
-      - **zip-extract-lambda/app.py**
-  - **.github/**
-    - **workflows/**
-      - `deploy.yml`  
-  - `README.md`  
-  - …other config files…
-
----
-
-## Key Features
-
-### 1. File Assembly
-- Combine summary and original files
-- Organize directory structure for downstream processing  
-
-### 2. File Classification 
-- Analyze metadata or content fields  
-- Trigger AWS Step Functions based on classification rules  
-
-### 3. Processing Status 
-- Track workflows: pending → in-progress → completed  
-- Emit status updates for monitoring  
-
-### 4. File Processing 
-- Extract text from PDFs via OCR  
-- Generate embeddings  
-- Store embeddings in a vector database  
-
-### 5. ZIP Assembly
-- Bundle merged PDFs and metadata into ZIP files for transfer  
-
-### 6. ZIP Extraction
-- Unpack ZIP archives
-- Save individual files to Amazon S3
-
-### 7. Docling Processing
-- Send combined text or PDFs to an external Docling service
-- Store structured JSON results for downstream use
-
-### 8. RAG Ingestion & Retrieval
-- Chunk text into configurable sizes and overlaps
-- Generate embeddings with selectable models
-- Store and search embeddings in Milvus
-- API endpoints expose summarization and extraction using retrieved context
-
-### 9. Summarization
-- Generate context-aware summaries using retrieved text chunks
-- Merge the summary pages with the original file
-- Supports summarization for any file type handled by the IDP pipeline
-
----
 ## Services
 
-Below is a summary of each service directory. Refer to the README in each folder for deployment parameters and environment variables.
+The repository includes the following directories under `services/`:
 
-- **idp/** – Intelligent Document Processing pipeline with Lambdas for classifying, splitting, OCR, text extraction and output.
-- **file-assembly/** – merges generated summary pages with the original PDF.
-- **zip-processing/** – extracts PDFs from uploaded archives and assembles new ZIPs after processing.
-- **rag-ingestion/** – chunks extracted text and generates embeddings stored in Milvus.
-- **vector-db/** – manages Milvus collections and provides search Lambdas.
-- **rag-retrieval/** – retrieval functions and API endpoints for summarization or entity extraction.
-- **summarization/** – Step Function workflow that orchestrates file processing and summary generation.
-- **llm-router/** – routes prompts to Amazon Bedrock or local Ollama based on heuristics.
-- **llm-invocation/** – forwards OpenAI-style requests to a specific LLM backend.
+- `file-assembly` – merges summary pages with the original PDF
+- `idp` – Intelligent Document Processing pipeline (classification, OCR and text extraction)
+- `zip-processing` – extracts PDFs from uploaded archives and assembles new ZIPs
+- `rag-ingestion` – chunks text and generates embeddings stored in Milvus
+- `vector-db` – manages Milvus collections and search Lambdas
+- `rag-retrieval` – retrieval functions and API endpoints for summarization or entity extraction
+- `summarization` – Step Function workflow orchestrating file processing and summary generation
+- `llm-router` – routes prompts via heuristic, predictive and cascading strategies to Amazon Bedrock or local Ollama
+- `llm-invocation` – forwards OpenAI-style requests to a specific LLM backend
 
-Shared dependencies are packaged as layers under `common/layers/`.
+Shared dependencies are packaged as layers in `common/layers/`.
+
+### Service descriptions
+
+#### file-assembly
+Merges summary pages produced by the summarization workflow back into the
+original PDF and uploads the result to S3.
+
+#### idp
+Implements the Intelligent Document Processing pipeline with steps for
+classification, page splitting, text extraction, OCR and posting the final JSON
+to an external API.
+
+#### zip-processing
+Unpacks uploaded ZIP archives, processes each PDF through the summarization
+workflow and assembles a new archive with the merged outputs.
+
+#### rag-ingestion
+Splits text documents into overlapping chunks, generates embeddings using
+`embed-lambda` and stores them in Milvus via the `vector-db` functions.
+
+#### vector-db
+Provides Lambda functions for creating collections, inserting, updating and
+searching embeddings stored in Milvus.
+
+#### rag-retrieval
+Queries the vector database for relevant context and forwards results to
+summarization, content extraction or entity extraction endpoints.
+
+#### summarization
+Step Function workflow that copies a file to the IDP bucket, waits for text
+extraction, generates summaries and merges them back with the original PDF.
+
+#### llm-router
+Routes prompts to Amazon Bedrock or local Ollama using heuristic, predictive and
+cascading strategies.
+
+#### llm-invocation
+Forwards OpenAI-style requests to the chosen LLM backend with configurable
+generation parameters.
+
+## Repository Structure
+
+```text
+.
+├── INSTALL.md
+├── README.md
+├── common/
+│   └── layers/
+├── docs/
+│   ├── idp_output_format.md
+│   ├── router_configuration.md
+│   └── summarization_workflow.md
+├── services/
+│   └── <service directories>
+├── template.yaml
+└── tests/
+```
 
 ## Installation
 
-Basic steps are listed here. Refer to [INSTALL.md](INSTALL.md) for a more detailed guide.
+Refer to [INSTALL.md](INSTALL.md) for detailed steps. In short:
 
-1. **Clone** the repository
-   ```bash
-   git clone https://github.com/ameritascorp/aio-enterprise-ai-services.git
-   cd aio-enterprise-ai-services
-   ```
-2. **Dependencies**
-   Each Lambda's Python packages are installed into a
-   dedicated layer directory under `common/layers/`. These layers
-   bundle the requirements for that function, so the repository does
-   not include a root-level `requirements.txt`.
+```bash
+git clone https://github.com/ameritascorp/ai-services-lambda.git
+cd ai-services-lambda
+sam build
+```
 
----
+Python packages are installed into each Lambda's layer under `common/layers/` during the build.
 
 ## Configuration
-### AWS Parameter Store
-Open AWS Systems Manager → Parameter Store and create parameters for each
-module using the path format:
 
-```
-/parameters/aio/ameritasAI/<ENV>/<NAME>
-```
+Runtime settings are stored in AWS Systems Manager Parameter Store using the path `/parameters/aio/ameritasAI/<ENV>/<NAME>`. S3 object tags with the same keys may override these values for individual files.
 
-where ``<ENV>`` comes from the ``SERVER_ENV`` parameter. Lambdas read their
-configuration from these paths at runtime. Ensure the functions have IAM
-policies allowing ``ssm:GetParameter``.
+### OCR Engine
 
-### Object Tag Overrides
-Configuration values may be overridden per-object by attaching S3 tags. Tags
-use the same keys as the Parameter Store names, for example ``OCR_ENGINE`` or
-``TEXT_PAGE_PREFIX``. When processing an S3 event the Lambda checks the uploaded
-object’s tags first; if no relevant tag is found the value is loaded from
-Parameter Store.
+The `OCR_ENGINE` variable controls which OCR backend to use:
 
-…etc.
+- `easyocr` (default)
+- `paddleocr`
+- `trocr` – requires `TROCR_ENDPOINT`
+- `docling` – requires `DOCLING_ENDPOINT`
 
-### OCR Engine Configuration
-The PDF OCR extractor supports EasyOCR, PaddleOCR, a remote TrOCR
-service and a remote Docling service. Set the ``OCR_ENGINE`` environment
-variable to ``"easyocr"`` (default), ``"paddleocr"``, ``"trocr"`` or
-``"docling"``. When using TrOCR, specify the endpoint URL via
-``TROCR_ENDPOINT``. The Docling engine requires ``DOCLING_ENDPOINT``.  
-PaddleOCR may offer better accuracy for some documents but increases
-package size.
+## Environment Variables
 
----
+Each service loads its configuration from Parameter Store or the Lambda
+environment. The table below summarises the most common variables.
 
-## Git Workflow
-   Cloning the Repository
-   git clone https://github.com/ameritascorp/aio-enterprise-ai-services.git
+### Core services
 
-### Branch Strategy
-- Main (main)
-     - Production-ready code only
+- `AWS_ACCOUNT_NAME` – scopes stack resources for the file‑assembly,
+  zip‑processing and summarization stacks.
 
-- Feature Branches
-     - Naming: feature/<feature-name>
+### Intelligent Document Processing (IDP)
 
-git checkout -b feature/add-zip-logging 
+- `BUCKET_NAME` – S3 bucket for pipeline objects.
+- `RAW_PREFIX` – uploads waiting to be processed.
+- `CLASSIFIED_PREFIX` – classifier output prefix.
+- `OFFICE_PREFIX` – Office files with embedded text.
+- `SPLIT_PREFIX` – where PDFs are split into pages.
+- `PAGE_PREFIX` – PDF pages waiting for further processing.
+- `TEXT_PREFIX` – text extracted from PDF pages.
+- `OCR_PREFIX` – OCR results for scanned pages.
+- `COMBINE_PREFIX` – location for combined page JSON.
+- `OUTPUT_PREFIX` – final output JSON after external API calls.
+- `TEXT_DOC_PREFIX` – merged document JSON files.
+- `OCR_ENGINE` – selected OCR engine.
+- `TROCR_ENDPOINT` – TrOCR service URL when using `trocr`.
+- `DOCLING_ENDPOINT` – Docling service URL when using `docling`.
+- `PDF_RAW_PREFIX`, `PDF_PAGE_PREFIX`, `PDF_TEXT_PAGE_PREFIX`,
+  `PDF_SCAN_PAGE_PREFIX`, `TEXT_PAGE_PREFIX` – internal prefixes used by
+  the pipeline.
+- `DPI` – image resolution for OCR.
+- `EDI_SEARCH_API_URL` / `EDI_SEARCH_API_KEY` – external API for IDP output.
 
-### Pull Requests
-1. Push your feature branch to origin.
-2. Open a PR targeting main.
-3. Ensure at least one code review approval before merging.
+### RAG Ingestion
 
----
+- `CHUNK_SIZE` – characters per chunk.
+- `CHUNK_OVERLAP` – overlap between chunks.
+- `EMBED_MODEL` – default embedding provider.
+- `EMBED_MODEL_MAP` – JSON mapping of document types to models.
+- `SBERT_MODEL` – SentenceTransformer model path or name.
+- `OPENAI_EMBED_MODEL` – embedding model for OpenAI.
+- `COHERE_API_KEY` – API key for Cohere embeddings.
+
+### Vector DB
+
+- `MILVUS_HOST` / `MILVUS_PORT` – Milvus server connection.
+- `MILVUS_COLLECTION` – target collection name.
+- `MILVUS_UPSERT` – upsert behaviour for inserts.
+- `TOP_K` – default number of search results.
+- `MILVUS_INDEX_PARAMS` – JSON index settings.
+- `MILVUS_METRIC_TYPE` – distance metric for embeddings.
+- `MILVUS_SEARCH_PARAMS` – JSON search parameters.
+
+### RAG Retrieval
+
+- `VECTOR_SEARCH_FUNCTION` – Lambda used for vector search.
+- `SUMMARY_ENDPOINT` – optional summarization service URL.
+- `CONTENT_ENDPOINT` – endpoint for content extraction.
+- `ENTITIES_ENDPOINT` – endpoint for entity extraction.
+- `ROUTELLM_ENDPOINT` – LLM router URL.
+- `EMBED_MODEL` / `SBERT_MODEL` – embedding configuration.
+- `OPENAI_EMBED_MODEL` – OpenAI model name.
+- `COHERE_API_KEY` – Cohere API key.
+
+### LLM Router and Invocation
+
+- `BEDROCK_OPENAI_ENDPOINTS` – comma‑separated Bedrock endpoints.
+- `BEDROCK_API_KEY` – API key for Bedrock.
+- `BEDROCK_TEMPERATURE`, `BEDROCK_NUM_CTX`, `BEDROCK_MAX_TOKENS`,
+  `BEDROCK_TOP_P`, `BEDROCK_TOP_K`,
+  `BEDROCK_MAX_TOKENS_TO_SAMPLE` – generation settings for Bedrock.
+- `OLLAMA_ENDPOINTS` – comma‑separated URLs of Ollama servers.
+- `OLLAMA_DEFAULT_MODEL` – default Ollama model name.
+- `OLLAMA_NUM_CTX`, `OLLAMA_REPEAT_LAST_N`, `OLLAMA_REPEAT_PENALTY`,
+  `OLLAMA_TEMPERATURE`, `OLLAMA_SEED`, `OLLAMA_STOP`,
+  `OLLAMA_NUM_PREDICT`, `OLLAMA_TOP_K`, `OLLAMA_TOP_P`, `OLLAMA_MIN_P` –
+  generation settings for Ollama.
+- `PROMPT_COMPLEXITY_THRESHOLD` – word count before switching models.
+- `HEURISTIC_ROUTER_CONFIG` – JSON rules for advanced routing.
+- `LLM_INVOCATION_FUNCTION` – Lambda used to invoke the chosen backend.
+- `STRONG_MODEL_ID` / `WEAK_MODEL_ID` – model identifiers for routing.
 
 ## Deployment
-This project uses GitHub Actions for CI/CD:
 
-1. **Workflow file**: .github/workflows/deploy.yml
-
-2. On push to main:
-
-- Packages each Lambda function
-- Deploys to the configured AWS environment
-  - Simply merge your changes into main—the pipeline takes care of the rest.
-
-### Example SAM Deployment
-
-When deploying manually you can point the Lambdas to an EC2 instance running
-the TrOCR or Docling services. Pass the URLs as parameter overrides or
-environment variables:
-
-```bash
-sam deploy \
-  --parameter-overrides TROCR_ENDPOINT=http://<EC2-IP>:8000/trocr \
-  --stack-name ai-services
-```
-
-Set ``DOCLING_ENDPOINT`` in the console or via `sam deploy` to the Docling
-service URL, e.g. ``http://<EC2-IP>:8001``.
-
-### Deploying the Vector DB Service
-This stack contains the Milvus management and search Lambdas. Provide the
-Milvus connection details when deploying:
-
-```bash
-sam deploy \
-  --template-file services/vector-db/template.yaml \
-  --stack-name vector-db \
-  --parameter-overrides MilvusHost=<host> MilvusPort=<port> MilvusCollection=<collection>
-```
-
-### Deploying the RAG Ingestion Service
-The ingestion stack now includes a Step Function that orchestrates `TextChunkFunction`,
-`EmbedFunction`, and `MilvusInsertFunction`. New JSON documents emitted by the
-IDP pipeline under `TEXT_DOC_PREFIX` trigger this state machine automatically.
-The root template passes the IDP bucket name and prefix to the stack. Provide
-the ARNs of the vector-db Lambdas when deploying manually:
-
-```bash
-sam deploy \
-  --template-file services/rag-ingestion/template.yaml \
-  --stack-name rag-ingestion \
-  --parameter-overrides \ 
-    MilvusInsertFunctionArn=<arn> \ 
-    MilvusDeleteFunctionArn=<arn> \ 
-    MilvusUpdateFunctionArn=<arn> \ 
-    MilvusCreateCollectionFunctionArn=<arn> \ 
-    MilvusDropCollectionFunctionArn=<arn>
-```
-If deploying the template by itself, also pass `BucketName` and `TextDocPrefix`
-to match your IDP stack.
-
-Configure ``CHUNK_SIZE``, ``CHUNK_OVERLAP`` and ``EMBED_MODEL`` via environment
-variables or Parameter Store as needed. ``EMBED_MODEL`` specifies the default
-embedding provider (``"sbert"``). Use ``EMBED_MODEL_MAP`` to map document types
-to specific models, e.g. ``{"pdf": "openai", "pptx": "cohere"}``.
-
-Set ``SBERT_MODEL`` (via Parameter Store or environment variable) to the
-SentenceTransformer model name or path. If the value starts with ``s3://`` it
-will be downloaded to ``/tmp`` before loading.
-
-When invoking the embed Lambda include a ``docType`` field in the payload or in
-each chunk's metadata so the function can select the appropriate model. Example:
-
-```json
-{
-  "docType": "pdf",
-  "chunks": ["some text"]
-}
-```
-
-### Deploying the RAG Retrieval Service
-Deploy the retrieval Lambdas separately. Provide the ARN of the vector search
-Lambda along with the optional API endpoints for summarization and extraction:
-
-```bash
-sam deploy \
-  --template-file services/rag-retrieval/template.yaml \
-  --stack-name rag-retrieval \
-  --parameter-overrides \
-    VectorSearchFunctionArn=<arn> \
-    RouteLlmEndpoint=<router-url>
-```
-The summarization Lambda forwards its prompts through the LLM router. Ensure the
-router environment variables (e.g. `ROUTELLM_ENDPOINT`, `LLM_INVOCATION_FUNCTION`,
-and any `BEDROCK_*` or `OLLAMA_*` settings) are configured as described in
-[`docs/router_configuration.md`](docs/router_configuration.md).
-Inference options such as `backend`, `model`, or sampling parameters can be
-included in the request payload and are forwarded unchanged to the router.
-
-### Deploying the Summarization Service
-This stack orchestrates the end‑to‑end summary workflow:
-1. `file-processing` copies uploaded files to `IDP_BUCKET/RAW_PREFIX`.
-2. The IDP pipeline extracts text to `TEXT_DOC_PREFIX`.
-3. New text files start the ingestion state machine (`IngestionStateMachineArn`) to chunk and embed the pages.
-4. Once ingestion completes, the summarization state machine calls the RAG retrieval summary Lambda (`RAG_SUMMARY_FUNCTION_ARN`) and merges the output with the original file.
-
-Deploy with the required parameters:
-
-```bash
-sam deploy \
-  --template-file services/summarization/template.yaml \
-  --stack-name summarization \
-  --parameter-overrides \
-    IDPBucketName=<bucket> \
-    IDPRawPrefix=<prefix> \
-    IngestionStateMachineArn=<arn> \
-    RagSummaryFunctionArn=<arn>
-```
-
-Ensure Parameter Store keys `IDP_BUCKET`, `RAW_PREFIX` and `TEXT_DOC_PREFIX` exist so the Lambdas can locate the IDP resources.
-
-## LLM Router Service
-
-The router Lambda directs prompts to different Large Language Model back‑ends. It typically sits in front of Amazon Bedrock and a local Ollama instance, choosing a destination based on the prompt length.
-
-### Required environment variables
-
-- `BEDROCK_OPENAI_ENDPOINTS` – comma‑separated Bedrock OpenAI‑compatible endpoints.
-- `BEDROCK_API_KEY` – API key used when calling Bedrock.
-- `BEDROCK_TEMPERATURE` – sampling temperature for Bedrock models (default `0.5`).
-- `BEDROCK_NUM_CTX` – context length for Bedrock calls (default `4096`).
-- `BEDROCK_MAX_TOKENS` – maximum tokens to generate (default `2048`).
-- `BEDROCK_TOP_P` – nucleus sampling parameter (default `0.9`).
-- `BEDROCK_TOP_K` – top‑k sampling parameter (default `50`).
-- `BEDROCK_MAX_TOKENS_TO_SAMPLE` – maximum tokens Bedrock should sample (default `2048`).
-- `OLLAMA_ENDPOINTS` – comma‑separated URLs of Ollama instances.
-- `OLLAMA_DEFAULT_MODEL` – model name passed to Ollama when one is not supplied.
-- `OLLAMA_NUM_CTX` – context length for Ollama requests (default `4096`).
-- `OLLAMA_REPEAT_LAST_N` – repetition window size for Ollama (default `64`).
-- `OLLAMA_REPEAT_PENALTY` – repetition penalty for Ollama (default `1.1`).
-- `OLLAMA_TEMPERATURE` – sampling temperature for Ollama models (default `0.7`).
-- `OLLAMA_SEED` – random seed for generation (default `42`).
-- `OLLAMA_STOP` – stop sequence for Ollama (default `"AI assistant:"`).
-- `OLLAMA_NUM_PREDICT` – number of tokens to predict (default `42`).
-- `OLLAMA_TOP_K` – top‑k sampling parameter (default `40`).
-- `OLLAMA_TOP_P` – nucleus sampling parameter (default `0.9`).
-- `OLLAMA_MIN_P` – minimum probability threshold (default `0.05`).
-- `PROMPT_COMPLEXITY_THRESHOLD` – word count used by the router to decide when to switch from Ollama to Bedrock (defaults to `20`).
-- `ROUTELLM_ENDPOINT` – optional URL for forwarding requests to an external RouteLLM router.
-- `LLM_INVOCATION_FUNCTION` – name of the Lambda used for actual model invocation.
-
-### Example invocation
-
-```bash
-aws lambda invoke \
-  --function-name llm-router \
-  --payload '{"prompt": "Write a short poem"}' out.json
-```
-
-The router counts the words in the prompt. If the count meets or exceeds `PROMPT_COMPLEXITY_THRESHOLD` the request goes to Bedrock, otherwise it is sent to Ollama. Requests may optionally include a `backend` field to force a specific destination (``bedrock`` or ``ollama``). A ``strategy`` field can also be provided for future routing modes. When ``backend`` is not supplied the router falls back to the complexity-based logic. The response always includes a `backend` field indicating which service handled the prompt.
+Deploy a service with `sam deploy --template-file services/<service>/template.yaml --stack-name <name>` and provide any required parameters. See each service's README for details.
 
 ## Documentation
 
-For details on how extracted text should be structured, see [docs/idp_output_format.md](docs/idp_output_format.md).
-Additional configuration guidance for the router can be found in [docs/router_configuration.md](docs/router_configuration.md).
-An overview of the summarization state machine is available in [docs/summarization_workflow.md](docs/summarization_workflow.md).
+Additional documentation is available in the `docs/` directory:
 
-
-   
+- [docs/idp_output_format.md](docs/idp_output_format.md)
+- [docs/router_configuration.md](docs/router_configuration.md)
+- [docs/summarization_workflow.md](docs/summarization_workflow.md)
