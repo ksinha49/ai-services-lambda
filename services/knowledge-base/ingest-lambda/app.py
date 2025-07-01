@@ -7,6 +7,7 @@ import os
 import logging
 from common_utils import configure_logger
 import boto3
+from botocore.exceptions import ClientError
 
 # Module Metadata
 __author__ = "Koushik Sinha"
@@ -16,6 +17,8 @@ __modified_by__ = "Koushik Sinha"
 logger = configure_logger(__name__)
 
 STATE_MACHINE_ARN = os.environ.get("STATE_MACHINE_ARN")
+if not STATE_MACHINE_ARN:
+    raise RuntimeError("STATE_MACHINE_ARN not configured")
 
 sfn = boto3.client("stepfunctions")
 
@@ -47,5 +50,12 @@ def lambda_handler(event: dict, context: object) -> dict:
 
     if metadata:
         payload["metadata"] = metadata
-    sfn.start_execution(stateMachineArn=STATE_MACHINE_ARN, input=json.dumps(payload))
+    try:
+        sfn.start_execution(
+            stateMachineArn=STATE_MACHINE_ARN,
+            input=json.dumps(payload),
+        )
+    except ClientError as exc:
+        logger.error("Failed to start state machine: %s", exc)
+        return {"started": False, "error": str(exc)}
     return {"started": True}
