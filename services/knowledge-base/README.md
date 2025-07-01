@@ -3,8 +3,10 @@
 This service provides simple endpoints to ingest text documents into the vector
 database and query them using the retrieval stack. It relies on the existing
 RAG ingestion and retrieval components. When ingesting documents you may include
-metadata fields such as department, team and user. These values are stored with
-each chunk and can be used to filter queries.
+ metadata fields such as department, team and user. These values are stored with
+ each chunk and can be used to filter queries. When entity extraction is enabled
+ during ingestion, the detected entities are indexed per chunk and can also be
+ used as filters when querying.
 
 ## Lambdas and API Endpoints
 
@@ -19,9 +21,10 @@ each chunk and can be used to filter queries.
   `rag-ingestion` stack.
 - `SummarizeFunctionArn` – ARN of the summary Lambda from the
   `rag-retrieval` stack.
-- `KnowledgeBaseName` – optional name tag for the knowledge base.
-- Additional request fields include `department`, `team` and `user` which help
-  isolate knowledge by organizational unit.
+ - `KnowledgeBaseName` – optional name tag for the knowledge base.
+ - Additional request fields include `department`, `team`, `user` and
+   `entities`. These help isolate knowledge by organizational unit or only return
+   chunks matching specific entities.
 
 ## Deployment
 

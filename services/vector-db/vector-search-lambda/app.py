@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
 _handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+    logging.Formatter(
+        "%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z"
+    )
 )
 if not logger.handlers:
     logger.addHandler(_handler)
@@ -36,15 +38,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     top_k = int(event.get("top_k", TOP_K))
     results = client.search(embedding, top_k=top_k)
-    matches = [
-        {"id": r.id, "score": r.score, "metadata": r.metadata}
-        for r in results
-    ]
+    matches = [{"id": r.id, "score": r.score, "metadata": r.metadata} for r in results]
 
     department = event.get("department")
     team = event.get("team")
     user = event.get("user")
-    if department or team or user:
+    entities: List[str] | None = event.get("entities")
+    if department or team or user or entities:
         filtered = []
         for m in matches:
             md = m.get("metadata", {}) or {}
@@ -54,8 +54,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 continue
             if user and md.get("user") != user:
                 continue
+            if entities:
+                chunk_ents = md.get("entities", []) or []
+                if not any(e in chunk_ents for e in entities):
+                    continue
             filtered.append(m)
         matches = filtered
 
     return {"matches": matches}
-
