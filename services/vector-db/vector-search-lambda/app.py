@@ -40,5 +40,22 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         {"id": r.id, "score": r.score, "metadata": r.metadata}
         for r in results
     ]
+
+    department = event.get("department")
+    team = event.get("team")
+    user = event.get("user")
+    if department or team or user:
+        filtered = []
+        for m in matches:
+            md = m.get("metadata", {}) or {}
+            if department and md.get("department") != department:
+                continue
+            if team and md.get("team") != team:
+                continue
+            if user and md.get("user") != user:
+                continue
+            filtered.append(m)
+        matches = filtered
+
     return {"matches": matches}
 

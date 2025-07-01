@@ -128,6 +128,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     search_payload = {"embedding": emb} if emb is not None else {}
     if RERANK_FUNCTION:
         search_payload["top_k"] = SEARCH_CANDIDATES
+    for key in ("department", "team", "user"):
+        if key in event:
+            search_payload[key] = event[key]
     resp = lambda_client.invoke(
         FunctionName=LAMBDA_FUNCTION,
         Payload=json.dumps(search_payload).encode("utf-8"),

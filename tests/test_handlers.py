@@ -314,6 +314,7 @@ def test_embed_model_map_event(monkeypatch, config):
     module._MODEL_MAP['openai'] = module._openai_embed
     out = module.lambda_handler({'chunks': ['t'], 'docType': 'pdf'}, {})
     assert out['embeddings'] == [[42]]
+    assert out['metadatas'] == [None]
 
 
 def test_embed_model_map_chunk(monkeypatch, config):
@@ -326,6 +327,7 @@ def test_embed_model_map_chunk(monkeypatch, config):
     chunk = {'text': 'hi', 'metadata': {'docType': 'pptx'}}
     out = module.lambda_handler({'chunks': [chunk]}, {})
     assert out['embeddings'] == [[24]]
+    assert out['metadatas'][0]['docType'] == 'pptx'
 
 
 def test_embed_model_default(monkeypatch, config):
@@ -337,6 +339,7 @@ def test_embed_model_default(monkeypatch, config):
     module._MODEL_MAP['cohere'] = module._cohere_embed
     out = module.lambda_handler({'chunks': ['x'], 'docType': 'txt'}, {})
     assert out['embeddings'] == [[7]]
+    assert out['metadatas'] == [None]
 
 
 def test_text_chunk_doc_type(monkeypatch, config):
@@ -345,7 +348,7 @@ def test_text_chunk_doc_type(monkeypatch, config):
     event = {'text': 'abcdef', 'docType': 'pdf'}
     result = module.lambda_handler(event, {})
     assert result['docType'] == 'pdf'
-    assert result['chunks']
+    assert isinstance(result['chunks'][0], dict)
 
 
 def test_milvus_delete_lambda(monkeypatch):
@@ -710,7 +713,7 @@ def test_text_chunk_event_overrides(monkeypatch, config):
     module = load_lambda('chunk_override', 'services/rag-ingestion/text-chunk-lambda/app.py')
     event = {'text': 'abcdef', 'chunk_size': 3, 'chunk_overlap': 1}
     out = module.lambda_handler(event, {})
-    assert out['chunks'] == ['abc', 'cde', 'ef']
+    assert [c['text'] for c in out['chunks']] == ['abc', 'cde', 'ef']
 
 
 def test_embed_event_override(monkeypatch, config):
@@ -720,6 +723,7 @@ def test_embed_event_override(monkeypatch, config):
     module._MODEL_MAP['openai'] = module._openai_embed
     out = module.lambda_handler({'chunks': ['x'], 'embedModel': 'openai'}, {})
     assert out['embeddings'] == [[9]]
+    assert out['metadatas'] == [None]
 
 
 def test_vector_search_top_k(monkeypatch, config):
@@ -743,6 +747,32 @@ def test_vector_search_top_k(monkeypatch, config):
     monkeypatch.setattr(module, 'client', type('C', (), {'search': fake_search})())
     module.lambda_handler({'embedding': [0.1], 'top_k': 7}, {})
     assert called['top_k'] == 7
+
+
+def test_vector_search_filters(monkeypatch, config):
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    import types, sys
+    dummy = types.ModuleType('pymilvus')
+    dummy.Collection = type('Coll', (), {'__init__': lambda self, *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, 'pymilvus', dummy)
+    import common_utils.milvus_client as mc
+    monkeypatch.setattr(mc, 'Collection', dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, 'connections', dummy.connections, raising=False)
+
+    module = load_lambda('vector_search', 'services/vector-db/vector-search-lambda/app.py')
+
+    def fake_search(self, embedding, top_k=5):
+        meta1 = {'department': 'HR', 'team': 'x', 'user': 'u1'}
+        meta2 = {'department': 'IT', 'team': 'y', 'user': 'u2'}
+        return [
+            type('R', (), {'id': 1, 'score': 0.1, 'metadata': meta1}),
+            type('R', (), {'id': 2, 'score': 0.2, 'metadata': meta2}),
+        ]
+
+    monkeypatch.setattr(module, 'client', type('C', (), {'search': fake_search})())
+    res = module.lambda_handler({'embedding': [0.1], 'department': 'HR'}, {})
+    assert len(res['matches']) == 1 and res['matches'][0]['metadata']['department'] == 'HR'
 
 
 def test_file_processing_passthrough(monkeypatch):

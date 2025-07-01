@@ -106,8 +106,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         embed_model_map = DEFAULT_EMBED_MODEL_MAP
 
     embeddings: List[List[float]] = []
+    metadatas: List[Any] = []
     for chunk in chunks:
         text = chunk
+        meta = None
         c_type = doc_type
         if isinstance(chunk, dict):
             text = chunk.get("text", "")
@@ -116,6 +118,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         model_name = embed_model_map.get(c_type, embed_model)
         embed_fn = _MODEL_MAP.get(model_name, _sbert_embed)
         embeddings.append(embed_fn(text))
+        metadatas.append(meta)
 
-    return {"embeddings": embeddings}
+    return {"embeddings": embeddings, "metadatas": metadatas}
 

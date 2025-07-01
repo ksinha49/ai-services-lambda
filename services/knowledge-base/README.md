@@ -2,7 +2,9 @@
 
 This service provides simple endpoints to ingest text documents into the vector
 database and query them using the retrieval stack. It relies on the existing
-RAG ingestion and retrieval components.
+RAG ingestion and retrieval components. When ingesting documents you may include
+metadata fields such as department, team and user. These values are stored with
+each chunk and can be used to filter queries.
 
 ## Lambdas and API Endpoints
 
@@ -18,6 +20,8 @@ RAG ingestion and retrieval components.
 - `SummarizeFunctionArn` – ARN of the summary Lambda from the
   `rag-retrieval` stack.
 - `KnowledgeBaseName` – optional name tag for the knowledge base.
+- Additional request fields include `department`, `team` and `user` which help
+  isolate knowledge by organizational unit.
 
 ## Deployment
 
