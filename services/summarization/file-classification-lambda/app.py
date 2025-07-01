@@ -25,7 +25,7 @@ from common_utils.get_ssm import (
 )
 
 # Module Metadata
-__author__ = "Balakrishna"  # Author name (please fill this in)
+__author__ = "Koushik Sinha"  # Author name (please fill this in)
 __version__ = "1.0.2"  # Version number of the module
 __modified_by__ = "Koushik Sinha"
 

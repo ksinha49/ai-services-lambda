@@ -51,7 +51,7 @@ from ocr_module import (
     convert_to_markdown,
 )
 
-__author__ = "Balakrishna"
+__author__ = "Koushik Sinha"
 __version__ = "1.0.0"
 __modified_by__ = "Koushik Sinha"
 

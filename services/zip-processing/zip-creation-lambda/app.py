@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Module Metadata
-__author__ = "Balakrishna"
+__author__ = "Koushik Sinha"
 __version__ = "1.0.2"
 __modified_by__ = "Koushik Sinha"
 

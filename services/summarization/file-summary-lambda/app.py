@@ -39,7 +39,7 @@ from fpdf import FPDF
 from unidecode import unidecode
 
 # Module Metadata
-__author__ = "Balakrishna"
+__author__ = "Koushik Sinha"
 __version__ = "1.0.2"
 __modified_by__ = "Koushik Sinha"
 

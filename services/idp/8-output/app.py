@@ -18,7 +18,7 @@ import urllib.request
 import boto3
 from common_utils import get_config
 
-__author__ = "Balakrishna"
+__author__ = "Koushik Sinha"
 __version__ = "1.0.0"
 __modified_by__ = "Koushik Sinha"
 
