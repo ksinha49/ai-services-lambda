@@ -39,6 +39,8 @@ s3_client = boto3.client("s3")
 
 
 def _iter_records(event: dict) -> Iterable[dict]:
+    """Yield each S3 event record from ``event``."""
+
     for rec in event.get("Records", []):
         yield rec
 
@@ -79,6 +81,13 @@ def _extract_xlsx(body: bytes) -> list[str]:
     return pages
 
 def _process_record(record: dict) -> None:
+    """Extract text from an Office document referenced by ``record``.
+
+    The object is read from S3, converted into Markdown pages depending on
+    its file type and the result is stored as a JSON document under
+    ``TEXT_DOC_PREFIX``.
+    """
+
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
     bucket_name = get_config("BUCKET_NAME", bucket, key)

@@ -44,7 +44,33 @@ def _pdf_has_text(pdf_bytes: bytes) -> bool:
         logger.error("Failed to inspect PDF: %s", exc)
     return False
 
-def _copy_to_prefix(bucket_name: str, raw_prefix: str, key: str, body: bytes, dest_prefix: str, content_type: str | None = None) -> None:
+def _copy_to_prefix(
+    bucket_name: str,
+    raw_prefix: str,
+    key: str,
+    body: bytes,
+    dest_prefix: str,
+    content_type: str | None = None,
+) -> None:
+    """Copy an object to ``dest_prefix`` preserving its relative path.
+
+    Parameters
+    ----------
+    bucket_name:
+        Name of the bucket where the object will be written.
+    raw_prefix:
+        Prefix of the source object.  This portion of ``key`` is removed
+        when constructing the destination key.
+    key:
+        Full S3 key of the source object.
+    body:
+        Bytes of the object to upload.
+    dest_prefix:
+        Target prefix for the copy operation.
+    content_type:
+        Optional content type to set on the new object.
+    """
+
     dest_key = dest_prefix + key[len(raw_prefix):]
     logger.info("Copying %s to %s", key, dest_key)
     put_kwargs = {"Bucket": bucket_name, "Key": dest_key, "Body": body}
@@ -53,6 +79,14 @@ def _copy_to_prefix(bucket_name: str, raw_prefix: str, key: str, body: bytes, de
     s3_client.put_object(**put_kwargs)
 
 def _handle_record(record: dict) -> None:
+    """Classify and copy a single object referenced in an S3 record.
+
+    The record's bucket and key are validated against configuration
+    settings.  Office documents and PDFs with embedded text are copied
+    to ``OFFICE_PREFIX`` while image-only PDFs are copied to
+    ``PDF_RAW_PREFIX``.
+    """
+
     bucket = record.get("s3", {}).get("bucket", {}).get("name")
     key = record.get("s3", {}).get("object", {}).get("key")
     bucket_name = get_config("BUCKET_NAME", bucket, key)
@@ -87,6 +121,8 @@ def _handle_record(record: dict) -> None:
     _copy_to_prefix(bucket_name, raw_prefix, key, body, prefix, content_type)
 
 def _iter_records(event: dict) -> Iterable[dict]:
+    """Yield each S3 record contained in ``event``."""
+
     for record in event.get("Records", []):
         yield record
 

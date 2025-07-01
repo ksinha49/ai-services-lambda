@@ -92,6 +92,8 @@ def _results_to_layout_text(results: list[tuple[list[list[int]], str]]) -> str:
     prev_bottom = lines[0][0]["bottom"]
 
     def flush_table() -> None:
+        """Write buffered table rows to ``output_lines`` and clear the buffer."""
+
         nonlocal table_buffer
         if not table_buffer:
             return
