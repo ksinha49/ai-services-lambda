@@ -2,6 +2,7 @@ import importlib.util
 import json
 import io
 import sys
+import types
 import pytest
 
 
@@ -337,4 +338,44 @@ def test_make_selector_empty():
     select = _make_selector([])
     with pytest.raises(RuntimeError):
         select()
+
+
+def test_failed_endpoint_skipped(monkeypatch):
+    class E(Exception):
+        def __init__(self):
+            self.response = types.SimpleNamespace(status_code=500, text='err')
+
+    sys.modules['httpx'].HTTPStatusError = E
+    monkeypatch.setenv('OLLAMA_ENDPOINTS', 'http://o1,http://o2')
+    import importlib, llm_invocation.backends
+    importlib.reload(llm_invocation.backends)
+    module = load_lambda('invoke', 'services/llm-invocation/invoke-lambda/app.py')
+
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, url):
+            self.url = url
+
+        def json(self):
+            return {'endpoint': self.url}
+
+        def raise_for_status(self):
+            pass
+
+    def fake_post(url, json=None):
+        calls.append(url)
+        if len(calls) == 1:
+            raise sys.modules['httpx'].HTTPStatusError()
+        return FakeResponse(url)
+
+    import llm_invocation.backends as backends_mod
+    monkeypatch.setattr(backends_mod.httpx, 'post', fake_post)
+
+    with pytest.raises(backends_mod.httpx.HTTPStatusError):
+        module.lambda_handler({'backend': 'ollama', 'prompt': 'x'}, {})
+
+    out = module.lambda_handler({'backend': 'ollama', 'prompt': 'x'}, {})
+    assert out['endpoint'] == 'http://o2'
+    assert calls == ['http://o1', 'http://o2']
 

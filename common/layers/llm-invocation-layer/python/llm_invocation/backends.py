@@ -6,6 +6,7 @@ import json
 import os
 from itertools import cycle
 from typing import Any, Callable, Dict, List, Sequence
+import time
 
 import boto3
 import httpx
@@ -95,13 +96,59 @@ def _make_selector(endpoints: Sequence[str]) -> Callable[[], str]:
     return _select
 
 
+class _HealthCheckedSelector:
+    """Round-robin selector with basic health checking."""
+
+    def __init__(
+        self,
+        endpoints: Sequence[str],
+        failure_threshold: int = 1,
+        cooldown: int = 60,
+    ) -> None:
+        self._endpoints = list(endpoints)
+        self._cycle = cycle(self._endpoints) if self._endpoints else None
+        self._failures = {ep: 0 for ep in self._endpoints}
+        self._last_failure = {ep: 0.0 for ep in self._endpoints}
+        self._threshold = failure_threshold
+        self._cooldown = cooldown
+
+    def choose(self) -> str:
+        if not self._endpoints:
+            raise RuntimeError("No endpoints configured")
+
+        for _ in range(len(self._endpoints)):
+            ep = next(self._cycle)
+            fails = self._failures.get(ep, 0)
+            last = self._last_failure.get(ep, 0.0)
+            if fails < self._threshold or time.time() - last >= self._cooldown:
+                return ep
+
+        return next(self._cycle)
+
+    def record_success(self, endpoint: str) -> None:
+        if endpoint in self._failures:
+            self._failures[endpoint] = 0
+
+    def record_failure(self, endpoint: str) -> None:
+        if endpoint in self._failures:
+            self._failures[endpoint] += 1
+            self._last_failure[endpoint] = time.time()
+
+
 BEDROCK_OPENAI_ENDPOINTS = _get_endpoints(
     "BEDROCK_OPENAI_ENDPOINTS", "BEDROCK_OPENAI_ENDPOINT"
 )
 OLLAMA_ENDPOINTS = _get_endpoints("OLLAMA_ENDPOINTS", "OLLAMA_ENDPOINT")
 
-choose_bedrock_openai_endpoint = _make_selector(BEDROCK_OPENAI_ENDPOINTS)
-choose_ollama_endpoint = _make_selector(OLLAMA_ENDPOINTS)
+_bedrock_selector = _HealthCheckedSelector(BEDROCK_OPENAI_ENDPOINTS)
+_ollama_selector = _HealthCheckedSelector(OLLAMA_ENDPOINTS)
+
+def choose_bedrock_openai_endpoint() -> str:
+    return _bedrock_selector.choose()
+
+
+def choose_ollama_endpoint() -> str:
+    return _ollama_selector.choose()
 
 
 def invoke_bedrock_runtime(
@@ -156,8 +203,14 @@ def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload.setdefault("top_p", BEDROCK_TOP_P)
     payload.setdefault("top_k", BEDROCK_TOP_K)
     payload.setdefault("max_tokens_to_sample", BEDROCK_MAX_TOKENS_TO_SAMPLE)
-    resp = httpx.post(endpoint, json=payload, headers=headers)
-    resp.raise_for_status()
+    try:
+        resp = httpx.post(endpoint, json=payload, headers=headers)
+        resp.raise_for_status()
+    except Exception:
+        _bedrock_selector.record_failure(endpoint)
+        raise
+    else:
+        _bedrock_selector.record_success(endpoint)
     return resp.json()
 
 
@@ -175,8 +228,14 @@ def invoke_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
     payload.setdefault("top_k", OLLAMA_TOP_K)
     payload.setdefault("top_p", OLLAMA_TOP_P)
     payload.setdefault("min_p", OLLAMA_MIN_P)
-    resp = httpx.post(endpoint, json=payload)
-    resp.raise_for_status()
+    try:
+        resp = httpx.post(endpoint, json=payload)
+        resp.raise_for_status()
+    except Exception:
+        _ollama_selector.record_failure(endpoint)
+        raise
+    else:
+        _ollama_selector.record_success(endpoint)
     return resp.json()
 
 
@@ -188,4 +247,6 @@ __all__ = [
     "invoke_ollama",
 ]
 
-# TODO: support more advanced endpoint selection algorithms (e.g., health checks)
+# Endpoint selection uses ``_HealthCheckedSelector`` instances which perform
+# round-robin load balancing and temporarily mark endpoints as unhealthy when
+# requests fail.
