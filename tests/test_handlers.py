@@ -565,6 +565,58 @@ def test_summarize_with_context_router(monkeypatch, config):
     assert out['summary'] == {'text': 'ok'}
 
 
+def test_rerank_lambda(monkeypatch, config):
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    module = load_lambda('rerank', 'services/rag-retrieval/rerank-lambda/app.py')
+    monkeypatch.setattr(module, '_score_pairs', lambda q, d: [0.1, 0.9])
+    matches = [
+        {'id': 1, 'metadata': {'text': 'a'}},
+        {'id': 2, 'metadata': {'text': 'b'}},
+    ]
+    out = module.lambda_handler({'query': 'x', 'matches': matches, 'top_k': 1}, {})
+    assert out['matches'][0]['id'] == 2
+    assert 'rerank_score' in out['matches'][0]
+
+
+def test_summarize_with_rerank(monkeypatch, config):
+    prefix = '/parameters/aio/ameritasAI/dev'
+    config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
+    config[f'{prefix}/VECTOR_SEARCH_FUNCTION'] = 'vector-search'
+    config[f'{prefix}/RERANK_FUNCTION'] = 'rerank'
+    config[f'{prefix}/VECTOR_SEARCH_CANDIDATES'] = '2'
+
+    class FakePayload:
+        def __init__(self, data):
+            self._data = data
+        def read(self):
+            return json.dumps(self._data).encode('utf-8')
+
+    def fake_invoke(FunctionName=None, Payload=None):
+        payload = json.loads(Payload)
+        if FunctionName == 'vector-search':
+            return {'Payload': FakePayload({'matches': [
+                {'metadata': {'text': 't1'}},
+                {'metadata': {'text': 't2'}},
+            ]})}
+        else:
+            fake_invoke.rerank = payload
+            return {'Payload': FakePayload({'matches': [
+                {'metadata': {'text': 't2'}, 'rerank_score': 0.9}
+            ]})}
+
+    fake_invoke.rerank = None
+
+    module = load_lambda('summ_ctx_rerank', 'services/rag-retrieval/summarize-with-context-lambda/app.py')
+    monkeypatch.setattr(module, 'lambda_client', type('C', (), {'invoke': staticmethod(fake_invoke)})())
+    monkeypatch.setattr(module, '_sbert_embed', lambda t: [0.1])
+    module._MODEL_MAP['sbert'] = module._sbert_embed
+    monkeypatch.setattr(module, 'forward_to_routellm', lambda p: {'text': p['context']})
+
+    out = module.lambda_handler({'query': 'hi'}, {})
+    assert fake_invoke.rerank['query'] == 'hi'
+    assert out['summary'] == {'text': 't2'}
+
+
 def test_text_chunk_event_overrides(monkeypatch, config):
     config['/parameters/aio/ameritasAI/SERVER_ENV'] = 'dev'
     module = load_lambda('chunk_override', 'services/rag-ingestion/text-chunk-lambda/app.py')

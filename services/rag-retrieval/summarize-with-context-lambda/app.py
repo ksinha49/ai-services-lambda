@@ -26,10 +26,13 @@ if not logger.handlers:
     logger.addHandler(_handler)
 
 LAMBDA_FUNCTION = get_config("VECTOR_SEARCH_FUNCTION") or os.environ.get("VECTOR_SEARCH_FUNCTION")
-SUMMARY_ENDPOINT = get_config("SUMMARY_ENDPOINT") or os.environ.get("SUMMARY_ENDPOINT")
-ROUTELLM_ENDPOINT = (
-    get_config("ROUTELLM_ENDPOINT") or os.environ.get("ROUTELLM_ENDPOINT")
+RERANK_FUNCTION = get_config("RERANK_FUNCTION") or os.environ.get("RERANK_FUNCTION")
+SEARCH_CANDIDATES = int(
+    get_config("VECTOR_SEARCH_CANDIDATES")
+    or os.environ.get("VECTOR_SEARCH_CANDIDATES", "5")
 )
+SUMMARY_ENDPOINT = get_config("SUMMARY_ENDPOINT") or os.environ.get("SUMMARY_ENDPOINT")
+ROUTELLM_ENDPOINT = get_config("ROUTELLM_ENDPOINT") or os.environ.get("ROUTELLM_ENDPOINT")
 
 lambda_client = boto3.client("lambda")
 
@@ -123,13 +126,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     if emb is None and query:
         emb = _embed_query(query, event.get("embedModel"))
     search_payload = {"embedding": emb} if emb is not None else {}
+    if RERANK_FUNCTION:
+        search_payload["top_k"] = SEARCH_CANDIDATES
     resp = lambda_client.invoke(
         FunctionName=LAMBDA_FUNCTION,
         Payload=json.dumps(search_payload).encode("utf-8"),
     )
     result = json.loads(resp["Payload"].read())
+    matches = result.get("matches", [])
+    if RERANK_FUNCTION and query:
+        rerank_payload = {"query": query, "matches": matches, "top_k": SEARCH_CANDIDATES}
+        rresp = lambda_client.invoke(
+            FunctionName=RERANK_FUNCTION,
+            Payload=json.dumps(rerank_payload).encode("utf-8"),
+        )
+        matches = json.loads(rresp["Payload"].read()).get("matches", matches)
     context_text = " ".join(
-        m.get("metadata", {}).get("text", "") for m in result.get("matches", [])
+        m.get("metadata", {}).get("text", "") for m in matches
     )
     router_payload = {k: v for k, v in event.items() if k != "embedding"}
     router_payload["context"] = context_text
