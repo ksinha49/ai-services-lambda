@@ -18,6 +18,14 @@ _NLP = None
 
 
 def _load_spacy():
+    """Load and cache a spaCy model if available.
+
+    The model name is taken from the ``SPACY_MODEL`` environment variable and
+    defaults to ``"en_core_web_sm"``.  If spaCy or the requested model cannot be
+    loaded, ``None`` is returned.  Subsequent calls return the cached model or
+    ``None`` without re-importing spaCy.
+    """
+
     global _NLP
     if _NLP is not None:
         return _NLP

@@ -62,6 +62,18 @@ class MilvusClient:
         search_params: Optional[dict] = None,
         metric_type: Optional[str] = None,
     ) -> None:
+        """Connect to Milvus and prepare a collection.
+
+        Parameters fall back to environment variables when ``None`` is provided:
+
+        - ``host`` (``MILVUS_HOST``, default ``"localhost"``)
+        - ``port`` (``MILVUS_PORT``, default ``19530``)
+        - ``collection_name`` (``MILVUS_COLLECTION``, default ``"docs"``)
+        - ``index_params`` from ``MILVUS_INDEX_PARAMS`` (JSON)
+        - ``search_params`` from ``MILVUS_SEARCH_PARAMS`` (JSON)
+        - ``metric_type`` from ``MILVUS_METRIC_TYPE`` or ``index_params``
+        """
+
         self.host = host or os.environ.get("MILVUS_HOST", "localhost")
         self.port = int(port or os.environ.get("MILVUS_PORT", "19530"))
         self.collection_name = collection_name or os.environ.get(

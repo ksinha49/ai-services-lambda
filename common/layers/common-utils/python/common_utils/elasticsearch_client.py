@@ -23,6 +23,12 @@ class ElasticsearchClient:
     """Minimal Elasticsearch helper for Lambda functions."""
 
     def __init__(self, url: Optional[str] = None, index_prefix: Optional[str] = None) -> None:
+        """Create a client using ``url`` and ``index_prefix``.
+
+        If not provided, the parameters default to the ``ELASTICSEARCH_URL`` and
+        ``ELASTICSEARCH_INDEX_PREFIX`` environment variables respectively.
+        """
+
         self.url = url or os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
         self.index_prefix = index_prefix or os.environ.get("ELASTICSEARCH_INDEX_PREFIX", "docs")
 
@@ -35,9 +41,13 @@ class ElasticsearchClient:
     # CRUD operations
     # ------------------------------------------------------------------
     def _index(self, name: Optional[str] = None) -> str:
+        """Return the full index name for ``name`` using the prefix."""
+
         return f"{self.index_prefix}-{name}" if name else self.index_prefix
 
     def insert(self, documents: Iterable[dict], index: Optional[str] = None) -> int:
+        """Insert ``documents`` into ``index`` and return the number stored."""
+
         idx = self._index(index)
         count = 0
         for doc in documents:
@@ -48,6 +58,8 @@ class ElasticsearchClient:
         return count
 
     def delete(self, ids: Iterable[str], index: Optional[str] = None) -> int:
+        """Remove documents with ``ids`` from ``index`` and return the count."""
+
         idx = self._index(index)
         count = 0
         for doc_id in ids:
@@ -56,6 +68,8 @@ class ElasticsearchClient:
         return count
 
     def update(self, documents: Iterable[dict], index: Optional[str] = None) -> int:
+        """Replace documents by ID in ``index`` with ``documents``."""
+
         idx = self._index(index)
         count = 0
         for doc in documents:
@@ -66,14 +80,20 @@ class ElasticsearchClient:
         return count
 
     def create_index(self, index: Optional[str] = None) -> None:
+        """Create ``index`` if it does not already exist."""
+
         idx = self._index(index)
         self.client.indices.create(index=idx, ignore=400)
 
     def drop_index(self, index: Optional[str] = None) -> None:
+        """Delete ``index`` ignoring missing errors."""
+
         idx = self._index(index)
         self.client.indices.delete(index=idx, ignore=[400, 404])
 
     def search(self, embedding: List[float], top_k: int = 5, index: Optional[str] = None) -> List[dict]:
+        """Return ``top_k`` nearest vectors to ``embedding`` from ``index``."""
+
         idx = self._index(index)
         if embedding is None:
             return []
@@ -93,6 +113,8 @@ class ElasticsearchClient:
         ]
 
     def hybrid_search(self, embedding: List[float], keywords: Iterable[str] | None = None, top_k: int = 5, index: Optional[str] = None) -> List[dict]:
+        """Search ``index`` using vector similarity and optional ``keywords``."""
+
         idx = self._index(index)
         if embedding is None:
             return []
