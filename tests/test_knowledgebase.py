@@ -87,9 +87,39 @@ def test_kb_query(monkeypatch):
             assert FunctionName == 'arn'
             body = json.loads(Payload)
             return {'Payload': io.BytesIO(json.dumps({'result': body}).encode())}
+    _stub_botocore(monkeypatch)
     monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
+    monkeypatch.setenv('SUMMARY_FUNCTION_ARN', 'arn')
     module = load_lambda('query', 'services/knowledge-base/query-lambda/app.py')
     module.lambda_client = FakeLambda()
-    module.SUMMARY_FUNCTION_ARN = 'arn'
     out = module.lambda_handler({'query': 'hi', 'team': 'x'}, {})
     assert out['result']['team'] == 'x'
+
+
+def test_kb_query_missing_arn(monkeypatch):
+    import boto3
+    _stub_botocore(monkeypatch)
+
+    class FakeLambda:
+        pass
+
+    monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
+    monkeypatch.delenv('SUMMARY_FUNCTION_ARN', raising=False)
+    with pytest.raises(RuntimeError):
+        load_lambda('query_noenv', 'services/knowledge-base/query-lambda/app.py')
+
+
+def test_kb_query_error(monkeypatch):
+    import boto3
+    ClientError = _stub_botocore(monkeypatch)
+
+    class FakeLambda:
+        def invoke(self, FunctionName=None, Payload=None):
+            raise ClientError({'Error': {'Code': '400', 'Message': 'bad'}}, 'invoke')
+
+    monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
+    monkeypatch.setenv('SUMMARY_FUNCTION_ARN', 'arn')
+    module = load_lambda('query_err', 'services/knowledge-base/query-lambda/app.py')
+    module.lambda_client = FakeLambda()
+    out = module.lambda_handler({'query': 'hi'}, {})
+    assert 'bad' in out['error']
