@@ -71,6 +71,8 @@ OLLAMA_MIN_P = float(os.environ.get("OLLAMA_MIN_P", str(DEFAULT_OLLAMA_MIN_P)))
 
 
 def _get_endpoints(plural_var: str, single_var: str) -> List[str]:
+    """Return a list of endpoint URLs read from environment variables."""
+
     raw = os.environ.get(plural_var)
     if raw:
         parts = [p.strip() for p in raw.split(",") if p.strip()]
@@ -105,6 +107,7 @@ class _HealthCheckedSelector:
         failure_threshold: int = 1,
         cooldown: int = 60,
     ) -> None:
+        """Create a selector over ``endpoints`` with failure tracking."""
         self._endpoints = list(endpoints)
         self._cycle = cycle(self._endpoints) if self._endpoints else None
         self._failures = {ep: 0 for ep in self._endpoints}
@@ -113,6 +116,7 @@ class _HealthCheckedSelector:
         self._cooldown = cooldown
 
     def choose(self) -> str:
+        """Return the next healthy endpoint or raise if none are configured."""
         if not self._endpoints:
             raise RuntimeError("No endpoints configured")
 
@@ -126,10 +130,12 @@ class _HealthCheckedSelector:
         return next(self._cycle)
 
     def record_success(self, endpoint: str) -> None:
+        """Mark ``endpoint`` as healthy after a successful request."""
         if endpoint in self._failures:
             self._failures[endpoint] = 0
 
     def record_failure(self, endpoint: str) -> None:
+        """Increment failure count for ``endpoint`` and update cooldown time."""
         if endpoint in self._failures:
             self._failures[endpoint] += 1
             self._last_failure[endpoint] = time.time()
@@ -144,10 +150,14 @@ _bedrock_selector = _HealthCheckedSelector(BEDROCK_OPENAI_ENDPOINTS)
 _ollama_selector = _HealthCheckedSelector(OLLAMA_ENDPOINTS)
 
 def choose_bedrock_openai_endpoint() -> str:
+    """Return a healthy endpoint URL for the Bedrock OpenAI runtime."""
+
     return _bedrock_selector.choose()
 
 
 def choose_ollama_endpoint() -> str:
+    """Return a healthy endpoint URL for the Ollama runtime."""
+
     return _ollama_selector.choose()
 
 
@@ -193,6 +203,8 @@ def invoke_bedrock_runtime(
 
 
 def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Send ``payload`` to a Bedrock OpenAI endpoint and return the response."""
+
     endpoint = choose_bedrock_openai_endpoint()
     headers = {"Content-Type": "application/json"}
     if BEDROCK_API_KEY:
@@ -215,6 +227,8 @@ def invoke_bedrock_openai(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def invoke_ollama(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Send ``payload`` to an Ollama endpoint and return the response."""
+
     endpoint = choose_ollama_endpoint()
     payload.setdefault("model", OLLAMA_DEFAULT_MODEL)
 

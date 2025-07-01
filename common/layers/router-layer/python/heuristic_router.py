@@ -20,6 +20,8 @@ PROMPT_COMPLEXITY_THRESHOLD = int(
 
 
 def _prompt_text(event: Dict[str, Any]) -> str:
+    """Return the user prompt text from a router ``event`` dictionary."""
+
     if isinstance(event.get("prompt"), str):
         return event.get("prompt", "")
     if isinstance(event.get("messages"), list):
@@ -31,6 +33,8 @@ def _prompt_text(event: Dict[str, Any]) -> str:
 
 @dataclass
 class Rule:
+    """Single routing rule loaded from configuration."""
+
     rule_type: str
     model: str
     params: Dict[str, Any]
@@ -38,11 +42,15 @@ class Rule:
 
 @dataclass
 class AppConfig:
+    """Configuration for :class:`HeuristicRouter`."""
+
     default_route: str
     rules: List[Rule]
 
 
 def _load_config() -> AppConfig:
+    """Return router configuration from ``HEURISTIC_ROUTER_CONFIG`` env var."""
+
     cfg = os.environ.get("HEURISTIC_ROUTER_CONFIG")
     if cfg:
         try:
@@ -67,6 +75,8 @@ def _load_config() -> AppConfig:
 
 
 def _build_classifier_prompt(prompt: str, categories: List[Dict[str, str]]) -> str:
+    """Construct the system prompt for an LLM based classifier."""
+
     category_definitions = "\n".join(
         [f"- **{cat['name']}**: {cat['description']}" for cat in categories]
     )
@@ -95,6 +105,8 @@ class HeuristicRouter:
     """Select a backend using simple or configurable heuristics."""
 
     def __init__(self) -> None:
+        """Load configuration and create the AWS Lambda client."""
+
         self.config = _load_config()
         self.lambda_client = boto3.client("lambda")
 
@@ -102,12 +114,14 @@ class HeuristicRouter:
     def _handle_unknown_rule(
         self, prompt: str, rule: Rule, trace_log: List[str]
     ) -> Optional[str]:
+        """Fallback handler when a rule type is not recognised."""
         trace_log.append(f"  - SKIPPED: Unknown rule_type '{rule.rule_type}'.")
         return None
 
     def _handle_regex_rule(
         self, prompt: str, rule: Rule, trace_log: List[str]
     ) -> Optional[str]:
+        """Return a model if *prompt* matches ``rule.params['pattern']``."""
         try:
             pattern = rule.params["pattern"]
             flags = rule.params.get("flags", [])
@@ -124,11 +138,14 @@ class HeuristicRouter:
             return None
 
     def _get_prompt_length(self, prompt: str, unit: str) -> int:
+        """Return length of *prompt* measured in ``unit`` (``words`` or chars)."""
+
         return len(prompt.split()) if unit == "words" else len(prompt)
 
     def _handle_length_rule(
         self, prompt: str, rule: Rule, trace_log: List[str]
     ) -> Optional[str]:
+        """Evaluate a ``length`` rule against *prompt*."""
         try:
             op = rule.params["operator"]
             val = int(rule.params["value"])
@@ -158,6 +175,7 @@ class HeuristicRouter:
     def _handle_language_rule(
         self, prompt: str, rule: Rule, trace_log: List[str]
     ) -> Optional[str]:
+        """Route based on detected language of *prompt*."""
         try:
             from langdetect import detect, DetectorFactory
 
@@ -183,6 +201,7 @@ class HeuristicRouter:
     def _handle_llm_classifier_rule(
         self, prompt: str, rule: Rule, trace_log: List[str]
     ) -> Optional[str]:
+        """Cascade to an LLM classifier and map the result to a model."""
         try:
             params = rule.params
             router_model = params["router_model"]
@@ -223,6 +242,7 @@ class HeuristicRouter:
 
     # routing ----------------------------------------------------------
     def _route_prompt(self, prompt: str, trace_log: List[str]) -> str:
+        """Return the selected backend for *prompt* and record decisions."""
         final_model: Optional[str] = None
         for i, rule in enumerate(self.config.rules):
             handler_method_name = f"_handle_{rule.rule_type}_rule"
@@ -243,6 +263,7 @@ class HeuristicRouter:
         return final_model
 
     def try_route(self, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Attempt to route ``event`` and return enriched event on success."""
         prompt = _prompt_text(event)
         if not prompt:
             return None

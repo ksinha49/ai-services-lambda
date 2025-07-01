@@ -64,7 +64,7 @@ class PredictiveRouter:
     """Predict the best backend using a Bedrock model."""
 
     def __init__(self) -> None:
-        """Initialize AWS Lambda client and model identifiers from env vars."""
+        """Create a Lambda client and read model identifiers from the environment."""
 
         self.lambda_client = boto3.client("lambda")
         self.weak_model_id = os.environ.get("WEAK_MODEL_ID")
