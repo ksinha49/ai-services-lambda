@@ -1,19 +1,22 @@
 # RAG Retrieval Service
 
-This service exposes three Lambda functions that retrieve text from a vector database and forward the results to downstream APIs for summarization or extraction.
+This service exposes several Lambda functions that retrieve text from a vector database and forward the results to downstream APIs for summarization or extraction.
 
 ## Lambdas and API Endpoints
 
 - **summarize-with-context-lambda/app.py** – `/summarize`
-  - Searches for relevant text, adds it to the prompt and forwards the request through the LLM router.
+  - Searches for relevant text, optionally re-ranks the matches and forwards the request through the LLM router.
 - **extract-content-lambda/app.py** – `/extract-content`
   - Calls an external content extraction service with the query and retrieved context.
 - **extract-entities-lambda/app.py** – `/extract-entities`
   - Sends the query and context to an entity extraction API.
+- **rerank-lambda/app.py** – _no direct API_
+  - Re-ranks search results using a cross-encoder model.
 
 ## Environment variables
 
 - `VECTOR_SEARCH_FUNCTION` – ARN or name of the Lambda used for vector search.
+- `RERANK_FUNCTION` – optional Lambda used to re-rank search results.
 - `SUMMARY_ENDPOINT` – optional HTTP endpoint for a summarization service.
 - `CONTENT_ENDPOINT` – URL used by `extract-content`.
 - `ENTITIES_ENDPOINT` – URL used by `extract-entities`.
@@ -22,6 +25,8 @@ This service exposes three Lambda functions that retrieve text from a vector dat
 - `SBERT_MODEL` – SentenceTransformer model name or S3 path.
 - `OPENAI_EMBED_MODEL` – embedding model name for OpenAI.
 - `COHERE_API_KEY` – API key when using Cohere embeddings.
+- `CROSS_ENCODER_MODEL` – model name or S3 path for the cross-encoder.
+- `VECTOR_SEARCH_CANDIDATES` – number of candidates retrieved before re-ranking.
 
 Values can be stored in Parameter Store and loaded with the shared `get_config` helper.
 
