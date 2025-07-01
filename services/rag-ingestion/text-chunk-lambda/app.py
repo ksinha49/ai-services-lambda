@@ -55,8 +55,27 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     text = event.get("text", "")
     doc_type = event.get("docType") or event.get("type")
     metadata = event.get("metadata", {})
-    chunk_size = int(event.get("chunk_size", DEFAULT_CHUNK_SIZE))
-    overlap = int(event.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP))
+    chunk_size = event.get("chunk_size", DEFAULT_CHUNK_SIZE)
+    try:
+        chunk_size = int(chunk_size)
+    except ValueError:
+        logger.error(
+            "Invalid chunk_size %s - falling back to default %s",
+            chunk_size,
+            DEFAULT_CHUNK_SIZE,
+        )
+        chunk_size = DEFAULT_CHUNK_SIZE
+
+    overlap = event.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)
+    try:
+        overlap = int(overlap)
+    except ValueError:
+        logger.error(
+            "Invalid chunk_overlap %s - falling back to default %s",
+            overlap,
+            DEFAULT_CHUNK_OVERLAP,
+        )
+        overlap = DEFAULT_CHUNK_OVERLAP
     chunks = chunk_text(text, chunk_size, overlap)
     chunk_list = [
         {
@@ -67,7 +86,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     ]
     if EXTRACT_ENTITIES:
         for chunk in chunk_list:
-            ents = extract_entities(chunk["text"])
+            try:
+                ents = extract_entities(chunk["text"])
+            except Exception:
+                logger.exception("extract_entities failed")
+                continue
             if ents:
                 chunk.setdefault("metadata", {})["entities"] = ents
     payload: Dict[str, Any] = {"chunks": chunk_list}
