@@ -8,7 +8,7 @@ def load_lambda(name, path):
     return module
 
 
-def test_assemble_skips_merge(monkeypatch, s3_stub):
+def test_assemble_skips_merge(monkeypatch, s3_stub, config):
     module = load_lambda('assemble', 'services/file-assembly/file-assemble-lambda/app.py')
 
     s3_stub.objects[('bucket', 'extracted/test.docx')] = b'orig'
@@ -39,7 +39,7 @@ def test_assemble_skips_merge(monkeypatch, s3_stub):
     assert out['merged'] is False
 
 
-def test_assemble_merges(monkeypatch, s3_stub):
+def test_assemble_merges(monkeypatch, s3_stub, config):
     module = load_lambda('assemble2', 'services/file-assembly/file-assemble-lambda/app.py')
 
     s3_stub.objects[('bucket', 'extracted/test.pdf')] = b'orig'

@@ -19,10 +19,10 @@ from botocore.exceptions import ClientError
 import re
 import json
 import logging
+from common_utils import configure_logger
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = configure_logger(__name__)
 
 # Module Metadata
 __author__ = "Koushik Sinha"
@@ -30,12 +30,6 @@ __version__ = "1.0.2"
 __modified_by__ = "Koushik Sinha"
 
 # Create a custom logger formatter with timestamp, level, and log message
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
 
 # Initialize boto3 clients once
 ssm = boto3.client('ssm')

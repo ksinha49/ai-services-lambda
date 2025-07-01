@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import json
 import logging
+from common_utils import configure_logger
 import boto3
 from routellm_integration import forward_to_routellm
 import hashlib
@@ -21,14 +22,7 @@ __author__ = "Koushik Sinha"
 __version__ = "1.0.0"
 __modified_by__ = "Koushik Sinha"
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
+logger = configure_logger(__name__)
 
 LAMBDA_FUNCTION = get_config("VECTOR_SEARCH_FUNCTION") or os.environ.get("VECTOR_SEARCH_FUNCTION")
 RERANK_FUNCTION = get_config("RERANK_FUNCTION") or os.environ.get("RERANK_FUNCTION")

@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import boto3
 import logging
+from common_utils import configure_logger
 from common_utils.get_ssm import (
     get_values_from_ssm,
     get_environment_prefix,
@@ -30,14 +31,7 @@ __version__ = "1.0.2"
 __modified_by__ = "Koushik Sinha"
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
+logger = configure_logger(__name__)
 
 _s3_client = boto3.client("s3")
 

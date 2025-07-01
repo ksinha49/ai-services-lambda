@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import logging
+from common_utils import configure_logger
 from typing import Any, Dict, List
 
 from pymilvus import Collection, connections
@@ -18,14 +19,7 @@ __modified_by__ = "Koushik Sinha"
 
 from common_utils.get_ssm import get_config
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
+logger = configure_logger(__name__)
 
 HOST = get_config("MILVUS_HOST") or os.environ.get("MILVUS_HOST", "localhost")
 PORT = int(get_config("MILVUS_PORT") or os.environ.get("MILVUS_PORT", "19530"))

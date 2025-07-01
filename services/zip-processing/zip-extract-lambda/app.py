@@ -14,14 +14,14 @@ Modified By: Koushik Sinha
 
 import json
 import logging
+from common_utils import configure_logger
 import io
 import zipfile
 import boto3
 import datetime
 
 # ─── Logging Configuration ─────────────────────────────────────────────────────
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = configure_logger(__name__)
 
 # Module Metadata
 __author__ = "Koushik Sinha"
@@ -29,12 +29,6 @@ __version__ = "1.0.3"
 __modified_by__ = "Koushik Sinha"
 
 # Create a custom logger formatter with timestamp, level, and log message
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
 
 # Initialize S3 client
 s3_client: boto3.client = boto3.client('s3')
