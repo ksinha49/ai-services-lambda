@@ -39,6 +39,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     2. Posts the query and context to the configured entity extraction service.
 
     Returns a dictionary with the extracted entities.
+
+    If ``RERAISE_ERRORS`` is set to ``true`` the lambda will re-raise any
+    exceptions so that an AWS Step Functions workflow can handle them with a
+    ``Catch`` block.
     """
 
     query = event.get("query")
