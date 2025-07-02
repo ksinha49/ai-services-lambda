@@ -5,7 +5,7 @@ Description: Simple knowledge base ingestion and query Lambdas.
 Parameters:
   IngestionStateMachineArn:
     Type: String
-  SummarizeFunctionArn:
+  SummarizeQueueUrl:
     Type: String
   KnowledgeBaseName:
     Type: String
@@ -34,7 +34,7 @@ Resources:
       CodeUri: ./query-lambda/
       Environment:
         Variables:
-          SUMMARY_FUNCTION_ARN: !Ref SummarizeFunctionArn
+          SUMMARY_QUEUE_URL: !Ref SummarizeQueueUrl
           KNOWLEDGE_BASE_NAME: !Ref KnowledgeBaseName
       Events:
         Api:

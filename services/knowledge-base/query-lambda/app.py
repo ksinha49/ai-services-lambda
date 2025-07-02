@@ -1,4 +1,4 @@
-"""Query the knowledge base using the summarization Lambda."""
+"""Query the knowledge base and enqueue a summarization request."""
 
 from __future__ import annotations
 
@@ -22,10 +22,10 @@ sqs_client = boto3.client("sqs")
 def lambda_handler(event: dict, context: object) -> dict:
     """Triggered by API queries against the knowledge base.
 
-    1. Forwards the request payload to the summarization Lambda specified by
-       ``SUMMARY_FUNCTION_ARN``.
+    1. Forwards the request payload to the SQS queue specified by
+       ``SUMMARY_QUEUE_URL``.
 
-    Returns the JSON response from that function.
+    Returns whether the request was queued successfully.
     """
 
     queue_url = os.environ.get("SUMMARY_QUEUE_URL")
