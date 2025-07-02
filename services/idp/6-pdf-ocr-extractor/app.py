@@ -33,12 +33,11 @@ Environment variables
 from __future__ import annotations
 
 import json
-import logging
 import os
 from typing import Iterable
 
 import boto3
-from common_utils import get_config
+from common_utils import get_config, configure_logger
 import fitz  # PyMuPDF
 import cv2
 import numpy as np
@@ -55,14 +54,7 @@ __author__ = "Koushik Sinha"
 __version__ = "1.0.0"
 __modified_by__ = "Koushik Sinha"
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-_handler = logging.StreamHandler()
-_handler.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s", "%Y-%m-%dT%H:%M:%S%z")
-)
-if not logger.handlers:
-    logger.addHandler(_handler)
+logger = configure_logger(__name__)
 
 s3_client = boto3.client("s3")
 
