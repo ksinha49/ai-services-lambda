@@ -93,3 +93,22 @@ def test_lambda_handler_strategy(monkeypatch):
     body = json.loads(out["body"])
     assert body["backend"] == "ollama"
     assert calls[0][1]["backend"] == "ollama"
+
+
+def test_lambda_handler_invoke_error(monkeypatch):
+    monkeypatch.setenv("LLM_INVOCATION_FUNCTION", "invoke")
+    monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
+
+    class ErrorLambda:
+        def invoke(self, FunctionName=None, Payload=None):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(sys.modules["boto3"], "client", lambda name: ErrorLambda())
+    module = load_lambda("router_lambda_error", "services/llm-router/router-lambda/app.py")
+    module.lambda_client = sys.modules["boto3"].client("lambda")
+
+    event = {"body": json.dumps({"prompt": "short"})}
+    out = module.lambda_handler(event, {})
+    body = json.loads(out["body"])
+    assert out["statusCode"] == 500
+    assert "boom" in body["error"]
