@@ -380,7 +380,7 @@ Resources:
             Resource: arn:aws:states:::states:startExecution.sync
             Parameters:
               StateMachineArn: !Ref IngestionStateMachineArn
-              Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params, "collection_name": $states.input.body.collection_name} %}'
+              Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params, "collection_name": $states.input.body.collection_name, "file_guid": $states.input.body.file_guid, "file_name": $states.input.body.file_name} %}'
             Next: run_prompts
             run_prompts:
               Type: Map

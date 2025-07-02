@@ -16,6 +16,10 @@ This service turns text documents produced by the IDP pipeline into vector embed
 
 New JSON files uploaded under `TextDocPrefix` automatically trigger this state machine. The bucket name and prefix are provided as stack parameters.
 
+Each chunk produced by `text-chunk-lambda` includes the originating `file_guid`
+and `file_name`. Downstream services can use these fields to retrieve or filter
+content for a specific document.
+
 ## Environment variables
 
 The Lambdas read configuration from AWS Systems Manager Parameter Store or environment variables:

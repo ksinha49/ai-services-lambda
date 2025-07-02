@@ -57,7 +57,9 @@ def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
     team = event.get("team")
     user = event.get("user")
     entities: List[str] | None = event.get("entities")
-    if department or team or user or entities:
+    file_guid = event.get("file_guid")
+    file_name = event.get("file_name")
+    if department or team or user or entities or file_guid or file_name:
         logger.info(
             "Filtering %d matches by department=%s team=%s user=%s entities=%s",
             len(matches),
@@ -79,6 +81,10 @@ def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
                 chunk_ents = md.get("entities", []) or []
                 if not any(e in chunk_ents for e in entities):
                     continue
+            if file_guid and md.get("file_guid") != file_guid:
+                continue
+            if file_name and md.get("file_name") != file_name:
+                continue
             filtered.append(m)
         matches = filtered
         logger.info("Filtered down to %d matches", len(matches))

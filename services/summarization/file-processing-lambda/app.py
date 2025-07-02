@@ -16,6 +16,7 @@ Modified By: Koushik Sinha
 
 from __future__ import annotations
 import os
+import uuid
 import boto3
 import logging
 try:
@@ -76,10 +77,14 @@ def process_files(event: FileProcessingEvent, context) -> dict:
         dest_uri = copy_file_to_idp(bucket_name, bucket_key)
 
         document_id = os.path.splitext(os.path.basename(bucket_key))[0]
+        file_name = os.path.basename(bucket_key)
+        file_guid = uuid.uuid4().hex
 
         result = {
             "document_id": document_id,
             "s3_location": dest_uri,
+            "file_name": file_name,
+            "file_guid": file_guid,
         }
         for key in (
             "ingest_params",

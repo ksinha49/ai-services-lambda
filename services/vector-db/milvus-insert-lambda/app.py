@@ -37,10 +37,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     embeddings: List[List[float]] = event.get("embeddings", [])
     metadatas: List[Any] = event.get("metadatas", [])
     ids = event.get("ids") or []
+    file_guid = event.get("file_guid")
+    file_name = event.get("file_name")
 
     items: List[VectorItem] = []
     for idx, embedding in enumerate(embeddings):
-        metadata = metadatas[idx] if idx < len(metadatas) else None
+        metadata = metadatas[idx] if idx < len(metadatas) else {}
+        if metadata is None:
+            metadata = {}
+        if file_guid and "file_guid" not in metadata:
+            metadata["file_guid"] = file_guid
+        if file_name and "file_name" not in metadata:
+            metadata["file_name"] = file_name
         item_id = ids[idx] if idx < len(ids) else None
         items.append(VectorItem(embedding=embedding, metadata=metadata, id=item_id))
 
