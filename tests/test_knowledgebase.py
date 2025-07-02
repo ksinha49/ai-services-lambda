@@ -101,12 +101,15 @@ def test_kb_query_missing_arn(monkeypatch):
     _stub_botocore(monkeypatch)
 
     class FakeLambda:
-        pass
+        def invoke(self, FunctionName=None, Payload=None):
+            raise AssertionError("should not be called")
 
     monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
     monkeypatch.delenv('SUMMARY_FUNCTION_ARN', raising=False)
-    with pytest.raises(RuntimeError):
-        load_lambda('query_noenv', 'services/knowledge-base/query-lambda/app.py')
+    module = load_lambda('query_noenv', 'services/knowledge-base/query-lambda/app.py')
+    module.lambda_client = FakeLambda()
+    out = module.lambda_handler({'query': 'hi'}, {})
+    assert 'SUMMARY_FUNCTION_ARN' in out['error']
 
 
 def test_kb_query_error(monkeypatch):
