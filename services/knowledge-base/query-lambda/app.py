@@ -16,10 +16,6 @@ __modified_by__ = "Koushik Sinha"
 
 logger = configure_logger(__name__)
 
-SUMMARY_FUNCTION_ARN = os.environ.get("SUMMARY_FUNCTION_ARN")
-if not SUMMARY_FUNCTION_ARN:
-    raise RuntimeError("SUMMARY_FUNCTION_ARN not configured")
-
 lambda_client = boto3.client("lambda")
 
 
@@ -32,9 +28,14 @@ def lambda_handler(event: dict, context: object) -> dict:
     Returns the JSON response from that function.
     """
 
+    function_arn = os.environ.get("SUMMARY_FUNCTION_ARN")
+    if not function_arn:
+        logger.error("SUMMARY_FUNCTION_ARN not configured")
+        return {"error": "SUMMARY_FUNCTION_ARN not configured"}
+
     try:
         resp = lambda_client.invoke(
-            FunctionName=SUMMARY_FUNCTION_ARN,
+            FunctionName=function_arn,
             Payload=json.dumps(event).encode("utf-8"),
         )
     except ClientError as exc:
