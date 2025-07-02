@@ -84,11 +84,15 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             FunctionName=INVOCATION_FUNCTION,
             Payload=json.dumps(request_payload).encode("utf-8"),
         )
-        data = json.loads(resp["Payload"].read())
-        data["backend"] = backend
-        return {"statusCode": 200, "body": json.dumps(data)}
-    except Exception:  # pragma: no cover - unexpected invocation error
-        logger.exception("Unexpected error in router lambda")
-        raise
+    except Exception as exc:  # pragma: no cover - invocation failed
+        logger.exception("Error invoking LLM function")
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": str(exc)}),
+        }
+
+    data = json.loads(resp["Payload"].read())
+    data["backend"] = backend
+    return {"statusCode": 200, "body": json.dumps(data)}
 
 
