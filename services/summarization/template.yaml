@@ -65,6 +65,11 @@ Parameters:
     Default: 10
     Description: MaxConcurrency for the run_prompts map state
 
+  StatusPollSeconds:
+    Type: Number
+    Default: 200
+    Description: Delay between polling for file processing status
+
 Resources:
   # Layers - each defined separately
 
@@ -268,7 +273,7 @@ Resources:
             Next: Wait
           Wait:
             Type: Wait
-            Seconds: 200
+            Seconds: !Ref StatusPollSeconds
             Next: FileUploadStatus
           FileUploadStatus:
             Type: Task
