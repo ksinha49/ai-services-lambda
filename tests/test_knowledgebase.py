@@ -82,47 +82,47 @@ def test_kb_ingest_error(monkeypatch):
 
 def test_kb_query(monkeypatch):
     import boto3
-    class FakeLambda:
-        def invoke(self, FunctionName=None, Payload=None):
-            assert FunctionName == 'arn'
-            body = json.loads(Payload)
-            return {'Payload': io.BytesIO(json.dumps({'result': body}).encode())}
+    class FakeSQS:
+        def send_message(self, QueueUrl=None, MessageBody=None):
+            FakeSQS.body = json.loads(MessageBody)
+            return {'MessageId': '1'}
     _stub_botocore(monkeypatch)
-    monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
-    monkeypatch.setenv('SUMMARY_FUNCTION_ARN', 'arn')
+    monkeypatch.setattr(boto3, 'client', lambda name: FakeSQS())
+    monkeypatch.setenv('SUMMARY_QUEUE_URL', 'url')
     module = load_lambda('query', 'services/knowledge-base/query-lambda/app.py')
-    module.lambda_client = FakeLambda()
+    module.sqs_client = FakeSQS()
     out = module.lambda_handler({'query': 'hi', 'team': 'x'}, {})
-    assert out['result']['team'] == 'x'
+    assert out['queued'] is True
+    assert FakeSQS.body['team'] == 'x'
 
 
 def test_kb_query_missing_arn(monkeypatch):
     import boto3
     _stub_botocore(monkeypatch)
 
-    class FakeLambda:
-        def invoke(self, FunctionName=None, Payload=None):
+    class FakeSQS:
+        def send_message(self, QueueUrl=None, MessageBody=None):
             raise AssertionError("should not be called")
 
-    monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
-    monkeypatch.delenv('SUMMARY_FUNCTION_ARN', raising=False)
+    monkeypatch.setattr(boto3, 'client', lambda name: FakeSQS())
+    monkeypatch.delenv('SUMMARY_QUEUE_URL', raising=False)
     module = load_lambda('query_noenv', 'services/knowledge-base/query-lambda/app.py')
-    module.lambda_client = FakeLambda()
+    module.sqs_client = FakeSQS()
     out = module.lambda_handler({'query': 'hi'}, {})
-    assert 'SUMMARY_FUNCTION_ARN' in out['error']
+    assert 'SUMMARY_QUEUE_URL' in out['error']
 
 
 def test_kb_query_error(monkeypatch):
     import boto3
     ClientError = _stub_botocore(monkeypatch)
 
-    class FakeLambda:
-        def invoke(self, FunctionName=None, Payload=None):
-            raise ClientError({'Error': {'Code': '400', 'Message': 'bad'}}, 'invoke')
+    class FakeSQS:
+        def send_message(self, QueueUrl=None, MessageBody=None):
+            raise ClientError({'Error': {'Code': '400', 'Message': 'bad'}}, 'send')
 
-    monkeypatch.setattr(boto3, 'client', lambda name: FakeLambda())
-    monkeypatch.setenv('SUMMARY_FUNCTION_ARN', 'arn')
+    monkeypatch.setattr(boto3, 'client', lambda name: FakeSQS())
+    monkeypatch.setenv('SUMMARY_QUEUE_URL', 'url')
     module = load_lambda('query_err', 'services/knowledge-base/query-lambda/app.py')
-    module.lambda_client = FakeLambda()
+    module.sqs_client = FakeSQS()
     out = module.lambda_handler({'query': 'hi'}, {})
     assert 'bad' in out['error']

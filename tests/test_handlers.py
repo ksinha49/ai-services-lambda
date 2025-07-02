@@ -12,24 +12,13 @@ def load_lambda(name, path):
     return module
 
 
-def _make_fake_invoke(calls):
-    class FakePayload:
-        def __init__(self, data):
-            self._data = data
+def _make_fake_send(calls):
+    class FakeSQS:
+        def send_message(self, QueueUrl=None, MessageBody=None):
+            calls.append(json.loads(MessageBody))
+            return {"MessageId": "1"}
 
-        def read(self):
-            return json.dumps(self._data).encode("utf-8")
-
-    class FakeLambda:
-        def invoke(self, FunctionName=None, Payload=None):
-            data = json.loads(Payload)
-            calls.append((FunctionName, data))
-            reply = {
-                "reply": "bedrock" if data.get("backend") == "bedrock" else "ollama"
-            }
-            return {"Payload": FakePayload(reply)}
-
-    return FakeLambda()
+    return FakeSQS()
 
 
 def test_office_extractor(monkeypatch, s3_stub, validate_schema, config):
@@ -710,55 +699,57 @@ def test_llm_router_choose_backend(monkeypatch):
 
 
 def test_llm_router_lambda_handler(monkeypatch):
-    monkeypatch.setenv("LLM_INVOCATION_FUNCTION", "invoke")
+    monkeypatch.setenv("INVOCATION_QUEUE_URL", "url")
     monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
     calls = []
     monkeypatch.setattr(
-        sys.modules["boto3"], "client", lambda name: _make_fake_invoke(calls)
+        sys.modules["boto3"], "client", lambda name: _make_fake_send(calls)
     )
     module = load_lambda(
         "llm_router_lambda", "services/llm-router/router-lambda/app.py"
     )
-    module.lambda_client = sys.modules["boto3"].client("lambda")
+    module.sqs_client = sys.modules["boto3"].client("sqs")
 
     event1 = {"body": json.dumps({"prompt": "short text"})}
     out1 = module.lambda_handler(event1, {})
     body1 = json.loads(out1["body"])
     assert body1["backend"] == "ollama"
-    assert body1["reply"] == "ollama"
-    assert calls[0][1]["backend"] == "ollama"
+    assert body1["queued"] is True
+    assert calls[0]["backend"] == "ollama"
 
     event2 = {"body": json.dumps({"prompt": "one two three four"})}
     out2 = module.lambda_handler(event2, {})
     body2 = json.loads(out2["body"])
     assert body2["backend"] == "bedrock"
-    assert body2["reply"] == "bedrock"
-    assert calls[1][1]["backend"] == "bedrock"
+    assert body2["queued"] is True
+    assert calls[1]["backend"] == "bedrock"
 
 
 def test_llm_router_lambda_handler_backend_override(monkeypatch):
-    monkeypatch.setenv("LLM_INVOCATION_FUNCTION", "invoke")
+    monkeypatch.setenv("INVOCATION_QUEUE_URL", "url")
     monkeypatch.setenv("PROMPT_COMPLEXITY_THRESHOLD", "3")
     calls = []
     monkeypatch.setattr(
-        sys.modules["boto3"], "client", lambda name: _make_fake_invoke(calls)
+        sys.modules["boto3"], "client", lambda name: _make_fake_send(calls)
     )
     module = load_lambda(
         "llm_router_lambda_override", "services/llm-router/router-lambda/app.py"
     )
-    module.lambda_client = sys.modules["boto3"].client("lambda")
+    module.sqs_client = sys.modules["boto3"].client("sqs")
 
     event = {"body": json.dumps({"prompt": "short text", "backend": "bedrock"})}
     out = module.lambda_handler(event, {})
     body = json.loads(out["body"])
     assert body["backend"] == "bedrock"
-    assert calls[0][1]["backend"] == "bedrock"
+    assert body["queued"] is True
+    assert calls[0]["backend"] == "bedrock"
 
     event2 = {"body": json.dumps({"prompt": "one two three four", "backend": "ollama"})}
     out2 = module.lambda_handler(event2, {})
     body2 = json.loads(out2["body"])
     assert body2["backend"] == "ollama"
-    assert calls[1][1]["backend"] == "ollama"
+    assert body2["queued"] is True
+    assert calls[1]["backend"] == "ollama"
 
 
 def test_llm_router_choose_backend_default(monkeypatch):
@@ -773,29 +764,31 @@ def test_llm_router_choose_backend_default(monkeypatch):
 
 
 def test_llm_router_lambda_handler_default(monkeypatch):
-    monkeypatch.setenv("LLM_INVOCATION_FUNCTION", "invoke")
+    monkeypatch.setenv("INVOCATION_QUEUE_URL", "url")
     monkeypatch.delenv("PROMPT_COMPLEXITY_THRESHOLD", raising=False)
     calls = []
     monkeypatch.setattr(
-        sys.modules["boto3"], "client", lambda name: _make_fake_invoke(calls)
+        sys.modules["boto3"], "client", lambda name: _make_fake_send(calls)
     )
     module = load_lambda(
         "llm_router_lambda_default", "services/llm-router/router-lambda/app.py"
     )
-    module.lambda_client = sys.modules["boto3"].client("lambda")
+    module.sqs_client = sys.modules["boto3"].client("sqs")
 
     event1 = {"body": json.dumps({"prompt": "short text"})}
     out1 = module.lambda_handler(event1, {})
     body1 = json.loads(out1["body"])
     assert body1["backend"] == "ollama"
-    assert calls[0][1]["backend"] == "ollama"
+    assert body1["queued"] is True
+    assert calls[0]["backend"] == "ollama"
 
     long_prompt = " ".join(["w"] * 25)
     event2 = {"body": json.dumps({"prompt": long_prompt})}
     out2 = module.lambda_handler(event2, {})
     body2 = json.loads(out2["body"])
     assert body2["backend"] == "bedrock"
-    assert calls[1][1]["backend"] == "bedrock"
+    assert body2["queued"] is True
+    assert calls[1]["backend"] == "bedrock"
 
 
 def test_summarize_with_context_router(monkeypatch, config):

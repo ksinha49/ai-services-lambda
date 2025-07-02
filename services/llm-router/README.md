@@ -28,6 +28,7 @@ The routing logic is split into small modules which can also be reused outside t
 | `OllamaDefaultModel` | `OLLAMA_DEFAULT_MODEL` | Default model when none supplied |
 | `PromptComplexityThreshold` | `PROMPT_COMPLEXITY_THRESHOLD` | Word threshold used by the heuristic router |
 | `LlmInvocationFunctionName` | `LLM_INVOCATION_FUNCTION` | Name of the Lambda that invokes the selected backend |
+| `InvocationQueueUrl` | `INVOCATION_QUEUE_URL` | SQS queue used for async invocation |
 
 ## Environment variables
 
@@ -54,3 +55,5 @@ aws lambda invoke \
 ```
 
 The response includes a `backend` field indicating which service handled the request. You may set `backend` in the payload to force a specific destination. When omitted the router uses the heuristic strategy described above.
+
+Requests are now placed on the SQS queue configured by `INVOCATION_QUEUE_URL` so the invocation Lambda processes them asynchronously.

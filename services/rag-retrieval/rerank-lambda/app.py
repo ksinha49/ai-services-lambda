@@ -6,6 +6,7 @@ import os
 import logging
 from common_utils import configure_logger
 from typing import Any, Dict, List
+import json
 
 from common_utils.get_ssm import get_config
 
@@ -65,8 +66,8 @@ def _score_pairs(query: str, docs: List[str]) -> List[float]:
         return [0.0] * len(docs)
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Triggered after vector search to refine results.
+def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Re-rank vector search results.
 
     1. Scores each match against the query using a cross-encoder model.
     2. Sorts the matches by score and trims the list to ``top_k`` entries.
@@ -87,3 +88,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     reranked.sort(key=lambda x: x.get("rerank_score", 0.0), reverse=True)
     logger.info("Returning %d re-ranked matches", min(len(reranked), top_k))
     return {"matches": reranked[:top_k]}
+
+
+def lambda_handler(event: Dict[str, Any], context: Any) -> Any:
+    """Entry point supporting SQS events."""
+    if "Records" in event:
+        return [
+            _process_event(json.loads(r.get("body", "{}"))) for r in event["Records"]
+        ]
+    return _process_event(event)

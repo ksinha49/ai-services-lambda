@@ -29,8 +29,8 @@ __modified_by__ = "Koushik Sinha"
 
 logger = configure_logger(__name__)
 
-INVOCATION_FUNCTION = os.environ.get("LLM_INVOCATION_FUNCTION")
-lambda_client = boto3.client("lambda")
+INVOCATION_QUEUE_URL = os.environ.get("INVOCATION_QUEUE_URL")
+sqs_client = boto3.client("sqs")
 
 DEFAULT_PROMPT_COMPLEXITY_THRESHOLD = 20
 PROMPT_COMPLEXITY_THRESHOLD = int(
@@ -84,27 +84,28 @@ def lambda_handler(event: LlmRouterEvent, context: Any) -> LambdaResponse:
             logger.info("Strategy '%s' not implemented, using complexity", strategy)
         backend = route_event(payload).get("backend")
 
-    if not INVOCATION_FUNCTION:
-        raise RuntimeError("LLM_INVOCATION_FUNCTION not configured")
+    if not INVOCATION_QUEUE_URL:
+        raise RuntimeError("INVOCATION_QUEUE_URL not configured")
 
     request_payload = dict(payload)
     request_payload["backend"] = backend
     request_payload.pop("strategy", None)
 
     try:
-        resp = lambda_client.invoke(
-            FunctionName=INVOCATION_FUNCTION,
-            Payload=json.dumps(request_payload).encode("utf-8"),
+        sqs_client.send_message(
+            QueueUrl=INVOCATION_QUEUE_URL,
+            MessageBody=json.dumps(request_payload),
         )
-    except Exception as exc:  # pragma: no cover - invocation failed
-        logger.exception("Error invoking LLM function")
+    except Exception as exc:  # pragma: no cover - queue failure
+        logger.exception("Error queueing LLM invocation")
         return {
             "statusCode": 500,
             "body": json.dumps({"error": str(exc)}),
         }
 
-    data = json.loads(resp["Payload"].read())
-    data["backend"] = backend
-    return {"statusCode": 200, "body": json.dumps(data)}
+    return {
+        "statusCode": 202,
+        "body": json.dumps({"backend": backend, "queued": True}),
+    }
 
 

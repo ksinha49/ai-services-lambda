@@ -1,6 +1,7 @@
 # LLM Invocation Service
 
 This service exposes a single Lambda function that forwards OpenAI-style requests to a specific LLM backend. It is typically invoked by the LLM router but can also be called directly.
+The function can now be triggered asynchronously from an SQS queue used by the router service.
 
 The handler uses dataclasses from ``models.py``:
 

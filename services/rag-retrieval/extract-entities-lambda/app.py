@@ -13,6 +13,7 @@ import boto3
 import httpx
 
 from typing import Any, Dict
+import json
 
 from common_utils.get_ssm import get_config
 
@@ -31,8 +32,8 @@ ENTITIES_ENDPOINT = get_config("ENTITIES_ENDPOINT") or os.environ.get("ENTITIES_
 lambda_client = boto3.client("lambda")
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Triggered during retrieval to extract entities from results.
+def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract entities from vector search context.
 
     1. Runs a vector search via ``VECTOR_SEARCH_FUNCTION`` to gather context
        for the query.
@@ -74,4 +75,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"error": f"Entity extraction service request failed: {exc}", "entities": {}}
     logger.info("Entity extraction service returned status %s", r.status_code)
     return {"entities": r.json()}
+
+
+def lambda_handler(event: Dict[str, Any], context: Any) -> Any:
+    """Entry point supporting SQS events."""
+    if "Records" in event:
+        return [
+            _process_event(json.loads(r.get("body", "{}"))) for r in event["Records"]
+        ]
+    return _process_event(event)
 
