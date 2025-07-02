@@ -18,6 +18,7 @@ The SAM template exposes a few parameters which become environment variables for
 - `IDPRawPrefix` – prefix within that bucket where the uploaded file is copied.
 - `IngestionStateMachineArn` – ARN of the RAG ingestion state machine invoked after the file is available.
 - `RagSummaryFunctionArn` – ARN of the RAG retrieval summary Lambda used by `file-summary`.
+- `RunPromptsConcurrency` – number of prompts processed in parallel by the `run_prompts` map state.
 
 ## Deployment
 
@@ -31,7 +32,8 @@ sam deploy \
     IDPBucketName=<bucket> \
     IDPRawPrefix=<prefix> \
     IngestionStateMachineArn=<arn> \
-    RagSummaryFunctionArn=<arn>
+    RagSummaryFunctionArn=<arn> \
+    RunPromptsConcurrency=10
 ```
 
 The Step Function definition and Lambda code are located in this directory.  See the root `README.md` for additional context.
