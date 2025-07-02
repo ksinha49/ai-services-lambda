@@ -128,6 +128,9 @@ def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
     Returns a dictionary containing the generated summary.
     """
 
+    if event.get("collection_name") is None:
+        raise ValueError("collection_name missing from event")
+
     query = event.get("query")
     emb = event.get("embedding")
     if emb is None and query:
@@ -139,8 +142,7 @@ def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
     for key in ("department", "team", "user"):
         if key in event:
             search_payload[key] = event[key]
-    if event.get("collection_name") is not None:
-        search_payload["collection_name"] = event.get("collection_name")
+    search_payload["collection_name"] = event["collection_name"]
     logger.info(
         "Invoking vector search function %s with payload %s",
         LAMBDA_FUNCTION,

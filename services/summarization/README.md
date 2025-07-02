@@ -55,6 +55,5 @@ costs.
 Execution inputs must include a ``collection_name`` value when invoking the
 summarization service. The state machine propagates this value through each
 step so the retrieval service can search the specified Milvus collection.
-If a collection name is not supplied the default collection configured for the
-environment will be used, but the summarization workflow expects it to be
-provided.
+If ``collection_name`` is omitted, the file-processing Lambda returns a
+``400`` response and the Step Function execution fails.

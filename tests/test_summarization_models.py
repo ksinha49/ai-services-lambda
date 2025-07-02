@@ -8,6 +8,10 @@ def test_file_processing_event_missing():
     with pytest.raises(ValueError):
         FileProcessingEvent.from_dict({})
 
+def test_file_processing_event_no_collection():
+    with pytest.raises(ValueError):
+        FileProcessingEvent.from_dict({"file": "f"})
+
 
 def test_summary_event_missing():
     with pytest.raises(ValueError):

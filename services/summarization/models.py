@@ -17,6 +17,8 @@ class FileProcessingEvent:
     def from_dict(cls, data: Dict[str, Any]) -> "FileProcessingEvent":
         if "file" not in data:
             raise ValueError("file missing from event")
+        if "collection_name" not in data or data.get("collection_name") is None:
+            raise ValueError("collection_name missing from event")
         keys = {
             "file",
             "ingest_params",
@@ -76,7 +78,7 @@ class SummaryEvent:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SummaryEvent":
         body = data.get("body", data)
-        required = {"statusCode", "organic_bucket", "organic_bucket_key"}
+        required = {"statusCode", "organic_bucket", "organic_bucket_key", "collection_name"}
         missing = [k for k in required if k not in body]
         if missing:
             raise ValueError(f"Missing required event keys: {', '.join(missing)}")

@@ -9,7 +9,7 @@ The retrieval logic calls the search Lambda defined by the `VECTOR_SEARCH_FUNCTI
 - **summarize-with-context-lambda/app.py** – `/summarize`
   - Searches for relevant text, optionally re-ranks the matches and forwards the request through the LLM router.
   - Triggered by messages on the SQS queue configured for the knowledge base service.
-  - The event payload may include ``collection_name`` to target a specific Milvus collection.
+  - The event payload must include ``collection_name`` to target a specific Milvus collection.
 - **extract-content-lambda/app.py** – `/extract-content`
   - Calls an external content extraction service with the query and retrieved context.
 - **extract-entities-lambda/app.py** – `/extract-entities`

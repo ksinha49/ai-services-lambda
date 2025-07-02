@@ -831,7 +831,10 @@ def test_summarize_with_context_router(monkeypatch, config):
 
     monkeypatch.setattr(module, "forward_to_routellm", fake_forward)
 
-    out = module.lambda_handler({"query": "hi", "model": "phi", "temperature": 0.2}, {})
+    out = module.lambda_handler(
+        {"query": "hi", "model": "phi", "temperature": 0.2, "collection_name": "c"},
+        {}
+    )
     sent_payload = fake_invoke.calls[0]
     assert "embedding" in sent_payload
     assert isinstance(sent_payload["embedding"], list)
@@ -840,6 +843,7 @@ def test_summarize_with_context_router(monkeypatch, config):
         "model": "phi",
         "temperature": 0.2,
         "context": "ctx",
+        "collection_name": "c",
     }
     assert out["summary"] == {"text": "ok"}
 
@@ -904,7 +908,7 @@ def test_summarize_with_rerank(monkeypatch, config):
     module._MODEL_MAP["sbert"] = module._sbert_embed
     monkeypatch.setattr(module, "forward_to_routellm", lambda p: {"text": p["context"]})
 
-    out = module.lambda_handler({"query": "hi"}, {})
+    out = module.lambda_handler({"query": "hi", "collection_name": "c"}, {})
     assert fake_invoke.rerank["query"] == "hi"
     assert out["summary"] == {"text": "t2"}
 
@@ -1037,9 +1041,14 @@ def test_file_processing_passthrough(monkeypatch):
         "file_proc2", "services/summarization/file-processing-lambda/app.py"
     )
     monkeypatch.setattr(module, "copy_file_to_idp", lambda b, k: "s3://dest/key")
-    event = FileProcessingEvent(file="s3://bucket/test.pdf", ingest_params={"chunk_size": 2})
+    event = FileProcessingEvent(
+        file="s3://bucket/test.pdf",
+        ingest_params={"chunk_size": 2},
+        collection_name="c",
+    )
     out = module.process_files(event, {})
     assert out["ingest_params"] == {"chunk_size": 2}
+    assert out["collection_name"] == "c"
 
 
 def test_summary_lambda_forwards(monkeypatch):
