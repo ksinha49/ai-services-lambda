@@ -6,7 +6,7 @@ Module: app.py
 Description:
   AWS Lambda to extract PDFs from an uploaded ZIP and list them for the Map state.
 
-Version: 1.0.3
+Version: 1.0.4
 Created: 2025-05-12
 Last Modified: 2025-06-28
 Modified By: Koushik Sinha
@@ -14,6 +14,8 @@ Modified By: Koushik Sinha
 
 import json
 import logging
+from json import JSONDecodeError
+from botocore.exceptions import ClientError
 from common_utils import configure_logger
 import io
 import zipfile
@@ -25,7 +27,7 @@ logger = configure_logger(__name__)
 
 # Module Metadata
 __author__ = "Koushik Sinha"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __modified_by__ = "Koushik Sinha"
 
 # Create a custom logger formatter with timestamp, level, and log message
@@ -57,6 +59,12 @@ def upload_to_s3(bucket_name: str, s3_prefix: str, local_file):
     s3_client.upload_fileobj(local_file, bucket_name, s3_prefix)
     return f"s3://{bucket_name}/{s3_prefix}"
 
+
+def _error_response(status_code: int, message: str) -> dict:
+    """Helper to build an error response."""
+
+    return {"statusCode": status_code, "error": message}
+
 def extract_zip_file(event: dict) -> dict:
     """
     Extracts PDF files from a zip file stored in S3 and stores them in another bucket.
@@ -70,18 +78,27 @@ def extract_zip_file(event: dict) -> dict:
         dict: A dictionary containing the list of extracted PDF files' keys in the format:
             - `pdfFiles`: list of strings representing the S3 object keys of the extracted PDF files (e.g., `"s3://destination-bucket/pdf-file-1.pdf"`)
     """
-
+    # Validate event structure before attempting to access keys
+    records = event.get("Records")
+    if not records or not isinstance(records, list) or not records[0].get("body"):
+        msg = "Invalid event structure: missing S3 event body"
+        logger.error(msg)
+        return _error_response(400, msg)
 
     try:
         # Get the request body from the event object
-        req_body: dict = json.loads(event['Records'][0]['body'])
+        req_body: dict = json.loads(records[0]["body"])
+    except JSONDecodeError as exc:
+        logger.error("JSON decode error: %s", exc)
+        return _error_response(400, "Malformed event body")
 
+    try:
         # Extract the source bucket name and zip file key
-        req_detail: dict = req_body['detail']
-        source_bucket_name: str = req_detail['bucket']['name']
-        zip_file_key: str = req_detail['object']['key']
+        req_detail: dict = req_body["detail"]
+        source_bucket_name: str = req_detail["bucket"]["name"]
+        zip_file_key: str = req_detail["object"]["key"]
         zip_file_name: str = zip_file_key.split("/")
-       
+    
         logger.info("[getting file details from the S3]")
         # Destination bucket name
         destination_bucket_name: str = source_bucket_name
@@ -98,10 +115,14 @@ def extract_zip_file(event: dict) -> dict:
         destination_key = f"{folder_path}{zip_file_name}"
         zip_file_name = zip_file_name.split(".")[0]
         # Copy the object to the new location with the date structure
-        s3_client.copy_object(CopySource=copy_source,Bucket=destination_bucket_name,Key=destination_key)
-        
-        response: dict = s3_client.get_object(Bucket=source_bucket_name, Key=destination_key)
-        zip_file_content: bytes = response['Body'].read()
+        s3_client.copy_object(
+            CopySource=copy_source, Bucket=destination_bucket_name, Key=destination_key
+        )
+
+        response: dict = s3_client.get_object(
+            Bucket=source_bucket_name, Key=destination_key
+        )
+        zip_file_content: bytes = response["Body"].read()
 
         pdffileList: list[str] = []
         xmlfileList: list[str] = []
@@ -110,23 +131,20 @@ def extract_zip_file(event: dict) -> dict:
         # Open the zip file using BytesIO and iterate over its contents
         has_folder = zip_has_any_folder(bytes_Content)
         with zipfile.ZipFile(bytes_Content) as zf:
-         for info in zf.infolist():
-            if info.is_dir():
-                continue
-            if info.filename.lower().endswith('.pdf') or info.filename.lower().endswith('.xml'):
-                #if has_folder:
-                    # Preserve folder structure in S3
-                s3_key =f'{extracted_file_key}{info.filename}'
-                #else:
-                    # Place in a folder named after the ZIP file
-                    #s3_key = f'{extracted_file_key}/{zip_file_name}/{info.filename}'
-                logger.info(f"s3_key:{s3_key}")
-                with zf.open(info) as file_obj:
-                    uploadedFilePath = upload_to_s3(destination_bucket_name, s3_key, file_obj)
-                    if info.filename.lower().endswith('.pdf'):
-                        pdffileList.append({"pdffile" : uploadedFilePath})
-                    if info.filename.lower().endswith('.xml'):
-                        xmlfileList.append(uploadedFilePath)
+            for info in zf.infolist():
+                if info.is_dir():
+                    continue
+                if info.filename.lower().endswith(".pdf") or info.filename.lower().endswith(".xml"):
+                    s3_key = f"{extracted_file_key}{info.filename}"
+                    logger.info(f"s3_key:{s3_key}")
+                    with zf.open(info) as file_obj:
+                        uploadedFilePath = upload_to_s3(
+                            destination_bucket_name, s3_key, file_obj
+                        )
+                        if info.filename.lower().endswith(".pdf"):
+                            pdffileList.append({"pdffile": uploadedFilePath})
+                        if info.filename.lower().endswith(".xml"):
+                            xmlfileList.append(uploadedFilePath)
             """if info.filename.lower().endswith('.xml'):
                 if has_folder:
                     # Preserve folder structure in S3
@@ -140,19 +158,22 @@ def extract_zip_file(event: dict) -> dict:
                     xmlfileList.append(xmlUploadedPath)"""
             
         return {
-            'statusCode': 200,
-            'pdfFiles': pdffileList,
-            'xmlFiles': xmlfileList,
-            'zipFileName' :getFileName(zip_file_key)
+            "statusCode": 200,
+            "pdfFiles": pdffileList,
+            "xmlFiles": xmlfileList,
+            "zipFileName": getFileName(zip_file_key),
         }
 
+    except ClientError as exc:
+        logger.error("S3 client error: %s", exc)
+        return _error_response(502, "Storage service error")
+    except zipfile.BadZipFile as exc:
+        logger.error("Invalid ZIP file: %s", exc)
+        return _error_response(400, "Invalid ZIP file")
     except Exception as e:
         # Log any exceptions and return an error response
         logger.error(str(e))
-        return {
-            'statusCode': 500,
-            'error': str(e)
-        }
+        return _error_response(500, str(e))
 
 def getFileName(bucket_key):
     """
