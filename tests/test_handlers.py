@@ -5,7 +5,8 @@ import io
 import sys
 import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from services.summarization.models import FileProcessingEvent, SummaryEvent, ProcessingStatusEvent
+from services.file_ingestion.models import FileProcessingEvent, ProcessingStatusEvent
+from services.summarization.models import SummaryEvent
 
 
 def load_lambda(name, path):
@@ -1068,7 +1069,7 @@ def test_vector_search_guid_filter(monkeypatch, config):
 
 def test_file_processing_passthrough(monkeypatch):
     module = load_lambda(
-        "file_proc2", "services/summarization/file-processing-lambda/app.py"
+        "file_proc2", "services/file-ingestion/file-processing-lambda/app.py"
     )
     monkeypatch.setattr(module, "copy_file_to_idp", lambda b, k: "s3://dest/key")
     event = FileProcessingEvent(
@@ -1127,7 +1128,7 @@ def test_processing_status(monkeypatch, s3_stub, config):
     config[f"{prefix}/IDP_BUCKET"] = "bucket"
     config[f"{prefix}/TEXT_DOC_PREFIX"] = "text-docs/"
     module = load_lambda(
-        "status_lambda", "services/summarization/file-processing-status-lambda/app.py"
+        "status_lambda", "services/file-ingestion/file-processing-status-lambda/app.py"
     )
     monkeypatch.setattr(module, "s3_client", s3_stub)
     s3_stub.objects[("bucket", "text-docs/doc.json")] = b"x"

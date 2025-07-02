@@ -30,7 +30,7 @@ from common_utils.get_ssm import (
     get_environment_prefix,
     parse_s3_uri,
 )
-from services.summarization.models import FileProcessingEvent
+from services.file_ingestion.models import FileProcessingEvent
 
 # Module Metadata
 __author__ = "Koushik Sinha"

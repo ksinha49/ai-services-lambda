@@ -18,7 +18,7 @@ import boto3
 import logging
 from common_utils import configure_logger
 import os
-from services.summarization.models import ProcessingStatusEvent
+from services.file_ingestion.models import ProcessingStatusEvent
 from common_utils.get_ssm import (
     get_values_from_ssm,
     get_environment_prefix,

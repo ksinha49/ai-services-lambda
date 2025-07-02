@@ -1,12 +1,11 @@
 # Summarization Service
 
-This service provides an end‑to‑end workflow that copies a file to the IDP bucket, waits for text extraction, generates summaries and finally merges them back with the original PDF.
+This service orchestrates file ingestion and summarization. The Step Function defined in `template.yaml` first invokes the **FileIngestionStateMachine** from the separate file ingestion service, then generates summaries and finally merges them back with the original PDF.
 
-The workflow is orchestrated by an AWS Step Function defined in `template.yaml`.  It invokes three Lambdas in this package:
+It invokes two Lambdas from this package:
 
-- **file-processing** – copies the uploaded document to `IDP_BUCKET/RAW_PREFIX` so the IDP pipeline can ingest it.
-- **file-processing-status** – polls for the text document produced by the IDP pipeline and updates `fileupload_status` in the state machine.
 - **file-summary** – receives pre-generated summaries, creates a summary PDF and uploads the merged result to S3.
+- **summarize-worker** – dequeues summarization tasks and sends results back to the Step Function.
 
 Details of the state machine, including the parallel `run_prompts` map state, are documented in [docs/summarization_workflow.md](../../docs/summarization_workflow.md).
 
@@ -14,9 +13,7 @@ Details of the state machine, including the parallel `run_prompts` map state, ar
 
 The SAM template exposes a few parameters which become environment variables for the Lambdas:
 
-- `IDPBucketName` – name of the IDP bucket.
-- `IDPRawPrefix` – prefix within that bucket where the uploaded file is copied.
-- `IngestionStateMachineArn` – ARN of the RAG ingestion state machine invoked after the file is available.
+- `FileIngestionStateMachineArn` – ARN of the file ingestion workflow invoked at the start of the state machine.
 - `RagSummaryFunctionArn` – ARN of the RAG retrieval summary Lambda used by `file-summary`.
 - `RunPromptsConcurrency` – number of prompts processed in parallel by the `run_prompts` map state.
 - `StatusPollSeconds` – number of seconds the Step Function waits before polling for upload status again.
@@ -33,9 +30,7 @@ sam deploy \
   --template-file services/summarization/template.yaml \
   --stack-name summarization \
   --parameter-overrides \
-    IDPBucketName=<bucket> \
-    IDPRawPrefix=<prefix> \
-    IngestionStateMachineArn=<arn> \
+    FileIngestionStateMachineArn=<arn> \
     RagSummaryFunctionArn=<arn> \
     RunPromptsConcurrency=10 \
     StatusPollSeconds=200
@@ -55,12 +50,6 @@ costs.
 Execution inputs must include a ``collection_name`` value when invoking the
 summarization service. The state machine propagates this value through each
 step so the retrieval service can search the specified Milvus collection.
-If ``collection_name`` is omitted, the file-processing Lambda returns a
+If ``collection_name`` is omitted, the workflow returns a
 ``400`` response and the Step Function execution fails.
 
-## `file_guid`
-
-When a document is uploaded the file-processing Lambda generates a GUID and
-returns it as ``file_guid`` along with ``file_name``. These values propagate
-through the ingestion workflow so vector search requests can filter by the
-originating file.

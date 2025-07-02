@@ -1,7 +1,7 @@
 import importlib.util
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from services.summarization.models import FileProcessingEvent
+from services.file_ingestion.models import FileProcessingEvent
 
 
 def load_lambda(name, path):
@@ -26,7 +26,7 @@ def test_file_processing_lambda(monkeypatch, s3_stub, config):
 
     setattr(s3_stub, 'copy_object', copy_object)
 
-    module = load_lambda('file_proc', 'services/summarization/file-processing-lambda/app.py')
+    module = load_lambda('file_proc', 'services/file-ingestion/file-processing-lambda/app.py')
 
     event = FileProcessingEvent(file='s3://bucket/path/test.docx', collection_name='c')
     resp = module.lambda_handler(event, {})
