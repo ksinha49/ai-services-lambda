@@ -5,7 +5,8 @@ import io
 import sys
 import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from services.summarization.models import FileProcessingEvent, SummaryEvent, ProcessingStatusEvent
+from services.file_ingestion.models import FileProcessingEvent, ProcessingStatusEvent
+from services.summarization.models import SummaryEvent
 
 
 def load_lambda(name, path):

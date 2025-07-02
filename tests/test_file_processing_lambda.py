@@ -1,7 +1,7 @@
 import importlib.util
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-from services.summarization.models import FileProcessingEvent
+from services.file_ingestion.models import FileProcessingEvent
 
 
 def load_lambda(name, path):
