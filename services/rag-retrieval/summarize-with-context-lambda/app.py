@@ -117,8 +117,8 @@ def _embed_query(text: str, model: str | None = None) -> list[float]:
         return _simple_embed(text)
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Triggered by API calls requesting a contextual summary.
+def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Handle a single summarization request.
 
     1. Performs a vector search (and optional re-ranking) to gather context for
        the query.
@@ -180,4 +180,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"summary": ""}
     logger.info("Router returned summary length %d", len(summary) if summary else 0)
     return {"summary": summary}
+
+
+def lambda_handler(event: Dict[str, Any], context: Any) -> Any:
+    """Entry point handling both direct and SQS invocations."""
+    if "Records" in event:
+        return [
+            _process_event(json.loads(r.get("body", "{}"))) for r in event["Records"]
+        ]
+    return _process_event(event)
 

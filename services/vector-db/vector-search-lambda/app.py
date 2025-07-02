@@ -10,6 +10,7 @@ import logging
 from common_utils import configure_logger
 
 from typing import Any, Dict, List
+import json
 
 from common_utils import MilvusClient
 from common_utils.get_ssm import get_config
@@ -26,8 +27,8 @@ TOP_K = int(get_config("TOP_K") or os.environ.get("TOP_K", "5"))
 client = MilvusClient()
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Triggered to perform a vector similarity search.
+def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Perform a vector similarity search.
 
     1. Uses the provided embedding to query Milvus for the top matching
        documents.
@@ -81,3 +82,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info("Filtered down to %d matches", len(matches))
 
     return {"matches": matches}
+
+
+def lambda_handler(event: Dict[str, Any], context: Any) -> Any:
+    """Entry point supporting SQS events."""
+    if "Records" in event:
+        return [
+            _process_event(json.loads(r.get("body", "{}"))) for r in event["Records"]
+        ]
+    return _process_event(event)

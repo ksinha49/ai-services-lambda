@@ -19,8 +19,9 @@ RAG ingestion and retrieval components. When ingesting documents you may include
 
 - `IngestionStateMachineArn` – ARN of the ingestion workflow from the
   `rag-ingestion` stack.
-- `SummarizeFunctionArn` – ARN of the summary Lambda from the
-  `rag-retrieval` stack.
+- `SummarizeQueueUrl` – URL of the SQS queue consumed by the
+  summarization Lambda from the `rag-retrieval` stack.
+The query Lambda now publishes requests to this queue so processing happens asynchronously.
  - `KnowledgeBaseName` – optional name tag for the knowledge base.
  - Additional request fields include `department`, `team`, `user` and
    `entities`. These help isolate knowledge by organizational unit or only return
@@ -36,5 +37,5 @@ sam deploy \
   --stack-name knowledge-base \
   --parameter-overrides \
     IngestionStateMachineArn=<arn> \
-    SummarizeFunctionArn=<arn>
+    SummarizeQueueUrl=<url>
 ```

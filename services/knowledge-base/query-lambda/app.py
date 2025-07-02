@@ -16,7 +16,7 @@ __modified_by__ = "Koushik Sinha"
 
 logger = configure_logger(__name__)
 
-lambda_client = boto3.client("lambda")
+sqs_client = boto3.client("sqs")
 
 
 def lambda_handler(event: dict, context: object) -> dict:
@@ -28,20 +28,20 @@ def lambda_handler(event: dict, context: object) -> dict:
     Returns the JSON response from that function.
     """
 
-    function_arn = os.environ.get("SUMMARY_FUNCTION_ARN")
-    if not function_arn:
-        logger.error("SUMMARY_FUNCTION_ARN not configured")
-        return {"error": "SUMMARY_FUNCTION_ARN not configured"}
+    queue_url = os.environ.get("SUMMARY_QUEUE_URL")
+    if not queue_url:
+        logger.error("SUMMARY_QUEUE_URL not configured")
+        return {"error": "SUMMARY_QUEUE_URL not configured"}
 
     try:
-        resp = lambda_client.invoke(
-            FunctionName=function_arn,
-            Payload=json.dumps(event).encode("utf-8"),
+        sqs_client.send_message(
+            QueueUrl=queue_url,
+            MessageBody=json.dumps(event),
         )
     except ClientError as exc:
-        logger.error("Failed to invoke summary lambda: %s", exc)
+        logger.error("Failed to queue summary request: %s", exc)
         return {"error": str(exc)}
-    except Exception as exc:  # pragma: no cover - unexpected invocation error
-        logger.exception("Unexpected error invoking summary lambda")
+    except Exception as exc:  # pragma: no cover - unexpected send error
+        logger.exception("Unexpected error queueing summary request")
         return {"error": str(exc)}
-    return json.loads(resp["Payload"].read())
+    return {"queued": True}

@@ -13,6 +13,7 @@ import boto3
 import httpx
 
 from typing import Any, Dict
+import json
 
 from common_utils.get_ssm import get_config
 
@@ -29,8 +30,8 @@ CONTENT_ENDPOINT = get_config("CONTENT_ENDPOINT") or os.environ.get("CONTENT_END
 lambda_client = boto3.client("lambda")
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    """Triggered during retrieval to fetch structured content.
+def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """Fetch structured content from context.
 
     1. Performs a vector search using ``VECTOR_SEARCH_FUNCTION`` and gathers the
        text from the returned matches.
@@ -64,4 +65,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {"content": {}}
     logger.info("Content service returned status %s", r.status_code)
     return {"content": r.json()}
+
+
+def lambda_handler(event: Dict[str, Any], context: Any) -> Any:
+    """Entry point supporting SQS events."""
+    if "Records" in event:
+        return [
+            _process_event(json.loads(r.get("body", "{}"))) for r in event["Records"]
+        ]
+    return _process_event(event)
 

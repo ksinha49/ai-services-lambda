@@ -22,6 +22,7 @@ from llm_invoke import (
 )
 from llm_invocation.backends import BEDROCK_OPENAI_ENDPOINTS
 from httpx import HTTPStatusError
+import json
 
 # Module Metadata
 __author__ = "Koushik Sinha"
@@ -38,8 +39,8 @@ def _response(status: int, body: dict) -> dict:
 
 
 
-def lambda_handler(event: LlmInvocationEvent, context: Any) -> LambdaResponse:
-    """Triggered by the router to invoke a specific LLM backend.
+def _process_event(event: LlmInvocationEvent) -> LambdaResponse:
+    """Handle one invocation request.
 
     Parameters
     ----------
@@ -96,3 +97,12 @@ def lambda_handler(event: LlmInvocationEvent, context: Any) -> LambdaResponse:
     except Exception as exc:  # pragma: no cover - unexpected failures
         logger.exception("Unexpected error in llm invocation")
         return _response(500, {"error": str(exc)})
+
+
+def lambda_handler(event: LlmInvocationEvent, context: Any) -> Any:
+    """Entry point compatible with SQS events."""
+    if isinstance(event, dict) and "Records" in event:
+        return [
+            _process_event(json.loads(r.get("body", "{}"))) for r in event["Records"]
+        ]
+    return _process_event(event)
