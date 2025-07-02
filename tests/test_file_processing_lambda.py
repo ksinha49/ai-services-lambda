@@ -1,4 +1,7 @@
 import importlib.util
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from services.summarization.models import FileProcessingEvent
 
 
 def load_lambda(name, path):
@@ -25,7 +28,7 @@ def test_file_processing_lambda(monkeypatch, s3_stub, config):
 
     module = load_lambda('file_proc', 'services/summarization/file-processing-lambda/app.py')
 
-    event = {'file': 's3://bucket/path/test.docx'}
+    event = FileProcessingEvent(file='s3://bucket/path/test.docx')
     resp = module.lambda_handler(event, {})
     assert resp['statusCode'] == 200
     body = resp['body']

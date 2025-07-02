@@ -27,6 +27,7 @@ import re
 import os
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Union
+from services.summarization.models import SummaryEvent
 from datetime import datetime
 
 import boto3
@@ -384,7 +385,7 @@ def upload_buffer_to_s3(buffer: BytesIO, bucket: str, bucket_key: str) -> None:
     logger.info("Uploaded PDF to s3://%s/%s", bucket, bucket_key)
 
 
-def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def process_for_summary(event: SummaryEvent, context: Any) -> Dict[str, Any]:
     """
     Main Lambda logic: summarize, merge, upload.
 
@@ -406,7 +407,7 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     On failure:
       Returns {"statusCode":500, "statusMessage":<error>}.
     """
-    event_body = event.get("body", event)
+    event_body = event.to_dict()
 
     required = {"collection_name", "statusCode", "organic_bucket", "organic_bucket_key"}
     if not required.issubset(event_body):
@@ -468,7 +469,7 @@ def _response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
     return {"statusCode": status, "body": body}
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: SummaryEvent | Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Triggered by the state machine to produce a summary PDF.
 
     1. Formats the summary text into a PDF and merges it with the source
@@ -478,6 +479,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns a response dictionary with status and file path.
     """
     try:
+        if isinstance(event, dict):
+            try:
+                event = SummaryEvent.from_dict(event)
+            except ValueError as exc:
+                logger.exception("Invalid request to lambda_handler")
+                return _response(400, {"statusMessage": str(exc)})
         body = process_for_summary(event, context)
         status = body.get("statusCode", 200)
         return _response(status, body)

@@ -2,7 +2,10 @@ import json
 import importlib.util
 import os
 import io
+import sys
 import pytest
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from services.summarization.models import FileProcessingEvent, SummaryEvent, ProcessingStatusEvent
 
 
 def load_lambda(name, path):
@@ -1034,10 +1037,7 @@ def test_file_processing_passthrough(monkeypatch):
         "file_proc2", "services/summarization/file-processing-lambda/app.py"
     )
     monkeypatch.setattr(module, "copy_file_to_idp", lambda b, k: "s3://dest/key")
-    event = {
-        "file": "s3://bucket/test.pdf",
-        "ingest_params": {"chunk_size": 2},
-    }
+    event = FileProcessingEvent(file="s3://bucket/test.pdf", ingest_params={"chunk_size": 2})
     out = module.process_files(event, {})
     assert out["ingest_params"] == {"chunk_size": 2}
 
@@ -1069,14 +1069,30 @@ def test_summary_lambda_forwards(monkeypatch):
     monkeypatch.setattr(module, "create_summary_pdf", fake_create)
     monkeypatch.setattr(module, "upload_buffer_to_s3", fake_upload)
 
-    event = {
-        "collection_name": "c",
-        "statusCode": 200,
-        "organic_bucket": "b",
-        "organic_bucket_key": "extracted/x.pdf",
-        "summaries": [{"Title": "T", "content": "ok"}],
-    }
+    event = SummaryEvent(
+        collection_name="c",
+        statusCode=200,
+        organic_bucket="b",
+        organic_bucket_key="extracted/x.pdf",
+        summaries=[{"Title": "T", "content": "ok"}],
+    )
     module.lambda_handler(event, {})
     assert captured["summaries"] == [("T", "ok")]
     assert captured["bucket"] == "b"
     assert captured["key"] == "summary/x.pdf"
+
+
+def test_processing_status(monkeypatch, s3_stub, config):
+    prefix = "/parameters/aio/ameritasAI/dev"
+    config["/parameters/aio/ameritasAI/SERVER_ENV"] = "dev"
+    config[f"{prefix}/IDP_BUCKET"] = "bucket"
+    config[f"{prefix}/TEXT_DOC_PREFIX"] = "text-docs/"
+    module = load_lambda(
+        "status_lambda", "services/summarization/file-processing-status-lambda/app.py"
+    )
+    monkeypatch.setattr(module, "s3_client", s3_stub)
+    s3_stub.objects[("bucket", "text-docs/doc.json")] = b"x"
+    event = ProcessingStatusEvent(document_id="doc")
+    resp = module.lambda_handler(event, {})
+    assert resp["statusCode"] == 200
+    assert resp["body"]["fileupload_status"] == "COMPLETE"
