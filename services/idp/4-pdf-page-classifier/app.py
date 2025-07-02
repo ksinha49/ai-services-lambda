@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 
 import boto3
 from common_utils import get_config, configure_logger
@@ -45,10 +46,11 @@ s3_client = boto3.client("s3")
 
 
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield S3 event records from *event*."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
 
@@ -109,14 +111,22 @@ def _handle_record(record: dict) -> None:
     logger.info("Page %s has text: %s", key, has_text)
     _copy_page(bucket_name, pdf_page_prefix, key, body, prefix)
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered by pages output from ``3-pdf-split``.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        Standard S3 event describing the page objects.
 
     1. Determines if each page contains embedded text and copies it to either
        ``PDF_TEXT_PAGE_PREFIX`` or ``PDF_SCAN_PAGE_PREFIX``.
     2. Logs any errors but continues processing remaining records.
 
-    Returns a standard 200 response.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        Standard 200 response on completion.
     """
 
     logger.info("Received event for 4-pdf-page-classifier: %s", event)

@@ -13,6 +13,7 @@ import io
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 
 import boto3
 from common_utils import get_config, configure_logger
@@ -30,10 +31,11 @@ logger = configure_logger(__name__)
 s3_client = boto3.client("s3")
 
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield each S3 event record from ``event``."""
 
-    for rec in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for rec in records:
         yield rec
 
 def _extract_docx(body: bytes) -> list[str]:
@@ -132,13 +134,21 @@ def _process_record(record: dict) -> None:
     )
     logger.info("Wrote %s", dest_key)
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered by Office files arriving in ``OFFICE_PREFIX``.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        Standard S3 trigger event.
 
     1. Reads each S3 record and extracts text from DOCX, PPTX or XLSX files.
     2. Writes the resulting Markdown pages to ``TEXT_DOC_PREFIX``.
 
-    Returns a 200 status once processing completes.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        Response with a success message once processing completes.
     """
 
     logger.info("Received event for 2-office-extractor: %s", event)

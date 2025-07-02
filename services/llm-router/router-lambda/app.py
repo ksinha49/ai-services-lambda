@@ -16,6 +16,7 @@ import logging
 from common_utils import configure_logger
 import os
 from typing import Any, Dict
+from models import LlmRouterEvent, LambdaResponse
 
 import json
 from main_router import route_event
@@ -43,23 +44,34 @@ def _choose_backend(prompt: str) -> str:
     return "ollama"
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: LlmRouterEvent, context: Any) -> LambdaResponse:
     """Triggered by HTTP or Lambda invocations to route LLM prompts.
 
-    1. Parses the request payload and chooses a backend based on the provided
-       strategy or prompt complexity.
-    2. Invokes the LLM invocation Lambda with the selected backend.
+    Parameters
+    ----------
+    event : :class:`models.LlmRouterEvent`
+        Incoming API Gateway or direct invocation payload.
 
-    Returns the backend response wrapped in an HTTP style object.
+    The function parses ``event.body`` as JSON, selects a backend based on the
+    configured strategy and forwards the request to the invocation Lambda.
+
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        Backend response wrapped in an HTTP style object.
     """
-    body_content = event.get("body")
+    body_content = event.body if hasattr(event, "body") else event.get("body")
     if body_content is not None:
         try:
             payload = json.loads(body_content or "{}")
         except json.JSONDecodeError:
             return {"statusCode": 400, "body": json.dumps({"message": "Invalid JSON"})}
     else:
-        payload = dict(event)
+        try:
+            from dataclasses import asdict
+            payload = asdict(event)
+        except TypeError:
+            payload = dict(event)
 
     if not payload.get("prompt"):
         return {"statusCode": 400, "body": json.dumps({"message": "Missing 'prompt'"})}

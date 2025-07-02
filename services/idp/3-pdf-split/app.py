@@ -26,6 +26,7 @@ import io
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 
 import boto3
 from common_utils import get_config, configure_logger
@@ -41,10 +42,11 @@ s3_client = boto3.client("s3")
 
 
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield S3 event records from the Lambda event."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
 
@@ -106,14 +108,22 @@ def _handle_record(record: dict) -> None:
     logger.info("Splitting %s", key)
     _split_pdf(bucket_name, pdf_page_prefix, key)
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered by PDFs uploaded to ``PDF_RAW_PREFIX``.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        S3 event referencing the uploaded PDF files.
 
     1. For each S3 record, splits the PDF into page files under
        ``PDF_PAGE_PREFIX`` and writes a ``manifest.json``.
     2. Errors per record are logged and processing continues.
 
-    Returns a 200 response on completion.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        200 status once splitting is complete.
     """
     logger.info("Received event for 3-pdf-split: %s", event)
     for rec in _iter_records(event):

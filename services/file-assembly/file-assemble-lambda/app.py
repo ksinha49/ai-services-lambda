@@ -26,6 +26,7 @@ import boto3
 from PyPDF2 import PdfReader, PdfWriter
 import io
 from typing import Optional
+from models import FileAssemblyEvent, FileAssemblyResult, LambdaResponse
 
 # Module Metadata
 __author__ = "Koushik Sinha"
@@ -69,17 +70,21 @@ def upload_to_s3(pdf_bytes: bytes, file_name: str, bucket_name: str, s3_client=s
         raise ValueError(f"Failed to upload PDF to S3")
 
 
-def assemble_files(event: dict, context, s3_client=s3_client) -> Optional[dict]:
+def assemble_files(event: FileAssemblyEvent, context, s3_client=s3_client) -> FileAssemblyResult:
     """
     Assemble the original and summary PDFs from S3.
 
-    Args:
-        event (dict): The Lambda event.
-        context: The Lambda context.
+    Parameters
+    ----------
+    event : :class:`models.FileAssemblyEvent`
+        Event describing the source and summary PDF locations.
+    context : Any
+        Lambda context (ignored).
 
-    Returns:
-        dict: A dictionary containing the result of the assembly operation. 
-              If an error occurs, raises a ValueError.
+    Returns
+    -------
+    :class:`models.FileAssemblyResult`
+        Result of the merge operation. Errors raise ``ValueError``.
     """
     event_body = event.get("body", event)
     final_response = {}
@@ -152,14 +157,22 @@ def _response(status: int, body: dict) -> dict:
     return {"statusCode": status, "body": body}
 
 
-def lambda_handler(event: dict, context) -> Optional[dict]:
+def lambda_handler(event: FileAssemblyEvent, context) -> LambdaResponse:
     """Triggered by the state machine to merge PDFs.
+
+    Parameters
+    ----------
+    event : :class:`models.FileAssemblyEvent`
+        Payload describing the source and summary PDFs.
 
     1. Calls ``assemble_files`` to download the original and summary PDFs
        from S3 and uploads the merged result.
     2. Wraps the outcome in an HTTP style response for the workflow.
 
-    Returns the response payload with status information.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        Response payload with status information.
     """
 
     logger.info("Starting Lambda function...")

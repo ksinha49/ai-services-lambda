@@ -2,6 +2,11 @@
 
 This service exposes a single Lambda function that forwards OpenAI-style requests to a specific LLM backend. It is typically invoked by the LLM router but can also be called directly.
 
+The handler uses dataclasses from ``models.py``:
+
+- ``LlmInvocationEvent`` – normalised request payload
+- ``LambdaResponse`` – wrapper around the backend reply
+
 `invoke-lambda/app.py` contains the handler. All Python dependencies come from the shared layer `common/layers/llm-invocation-layer` so no additional requirements file is needed.
 
 ## Environment variables
