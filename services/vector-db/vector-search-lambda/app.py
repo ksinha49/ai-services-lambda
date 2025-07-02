@@ -43,8 +43,10 @@ def _process_event(event: Dict[str, Any]) -> Dict[str, Any]:
 
     top_k = int(event.get("top_k", TOP_K))
     logger.info("Searching Milvus with top_k=%s", top_k)
+    collection = event.get("collection_name")
+    client_obj = client if collection is None else MilvusClient(collection_name=collection)
     try:
-        results = client.search(embedding, top_k=top_k)
+        results = client_obj.search(embedding, top_k=top_k)
     except Exception:
         logger.exception("Milvus search failed")
         return {"matches": []}

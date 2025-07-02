@@ -69,6 +69,8 @@ def process_files(event: FileProcessingEvent, context) -> dict:
     """Copy the uploaded file to the IDP bucket and return its location."""
 
     try:
+        if event.collection_name is None:
+            raise ValueError("collection_name missing from event")
         bucket_name, bucket_key = parse_s3_uri(event.file)
         logger.info("Copying %s/%s to IDP bucket", bucket_name, bucket_key)
         dest_uri = copy_file_to_idp(bucket_name, bucket_key)
@@ -88,6 +90,8 @@ def process_files(event: FileProcessingEvent, context) -> dict:
             value = getattr(event, key)
             if value is not None:
                 result[key] = value
+        if event.collection_name is not None:
+            result["collection_name"] = event.collection_name
         result.update(event.extra)
         return result
     except (KeyError, ClientError) as exc:
@@ -118,7 +122,7 @@ def lambda_handler(event: FileProcessingEvent | dict, context) -> dict:
                 return _response(400, {"error": str(exc)})
         final_response = process_files(event, context)
         return _response(200, final_response)
-    except KeyError as exc:
+    except (KeyError, ValueError) as exc:
         logger.error("Missing key in request: %s", exc)
         return _response(400, {"error": str(exc)})
     except ClientError as exc:

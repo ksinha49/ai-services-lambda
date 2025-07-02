@@ -26,6 +26,16 @@ def _process_record(record: Dict[str, Any]) -> None:
         "router_params": body.get("router_params"),
         "llm_params": body.get("llm_params"),
     }
+    if body.get("collection_name") is None:
+        logger.error("collection_name missing from message")
+        if token:
+            sf_client.send_task_failure(
+                taskToken=token,
+                error="WorkerError",
+                cause="collection_name missing",
+            )
+        return
+    payload["collection_name"] = body.get("collection_name")
     try:
         resp = lambda_client.invoke(
             FunctionName=SUMMARY_FUNCTION_ARN,
