@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 
 import boto3
 from common_utils import get_config, configure_logger
@@ -68,10 +69,11 @@ s3_client = boto3.client("s3")
 
 
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield S3 event records from *event*."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
 
@@ -167,13 +169,21 @@ def _handle_record(record: dict) -> None:
     )
     logger.info("Wrote %s", dest_key)
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered by scanned pages in ``PDF_SCAN_PAGE_PREFIX``.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        S3 event referencing the scanned page PDFs.
 
     1. Rasterises each page and performs OCR using the configured engine.
     2. Stores the recognised text as Markdown under ``TEXT_PAGE_PREFIX``.
 
-    Returns a 200 response after all records are handled.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        200 response after all records are handled.
     """
 
     logger.info("Received event for 6-pdf-ocr-extractor: %s", event)

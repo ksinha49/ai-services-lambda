@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from common_utils import configure_logger
 from typing import Any, Dict
+from models import LlmInvocationEvent, LambdaResponse
 
 from llm_invoke import (
     invoke_bedrock_openai,
@@ -37,22 +38,33 @@ def _response(status: int, body: dict) -> dict:
 
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: LlmInvocationEvent, context: Any) -> LambdaResponse:
     """Triggered by the router to invoke a specific LLM backend.
+
+    Parameters
+    ----------
+    event : :class:`models.LlmInvocationEvent`
+        Normalised payload forwarded from the router.
 
     1. Validates the request parameters and selects the appropriate backend
        implementation.
     2. Forwards the prompt to Bedrock or Ollama and captures the response.
 
-    Returns the raw backend response as a dictionary.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        Raw backend response wrapped in an HTTP style object.
     """
-    backend = event.get("backend")
-    prompt = event.get("prompt")
-    system_prompt = event.get("system_prompt")
+    from dataclasses import asdict
+    data = event if isinstance(event, dict) else asdict(event)
+    backend = data.get("backend")
+    prompt = data.get("prompt")
+    system_prompt = data.get("system_prompt")
     if not backend or not prompt:
         return {"message": "Missing backend or prompt"}
 
-    payload = dict(event)
+    from dataclasses import asdict
+    payload = dict(event) if isinstance(event, dict) else asdict(event)
     payload.pop("backend", None)
     payload.pop("system_prompt", None)
 

@@ -16,6 +16,7 @@ import urllib.request
 
 import boto3
 from common_utils import get_config, configure_logger
+from models import S3Event, LambdaResponse
 try:
     from botocore.exceptions import ClientError, BotoCoreError
 except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
@@ -35,10 +36,11 @@ s3_client = boto3.client("s3")
 
 
 
-def _iter_records(event: dict):
+def _iter_records(event: S3Event):
     """Yield S3 event records from *event*."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
 
@@ -109,13 +111,21 @@ def _handle_record(record: dict) -> None:
     else:
         logger.error("Failed to post %s", key)
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered when final outputs appear in S3.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        S3 event containing the final JSON files.
 
     1. Reads each record and posts the payload to an external API endpoint.
     2. Logs success or failure for each upload attempt.
 
-    Returns a 200 status to signal completion to the workflow.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        200 status to signal completion to the workflow.
     """
 
     logger.info("Received event for 8-output: %s", event)

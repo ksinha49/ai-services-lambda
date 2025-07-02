@@ -5,6 +5,12 @@ This service merges summary pages with the original PDF and uploads the merged r
 - **Lambda**: `file-assemble-lambda/app.py`
 - **Layer**: `common/layers/file-assemble-lambda-layer/`
 
+The handler signatures reference dataclasses from ``models.py``:
+
+- ``FileAssemblyEvent`` – incoming payload
+- ``FileAssemblyResult`` – body of the success response
+- ``LambdaResponse`` – wrapper used by ``lambda_handler``
+
 ## Environment variable
 
 `AWS_ACCOUNT_NAME` must be provided so resource names can be scoped to your AWS account.

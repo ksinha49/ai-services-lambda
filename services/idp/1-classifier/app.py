@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 
 import boto3
 from common_utils import get_config, configure_logger
@@ -122,20 +123,29 @@ def _handle_record(record: dict) -> None:
         prefix = office_prefix
     _copy_to_prefix(bucket_name, raw_prefix, key, body, prefix, content_type)
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield each S3 record contained in ``event``."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
-def lambda_handler(event: dict, context) -> dict:
+def lambda_handler(event: S3Event, context) -> LambdaResponse:
     """Triggered by new files in ``RAW_PREFIX``.
 
-    1. Iterates over S3 event records and classifies each object into
-       Office or PDF storage locations.
-    2. Any errors are logged but do not stop processing.
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        Standard S3 event object for the newly uploaded files.
 
-    Returns a 200 response indicating completion.
+    The function iterates over ``event.Records`` and classifies each object into
+    Office or PDF storage locations. Any errors are logged but do not stop
+    processing.
+
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        200 response indicating completion.
     """
 
     logger.info("Received event: %s", event)

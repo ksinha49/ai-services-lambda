@@ -5,6 +5,9 @@ Intelligent Document Processing (IDP) pipeline. Each step is triggered
 by S3 events and writes results back to the same bucket under different
 prefixes.
 
+All handlers accept the :class:`models.S3Event` dataclass and return a
+``LambdaResponse`` defined in ``models.py``.
+
 ## Workflow
 
 1. **1-classifier** – triggered when objects arrive under `RAW_PREFIX`.

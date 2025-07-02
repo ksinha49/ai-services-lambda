@@ -2,6 +2,11 @@
 
 This service routes prompts to different Large Language Model backends such as Amazon Bedrock or a local Ollama instance. `router-lambda/app.py` implements the Lambda entry point and relies on utilities shipped in the shared layer `common/layers/router-layer`.
 
+Handler type hints reference dataclasses defined in ``models.py``:
+
+- ``LlmRouterEvent`` – event passed to ``lambda_handler``
+- ``LambdaResponse`` – HTTP-style response wrapper
+
 The routing logic is split into small modules which can also be reused outside the Lambda:
 
 - **main_router.py** – exposes `route_event` orchestrating the routing flow.

@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 from statistics import median
 
 import boto3
@@ -50,10 +51,11 @@ s3_client = boto3.client("s3")
 
 
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield S3 event records from *event*."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
 
@@ -212,13 +214,21 @@ def _handle_record(record: dict) -> None:
     )
     logger.info("Wrote %s", dest_key)
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered by pages in ``PDF_TEXT_PAGE_PREFIX``.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        S3 event listing the page PDFs.
 
     1. Extracts embedded text using ``fitz`` and converts it to Markdown.
     2. Writes the output under ``TEXT_PAGE_PREFIX`` for downstream steps.
 
-    Returns a 200 status after processing all records.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        200 status after processing all records.
     """
 
     logger.info("Received event for 5-pdf-text-extractor: %s", event)

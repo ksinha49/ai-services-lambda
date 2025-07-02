@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Iterable
+from models import S3Event, LambdaResponse
 
 import boto3
 from common_utils import get_config, configure_logger
@@ -44,10 +45,11 @@ s3_client = boto3.client("s3")
 
 
 
-def _iter_records(event: dict) -> Iterable[dict]:
+def _iter_records(event: S3Event) -> Iterable[dict]:
     """Yield S3 event records from *event*."""
 
-    for record in event.get("Records", []):
+    records = event.Records if hasattr(event, "Records") else event.get("Records", [])
+    for record in records:
         yield record
 
 
@@ -150,14 +152,22 @@ def _handle_record(record: dict) -> None:
     _combine_document(bucket_name, pdf_page_prefix, text_page_prefix, text_doc_prefix, doc_id)
 
 
-def lambda_handler(event: dict, context: dict) -> dict:
+def lambda_handler(event: S3Event, context: dict) -> LambdaResponse:
     """Triggered when page-level text outputs are written.
+
+    Parameters
+    ----------
+    event : :class:`models.S3Event`
+        S3 event for newly created Markdown pages.
 
     1. Checks if all pages for a document exist based on ``manifest.json`` and
        combines them into a single JSON under ``TEXT_DOC_PREFIX``.
     2. Continues processing remaining records even if errors occur.
 
-    Returns a 200 response upon completion.
+    Returns
+    -------
+    :class:`models.LambdaResponse`
+        200 response upon completion.
     """
 
     logger.info("Received event for 7-combine: %s", event)
