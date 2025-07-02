@@ -193,22 +193,22 @@ def assemble_zip_files(event, s3_client=s3_client):
               logger.info(f"file_name:{file_name}")
               output_zip.writestr(file_name, response['Body'].read())
     # Save the zip file to S3
+    output_zip_stream.seek(0)
+    destination_zip_key = f"{zip_file_name}"
+    pdf_file_path = pdf_files[0]
+    distination_bucket_name, distinationfile_key, distinationfile_name  = parse_s3_uri(pdf_file_path)
     try:
-            output_zip_stream.seek(0)
-            destination_zip_key = f"{zip_file_name}"
-            pdf_file_path = pdf_files[0]
-            distination_bucket_name, distinationfile_key, distinationfile_name  = parse_s3_uri(pdf_file_path)
-            s3_client.put_object(
-                Bucket=distination_bucket_name,
-                Key=destination_zip_key,
-                Body=output_zip_stream.getvalue(),
-            )
+        s3_client.put_object(
+            Bucket=distination_bucket_name,
+            Key=destination_zip_key,
+            Body=output_zip_stream.getvalue(),
+        )
     except ClientError as e:
-            logger.error(f"Failed to upload zip file to S3: {e}")
-            return {
-                "statusCode": 500,
-                "error": "Failed to upload zip file",
-            }
+        logger.error(f"Failed to upload zip file to S3: {e}")
+        return {
+            "statusCode": 500,
+            "error": "Failed to upload zip file",
+        }
 
     for xml_file in xml_files:
             bucket_name, key, file_name = parse_s3_uri(xml_file)
