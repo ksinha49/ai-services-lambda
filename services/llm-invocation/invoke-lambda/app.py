@@ -83,4 +83,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
     except Exception as e:
         logger.exception("Unexpected error in llm invocation")
+        if isinstance(e, HTTPStatusError) and hasattr(e, "response"):
+            return _response(
+                500,
+                {
+                    "error": f"{e.response.status_code}: {e.response.text}",
+                },
+            )
         return _response(500, {"error": str(e)})
