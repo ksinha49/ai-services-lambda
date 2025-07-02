@@ -60,6 +60,11 @@ Parameters:
     Type: String
     Description: ARN of the file assemble Lambda
 
+  RunPromptsConcurrency:
+    Type: Number
+    Default: 10
+    Description: MaxConcurrency for the run_prompts map state
+
 Resources:
   # Layers - each defined separately
 
@@ -297,12 +302,12 @@ Resources:
               StateMachineArn: !Ref IngestionStateMachineArn
               Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params} %}'
             Next: run_prompts
-          run_prompts:
-            Type: Map
-            ItemsPath: $.body.prompts
-            ResultPath: $.run_prompts
-            MaxConcurrency: 10
-            Iterator:
+            run_prompts:
+              Type: Map
+              ItemsPath: $.body.prompts
+              ResultPath: $.run_prompts
+              MaxConcurrency: !Ref RunPromptsConcurrency
+              Iterator:
               StartAt: summarize
               States:
                 summarize:
