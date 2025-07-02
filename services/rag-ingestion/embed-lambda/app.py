@@ -123,11 +123,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         model_name = embed_model_map.get(c_type, embed_model)
         embed_fn = _MODEL_MAP.get(model_name, _sbert_embed)
         try:
-            embeddings.append(embed_fn(text))
-            metadatas.append(meta)
+            embedding = embed_fn(text)
         except Exception as exc:  # pragma: no cover - dependency failures
             logger.exception("Embedding using model %s failed", model_name)
             return {"error": str(exc)}
+
+        embeddings.append(embedding)
+        metadatas.append(meta)
 
     return {"embeddings": embeddings, "metadatas": metadatas}
 
