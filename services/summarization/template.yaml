@@ -71,6 +71,10 @@ Parameters:
     Description: Delay between polling for file processing status
 
 Resources:
+  SummaryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
   # Layers - each defined separately
 
 
@@ -203,6 +207,19 @@ Resources:
               - lambda:InvokeFunction
             Resource: !Ref RagSummaryFunctionArn
 
+  StepFunctionSQSPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWSAccountName}-${AWS::StackName}-sf-sqs-send'
+      Roles:
+        - !Select [1, !Split ['/', !Ref FileProcessingStepFunctionIAMRole]]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sqs:SendMessage
+            Resource: !GetAtt SummaryQueue.Arn
+
   FileSummaryLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -228,6 +245,64 @@ Resources:
         Variables:
           AWS_ACCOUNT_NAME: !Ref AWSAccountName
           RAG_SUMMARY_FUNCTION_ARN: !Ref RagSummaryFunctionArn
+
+  SummarizeWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWSAccountName}-${AWS::StackName}-summarize-worker'
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      CodeUri: ./summarize-worker-lambda/
+      Role: !Ref LambdaIAMRoleARN
+      MemorySize: 512
+      Timeout: 300
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupID1
+          - !Ref LambdaSecurityGroupID2
+        SubnetIds:
+          - !Ref LambdaSubnet1ID
+          - !Ref LambdaSubnet2ID
+      Environment:
+        Variables:
+          RAG_SUMMARY_FUNCTION_ARN: !Ref RagSummaryFunctionArn
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SummaryQueue.Arn
+            BatchSize: 1
+
+  WorkerSQSPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWSAccountName}-${AWS::StackName}-worker-sqs'
+      Roles:
+        - !Select [1, !Split ['/', !Ref LambdaIAMRoleARN]]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Resource: !GetAtt SummaryQueue.Arn
+
+  WorkerSFCallbackPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AWSAccountName}-${AWS::StackName}-worker-callback'
+      Roles:
+        - !Select [1, !Split ['/', !Ref LambdaIAMRoleARN]]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - states:SendTaskSuccess
+              - states:SendTaskFailure
+            Resource: !Ref FileProcessingStepFunction
 
   FileProcessingSFInvokePolicy:
     Type: AWS::IAM::Policy
@@ -317,17 +392,22 @@ Resources:
               States:
                 summarize:
                   Type: Task
-                  Resource: arn:aws:states:::lambda:invoke
-                  Output: '{% $states.result.Payload.summary.choices[0].message.content %}'
-                  Arguments:
-                    FunctionName: !Ref RagSummaryFunctionArn
-                    Payload: '{% {"query": $$Map.Item.Value.query, "retrieve_params": $states.input.body.retrieve_params, "router_params": $states.input.body.router_params, "llm_params": $states.input.body.llm_params} %}'
+                  Resource: arn:aws:states:::sqs:sendMessage.waitForTaskToken
+                  Parameters:
+                    QueueUrl: !Ref SummaryQueue
+                    MessageBody:
+                      token.$: $$.Task.Token
+                      query.$: $$Map.Item.Value.query
+                      Title.$: $$Map.Item.Value.Title
+                      retrieve_params.$: $states.input.body.retrieve_params
+                      router_params.$: $states.input.body.router_params
+                      llm_params.$: $states.input.body.llm_params
                   Next: add_title
                 add_title:
                   Type: Pass
                   Parameters:
-                    Title.$: $$Map.Item.Value.Title
-                    content.$: $
+                    Title.$: $.Title
+                    content.$: $.summary
                   End: true
             Next: file_summary
           file_summary:
@@ -380,4 +460,7 @@ Outputs:
   FileProcessingStepFunctionArn:
     Description: ARN of the file processing state machine
     Value: !Ref FileProcessingStepFunction
+  SummaryQueueUrl:
+    Description: URL of the summarization queue
+    Value: !Ref SummaryQueue
  
