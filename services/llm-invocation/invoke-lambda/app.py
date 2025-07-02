@@ -71,23 +71,16 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if system_prompt is not None:
             payload["system"] = system_prompt
         return invoke_ollama(payload)
-    except HTTPStatusError as e:
+    except HTTPStatusError as exc:
         logger.error(
-            "LLM request failed [%d]: %s", e.response.status_code, e.response.text
+            "LLM request failed [%d]: %s", exc.response.status_code, exc.response.text
         )
         return _response(
             500,
             {
-                "error": f"{e.response.status_code}: {e.response.text}",
+                "error": f"{exc.response.status_code}: {exc.response.text}",
             },
         )
-    except Exception as e:
+    except Exception as exc:  # pragma: no cover - unexpected failures
         logger.exception("Unexpected error in llm invocation")
-        if isinstance(e, HTTPStatusError) and hasattr(e, "response"):
-            return _response(
-                500,
-                {
-                    "error": f"{e.response.status_code}: {e.response.text}",
-                },
-            )
-        return _response(500, {"error": str(e)})
+        return _response(500, {"error": str(exc)})

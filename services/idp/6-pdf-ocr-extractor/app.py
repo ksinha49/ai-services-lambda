@@ -39,6 +39,14 @@ from typing import Iterable
 import boto3
 from common_utils import get_config, configure_logger
 import fitz  # PyMuPDF
+try:
+    from botocore.exceptions import ClientError, BotoCoreError
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
+    class ClientError(Exception):
+        pass
+
+    class BotoCoreError(Exception):
+        pass
 import cv2
 import numpy as np
 from paddleocr import PaddleOCR
@@ -142,8 +150,11 @@ def _handle_record(record: dict) -> None:
             logger.info("No pages in %s", key)
             return
         text = _ocr_image(img, engine, trocr_endpoint, docling_endpoint)
-    except Exception as exc:  # pragma: no cover - runtime safety
+    except (fitz.FileDataError, ValueError, TypeError) as exc:  # pragma: no cover - expected
         logger.error("Failed to OCR %s: %s", key, exc)
+        return
+    except Exception as exc:  # pragma: no cover - unexpected
+        logger.exception("Unexpected OCR error for %s", key)
         return
 
     rel_key = key[len(pdf_scan_page_prefix):]
@@ -169,8 +180,10 @@ def lambda_handler(event: dict, context: dict) -> dict:
     for rec in _iter_records(event):
         try:
             _handle_record(rec)
-        except Exception as exc:  # pragma: no cover - runtime safety
+        except (ClientError, BotoCoreError, fitz.FileDataError, ValueError, TypeError) as exc:
             logger.error("Error processing record %s: %s", rec, exc)
+        except Exception as exc:  # pragma: no cover - unexpected
+            logger.exception("Unexpected error processing record %s", rec)
     return {
         "statusCode": 200,
         "body": json.dumps({"message": "6-pdf-ocr-extractor executed"})

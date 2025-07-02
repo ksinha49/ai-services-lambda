@@ -15,6 +15,14 @@ from typing import Iterable
 import boto3
 from common_utils import get_config, configure_logger
 import fitz  # PyMuPDF
+try:
+    from botocore.exceptions import ClientError, BotoCoreError
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
+    class ClientError(Exception):
+        pass
+
+    class BotoCoreError(Exception):
+        pass
 
 __author__ = "Koushik Sinha"
 __version__ = "1.0.0"
@@ -32,8 +40,10 @@ def _pdf_has_text(pdf_bytes: bytes) -> bool:
         for page in doc:
             if page.get_text().strip():
                 return True
-    except Exception as exc:  # pragma: no cover - defensive
+    except (fitz.FileDataError, ValueError) as exc:  # pragma: no cover - expected
         logger.error("Failed to inspect PDF: %s", exc)
+    except Exception as exc:  # pragma: no cover - unexpected
+        logger.exception("Unexpected error inspecting PDF")
     return False
 
 def _copy_to_prefix(
@@ -132,8 +142,10 @@ def lambda_handler(event: dict, context) -> dict:
     for rec in _iter_records(event):
         try:
             _handle_record(rec)
-        except Exception as exc:  # pragma: no cover - runtime safety
+        except (ClientError, BotoCoreError, fitz.FileDataError, ValueError) as exc:
             logger.error("Error processing record %s: %s", rec, exc)
+        except Exception as exc:  # pragma: no cover - unexpected
+            logger.exception("Unexpected error processing record %s", rec)
     return {
         "statusCode": 200,
         "body": json.dumps({"message": "1-classifier executed"}),

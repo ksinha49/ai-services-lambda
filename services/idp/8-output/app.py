@@ -16,6 +16,14 @@ import urllib.request
 
 import boto3
 from common_utils import get_config, configure_logger
+try:
+    from botocore.exceptions import ClientError, BotoCoreError
+except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
+    class ClientError(Exception):
+        pass
+
+    class BotoCoreError(Exception):
+        pass
 
 __author__ = "Koushik Sinha"
 __version__ = "1.0.0"
@@ -57,8 +65,10 @@ def _post_to_api(payload: dict, url: str, api_key: str | None) -> bool:
             exc.code,
             msg,
         )
-    except Exception as exc:
-        logger.error("Failed to post %s: %s", payload.get("documentId"), exc)
+    except urllib.error.URLError as exc:
+        logger.error("Connection error posting %s: %s", payload.get("documentId"), exc)
+    except Exception as exc:  # pragma: no cover - unexpected
+        logger.exception("Unexpected failure posting %s", payload.get("documentId"))
     return False
 
 
@@ -87,8 +97,11 @@ def _handle_record(record: dict) -> None:
         obj = s3_client.get_object(Bucket=bucket_name, Key=key)
         body = obj["Body"].read()
         payload = json.loads(body)
-    except Exception as exc:
+    except (ClientError, BotoCoreError, json.JSONDecodeError) as exc:
         logger.error("Failed to read %s: %s", key, exc)
+        return
+    except Exception as exc:  # pragma: no cover - unexpected
+        logger.exception("Unexpected error reading %s", key)
         return
 
     if _post_to_api(payload, api_url, api_key):
@@ -109,8 +122,10 @@ def lambda_handler(event: dict, context: dict) -> dict:
     for rec in _iter_records(event):
         try:
             _handle_record(rec)
-        except Exception as exc:  # pragma: no cover - runtime safety
+        except (ClientError, BotoCoreError, json.JSONDecodeError, urllib.error.URLError) as exc:
             logger.error("Error processing record %s: %s", rec, exc)
+        except Exception as exc:  # pragma: no cover - unexpected
+            logger.exception("Unexpected error processing record %s", rec)
 
     return {
         "statusCode": 200,
