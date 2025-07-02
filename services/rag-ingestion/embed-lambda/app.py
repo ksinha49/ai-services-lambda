@@ -101,6 +101,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     chunks = event.get("chunks", [])
     doc_type = event.get("docType") or event.get("type")
+    file_guid = event.get("file_guid")
+    file_name = event.get("file_name")
     embed_model = event.get("embedModel", DEFAULT_EMBED_MODEL)
     embed_map_raw = event.get("embedModelMap")
     try:
@@ -120,6 +122,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             text = chunk.get("text", "")
             meta = chunk.get("metadata", {})
             c_type = meta.get("docType") or meta.get("type") or c_type
+        if file_guid:
+            meta = dict(meta or {})
+            meta.setdefault("file_guid", file_guid)
+        if file_name:
+            meta = dict(meta or {})
+            meta.setdefault("file_name", file_name)
         model_name = embed_model_map.get(c_type, embed_model)
         embed_fn = _MODEL_MAP.get(model_name, _sbert_embed)
         try:

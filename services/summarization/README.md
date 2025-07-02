@@ -57,3 +57,10 @@ summarization service. The state machine propagates this value through each
 step so the retrieval service can search the specified Milvus collection.
 If ``collection_name`` is omitted, the file-processing Lambda returns a
 ``400`` response and the Step Function execution fails.
+
+## `file_guid`
+
+When a document is uploaded the file-processing Lambda generates a GUID and
+returns it as ``file_guid`` along with ``file_name``. These values propagate
+through the ingestion workflow so vector search requests can filter by the
+originating file.

@@ -1036,6 +1036,36 @@ def test_vector_search_entity_filter(monkeypatch, config):
     ]
 
 
+def test_vector_search_guid_filter(monkeypatch, config):
+    config["/parameters/aio/ameritasAI/SERVER_ENV"] = "dev"
+    import types, sys
+
+    dummy = types.ModuleType("pymilvus")
+    dummy.Collection = type("Coll", (), {"__init__": lambda self, *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, "pymilvus", dummy)
+    import common_utils.milvus_client as mc
+
+    monkeypatch.setattr(mc, "Collection", dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, "connections", dummy.connections, raising=False)
+
+    module = load_lambda(
+        "vector_search_guid", "services/vector-db/vector-search-lambda/app.py"
+    )
+
+    def fake_search(self, embedding, top_k=5):
+        meta1 = {"file_guid": "g1", "file_name": "a"}
+        meta2 = {"file_guid": "g2", "file_name": "b"}
+        return [
+            type("R", (), {"id": 1, "score": 0.1, "metadata": meta1}),
+            type("R", (), {"id": 2, "score": 0.2, "metadata": meta2}),
+        ]
+
+    monkeypatch.setattr(module, "client", type("C", (), {"search": fake_search})())
+    res = module.lambda_handler({"embedding": [0.1], "file_guid": "g2"}, {})
+    assert len(res["matches"]) == 1 and res["matches"][0]["metadata"]["file_guid"] == "g2"
+
+
 def test_file_processing_passthrough(monkeypatch):
     module = load_lambda(
         "file_proc2", "services/summarization/file-processing-lambda/app.py"
@@ -1105,3 +1135,72 @@ def test_processing_status(monkeypatch, s3_stub, config):
     resp = module.lambda_handler(event, {})
     assert resp["statusCode"] == 200
     assert resp["body"]["fileupload_status"] == "COMPLETE"
+
+
+def test_text_chunk_guid_metadata(config):
+    config["/parameters/aio/ameritasAI/SERVER_ENV"] = "dev"
+    module = load_lambda("chunk_guid", "services/rag-ingestion/text-chunk-lambda/app.py")
+    event = {"text": "hello world", "file_guid": "abc", "file_name": "f.pdf"}
+    out = module.lambda_handler(event, {})
+    md = out["chunks"][0]["metadata"]
+    assert md["file_guid"] == "abc" and md["file_name"] == "f.pdf"
+
+
+def test_embed_propagates_guid(config):
+    config["/parameters/aio/ameritasAI/SERVER_ENV"] = "dev"
+    module = load_lambda("embed_guid", "services/rag-ingestion/embed-lambda/app.py")
+    module._MODEL_MAP["sbert"] = lambda t: [0.0]
+    event = {"chunks": [{"text": "x", "metadata": {}}], "file_guid": "g", "file_name": "n"}
+    out = module.lambda_handler(event, {})
+    assert out["metadatas"][0]["file_guid"] == "g" and out["metadatas"][0]["file_name"] == "n"
+
+
+def test_milvus_insert_adds_guid(monkeypatch, config):
+    config["/parameters/aio/ameritasAI/SERVER_ENV"] = "dev"
+    import types, sys
+
+    dummy = types.ModuleType("pymilvus")
+    dummy.Collection = type("Coll", (), {"__init__": lambda self, *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, "pymilvus", dummy)
+    import common_utils.milvus_client as mc
+
+    monkeypatch.setattr(mc, "Collection", dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, "connections", dummy.connections, raising=False)
+
+    module = load_lambda("milvus_ins", "services/vector-db/milvus-insert-lambda/app.py")
+    monkeypatch.setattr(module, "client", type("C", (), {"insert": lambda s, i, upsert=True: len(i)})())
+    event = {"embeddings": [[0.1]], "metadatas": [{}], "file_guid": "g", "file_name": "n"}
+    res = module.lambda_handler(event, {})
+    assert res["inserted"] == 1
+
+
+def test_vector_search_guid_filter(monkeypatch, config):
+    config["/parameters/aio/ameritasAI/SERVER_ENV"] = "dev"
+    import types, sys
+
+    dummy = types.ModuleType("pymilvus")
+    dummy.Collection = type("Coll", (), {"__init__": lambda self, *a, **k: None})
+    dummy.connections = types.SimpleNamespace(connect=lambda alias, host, port: None)
+    monkeypatch.setitem(sys.modules, "pymilvus", dummy)
+    import common_utils.milvus_client as mc
+
+    monkeypatch.setattr(mc, "Collection", dummy.Collection, raising=False)
+    monkeypatch.setattr(mc, "connections", dummy.connections, raising=False)
+
+    module = load_lambda(
+        "vector_search_guid", "services/vector-db/vector-search-lambda/app.py"
+    )
+
+    def fake_search(self, embedding, top_k=5):
+        meta1 = {"file_guid": "g1", "file_name": "a"}
+        meta2 = {"file_guid": "g2", "file_name": "b"}
+        return [
+            type("R", (), {"id": 1, "score": 0.1, "metadata": meta1}),
+            type("R", (), {"id": 2, "score": 0.2, "metadata": meta2}),
+        ]
+
+    monkeypatch.setattr(module, "client", type("C", (), {"search": fake_search})())
+    res = module.lambda_handler({"embedding": [0.1], "file_guid": "g2"}, {})
+    assert len(res["matches"]) == 1
+    assert res["matches"][0]["metadata"]["file_guid"] == "g2"

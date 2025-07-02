@@ -64,6 +64,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     text = event.get("text", "")
     doc_type = event.get("docType") or event.get("type")
     metadata = event.get("metadata", {})
+    file_guid = event.get("file_guid")
+    file_name = event.get("file_name")
     chunk_size = event.get("chunk_size", DEFAULT_CHUNK_SIZE)
     try:
         chunk_size = int(chunk_size)
@@ -86,13 +88,16 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
         overlap = DEFAULT_CHUNK_OVERLAP
     chunks = chunk_text(text, chunk_size, overlap)
-    chunk_list = [
-        {
-            "text": c,
-            "metadata": {**metadata, "docType": doc_type} if doc_type else {**metadata},
-        }
-        for c in chunks
-    ]
+    chunk_list = []
+    for c in chunks:
+        meta = {**metadata}
+        if doc_type:
+            meta["docType"] = doc_type
+        if file_guid:
+            meta["file_guid"] = file_guid
+        if file_name:
+            meta["file_name"] = file_name
+        chunk_list.append({"text": c, "metadata": meta})
     if EXTRACT_ENTITIES:
         for idx, chunk in enumerate(chunk_list):
             try:

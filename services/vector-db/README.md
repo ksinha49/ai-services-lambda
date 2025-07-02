@@ -17,6 +17,9 @@ This service manages Milvus collections and provides simple search Lambdas. It c
 - **es-search-lambda/app.py** – search the Elasticsearch index
 - **es-hybrid-search-lambda/app.py** – vector + keyword search on Elasticsearch
 
+The `vector-search-lambda` can optionally filter results by `file_guid` or
+`file_name` to retrieve chunks originating from a specific upload.
+
 ## Parameters and environment variables
 
 `template.yaml` exposes several required parameters. Each one becomes an environment variable for all Lambdas in this stack:
