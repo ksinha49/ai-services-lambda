@@ -30,6 +30,11 @@ __modified_by__ = "Koushik Sinha"
 logger = configure_logger(__name__)
 
 
+def _response(status: int, body: dict) -> dict:
+    """Helper to build a consistent Lambda response."""
+    return {"statusCode": status, "body": body}
+
+
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -70,7 +75,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.error(
             "LLM request failed [%d]: %s", e.response.status_code, e.response.text
         )
-        raise
-    except Exception:
+        return _response(
+            500,
+            {
+                "error": f"{e.response.status_code}: {e.response.text}",
+            },
+        )
+    except Exception as e:
         logger.exception("Unexpected error in llm invocation")
-        raise
+        return _response(500, {"error": str(e)})
