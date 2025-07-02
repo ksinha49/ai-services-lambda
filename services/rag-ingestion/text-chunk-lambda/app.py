@@ -22,12 +22,21 @@ __modified_by__ = "Koushik Sinha"
 
 logger = configure_logger(__name__)
 
-DEFAULT_CHUNK_SIZE = int(
-    get_config("CHUNK_SIZE") or os.environ.get("CHUNK_SIZE", "1000")
-)
-DEFAULT_CHUNK_OVERLAP = int(
-    get_config("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "100")
-)
+try:
+    DEFAULT_CHUNK_SIZE = int(
+        get_config("CHUNK_SIZE") or os.environ.get("CHUNK_SIZE", "1000")
+    )
+except ValueError:
+    logger.error("Invalid CHUNK_SIZE value - using default 1000")
+    DEFAULT_CHUNK_SIZE = 1000
+
+try:
+    DEFAULT_CHUNK_OVERLAP = int(
+        get_config("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "100")
+    )
+except ValueError:
+    logger.error("Invalid CHUNK_OVERLAP value - using default 100")
+    DEFAULT_CHUNK_OVERLAP = 100
 EXTRACT_ENTITIES = (
     get_config("EXTRACT_ENTITIES") or os.environ.get("EXTRACT_ENTITIES", "false")
 ).lower() == "true"
@@ -85,11 +94,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         for c in chunks
     ]
     if EXTRACT_ENTITIES:
-        for chunk in chunk_list:
+        for idx, chunk in enumerate(chunk_list):
             try:
                 ents = extract_entities(chunk["text"])
-            except Exception:
-                logger.exception("extract_entities failed")
+            except Exception:  # pragma: no cover - runtime safety
+                logger.exception("extract_entities failed for chunk %s", idx)
                 continue
             if ents:
                 chunk.setdefault("metadata", {})["entities"] = ents
