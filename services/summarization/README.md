@@ -19,6 +19,9 @@ The SAM template exposes a few parameters which become environment variables for
 - `IngestionStateMachineArn` – ARN of the RAG ingestion state machine invoked after the file is available.
 - `RagSummaryFunctionArn` – ARN of the RAG retrieval summary Lambda used by `file-summary`.
 - `RunPromptsConcurrency` – number of prompts processed in parallel by the `run_prompts` map state.
+- `StatusPollSeconds` – number of seconds the Step Function waits before polling for upload status again.
+
+Tuning `StatusPollSeconds` controls how frequently the workflow checks for IDP completion.  Lower values reduce latency but increase state machine executions.
 
 ## Deployment
 
@@ -33,7 +36,8 @@ sam deploy \
     IDPRawPrefix=<prefix> \
     IngestionStateMachineArn=<arn> \
     RagSummaryFunctionArn=<arn> \
-    RunPromptsConcurrency=10
+    RunPromptsConcurrency=10 \
+    StatusPollSeconds=200
 ```
 
 The Step Function definition and Lambda code are located in this directory.  See the root `README.md` for additional context.
