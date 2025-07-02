@@ -20,6 +20,7 @@ The SAM template exposes a few parameters which become environment variables for
 - `RagSummaryFunctionArn` – ARN of the RAG retrieval summary Lambda used by `file-summary`.
 - `RunPromptsConcurrency` – number of prompts processed in parallel by the `run_prompts` map state.
 - `StatusPollSeconds` – number of seconds the Step Function waits before polling for upload status again.
+- The service now provisions an SQS queue consumed by a worker Lambda. `RunPromptsConcurrency` controls how many messages are sent in parallel.
 
 Tuning `StatusPollSeconds` controls how frequently the workflow checks for IDP completion.  Lower values reduce latency but increase state machine executions.
 
@@ -41,3 +42,10 @@ sam deploy \
 ```
 
 The Step Function definition and Lambda code are located in this directory.  See the root `README.md` for additional context.
+
+## Scaling the Worker
+
+Queued messages are processed by `summarize-worker-lambda`. To increase
+throughput raise the Lambda's reserved concurrency or adjust the queue event
+batch size in `template.yaml`. Lowering these values reduces concurrency and
+costs.
