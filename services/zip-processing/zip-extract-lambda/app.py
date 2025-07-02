@@ -78,25 +78,55 @@ def extract_zip_file(event: dict) -> dict:
         dict: A dictionary containing the list of extracted PDF files' keys in the format:
             - `pdfFiles`: list of strings representing the S3 object keys of the extracted PDF files (e.g., `"s3://destination-bucket/pdf-file-1.pdf"`)
     """
-    # Validate event structure before attempting to access keys
+    # Validate event structure before attempting to access keys to avoid
+    # KeyError exceptions bubbling up to the caller
+    if not isinstance(event, dict):
+        msg = "Invalid event: expected dictionary"
+        logger.error(msg)
+        return _error_response(400, msg)
+
     records = event.get("Records")
-    if not records or not isinstance(records, list) or not records[0].get("body"):
+    if not isinstance(records, list) or not records:
+        msg = "Invalid event structure: missing 'Records'"
+        logger.error(msg)
+        return _error_response(400, msg)
+
+    record = records[0]
+    if not isinstance(record, dict):
+        msg = "Invalid event structure: record must be a dict"
+        logger.error(msg)
+        return _error_response(400, msg)
+
+    body = record.get("body")
+    if not body:
         msg = "Invalid event structure: missing S3 event body"
         logger.error(msg)
         return _error_response(400, msg)
 
     try:
         # Get the request body from the event object
-        req_body: dict = json.loads(records[0]["body"])
+        req_body: dict = json.loads(body)
     except JSONDecodeError as exc:
         logger.error("JSON decode error: %s", exc)
         return _error_response(400, "Malformed event body")
 
+    req_detail = req_body.get("detail")
+    if not isinstance(req_detail, dict):
+        msg = "Invalid event detail: missing 'detail'"
+        logger.error(msg)
+        return _error_response(400, msg)
+
+    bucket_info = req_detail.get("bucket")
+    object_info = req_detail.get("object")
+    if not bucket_info or "name" not in bucket_info or not object_info or "key" not in object_info:
+        msg = "Invalid event detail: missing bucket or object information"
+        logger.error(msg)
+        return _error_response(400, msg)
+
+    source_bucket_name: str = bucket_info["name"]
+    zip_file_key: str = object_info["key"]
+
     try:
-        # Extract the source bucket name and zip file key
-        req_detail: dict = req_body["detail"]
-        source_bucket_name: str = req_detail["bucket"]["name"]
-        zip_file_key: str = req_detail["object"]["key"]
         zip_file_name: str = zip_file_key.split("/")
     
         logger.info("[getting file details from the S3]")
@@ -170,10 +200,10 @@ def extract_zip_file(event: dict) -> dict:
     except zipfile.BadZipFile as exc:
         logger.error("Invalid ZIP file: %s", exc)
         return _error_response(400, "Invalid ZIP file")
-    except Exception as e:
-        # Log any exceptions and return an error response
-        logger.error(str(e))
-        return _error_response(500, str(e))
+    except Exception as exc:
+        # Log any unexpected exceptions and return a generic error response
+        logger.exception("Unexpected error processing ZIP: %s", exc)
+        return _error_response(500, "Internal server error")
 
 def getFileName(bucket_key):
     """
