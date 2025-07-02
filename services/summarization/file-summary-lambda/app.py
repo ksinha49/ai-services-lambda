@@ -51,6 +51,9 @@ from common_utils.get_ssm import (
 from fpdf import FPDF
 from unidecode import unidecode
 
+FONT_PATH = os.path.join(os.path.dirname(__file__), "DejaVuSans.ttf")
+BOLD_FONT_PATH = os.path.join(os.path.dirname(__file__), "DejaVuSans-Bold.ttf")
+
 # Module Metadata
 __author__ = "Koushik Sinha"
 __version__ = "1.0.2"
@@ -242,7 +245,8 @@ def render_table(
     # Header row
     prefix = get_environment_prefix()
     font_size = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
-    pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
+    pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+    pdf.add_font("DejaVu", "B", BOLD_FONT_PATH, uni=True)
     pdf.set_font("DejaVu", size=int(font_size))
     #pdf.set_font("Times", size=10)
     with pdf.table() as pdf_table:
@@ -267,88 +271,96 @@ def remove_asterisks(text):
   """
   return re.sub(r'\*\*|\*', '', text)
 
+
+def _add_title_page(pdf: FPDF, font_size: int, font_size_bold: int) -> None:
+    """Create the initial title page."""
+    pdf.add_page()
+    pdf.add_font("DejaVu", "B", BOLD_FONT_PATH, uni=True)
+    pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
+    current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    pdf.multi_cell(w=150, h=5, text=current_date, align="R")
+    pdf.ln(1)
+    pdf.multi_cell(w=150, h=5, text="APS Summary", align="C")
+    pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+    pdf.set_font("DejaVu", size=int(font_size))
+    pdf.ln(2)
+
+
+def _write_paragraph(pdf: FPDF, text: str, font_size: int, font_size_bold: int) -> None:
+    """Write a single paragraph to the PDF respecting markdown markers."""
+    text = unidecode(text)
+    formatted = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    if text.startswith("**") and text.endswith("**"):
+        pdf.add_font("DejaVu", "B", BOLD_FONT_PATH, uni=True)
+        pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
+        pdf.multi_cell(w=150, h=5, text=formatted)
+    elif formatted.startswith("**") and not formatted.endswith("**"):
+        formatted = remove_asterisks(formatted)
+        pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+        pdf.set_font("DejaVu", size=int(font_size))
+        pdf.multi_cell(w=150, h=5, text=formatted)
+    elif not formatted.startswith("**") and formatted.endswith("**"):
+        formatted = remove_asterisks(formatted)
+        pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+        pdf.set_font("DejaVu", size=int(font_size))
+        pdf.multi_cell(w=150, h=5, text=formatted)
+    elif formatted.startswith("*"):
+        formatted = remove_asterisks(formatted)
+        pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+        pdf.set_font("DejaVu", size=int(font_size))
+        pdf.multi_cell(w=150, h=5, text=formatted)
+    else:
+        if not formatted.startswith("Note:"):
+            pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+            pdf.set_font("DejaVu", size=int(font_size))
+            pdf.multi_cell(w=150, h=5, text=formatted)
+    pdf.ln(2)
+
+
+def _render_table(pdf: FPDF, table: List[List[str]]) -> None:
+    """Render a markdown table."""
+    render_table(pdf, table, x=20, y=pdf.get_y(), total_width=170)
+    pdf.ln(2)
+
 def create_summary_pdf(summaries: List[str]) -> BytesIO:
-    """
-    Build a summary document in memory containing each summary block.
+    """Build a summary PDF from a list of summary blocks."""
 
-    Args:
-        summaries: Raw summary strings.
-
-    Returns:
-        BytesIO buffer of the summary PDF (cursor at 0).
-    """
     prefix = get_environment_prefix()
     font_size = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE")
     font_size_bold = get_values_from_ssm(f"{prefix}/SUMMARY_PDF_FONT_SIZE_BOLD")
+
     pdf = FPDF(unit="mm", format="A4")
     pdf.set_margins(20, 20)
     buf = BytesIO()
+
     for idx, (title, raw) in enumerate(summaries):
-        if idx > 0:
-           # pdf.add_page()
-            if title != 'NA': 
-              pdf.ln(5) 
-              pdf.add_font("DejaVu", "B", "DejaVuSans-Bold.ttf", uni=True)
-              pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
-              pdf.multi_cell(w=150, h=5, text=title, align='C')
-              pdf.ln(3) 
-              pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
-              pdf.set_font("DejaVu", size=int(font_size))
+        if idx == 0:
+            _add_title_page(pdf, int(font_size), int(font_size_bold))
         else:
-            pdf.add_page()
-            pdf.add_font("DejaVu", "B", "DejaVuSans-Bold.ttf", uni=True)
-            pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
-            current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            pdf.multi_cell(w=150, h=5, text=current_date, align='R')
-            pdf.ln(1) 
-            pdf.multi_cell(w=150, h=5, text="APS Summary", align="C")
-            pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
-            pdf.set_font("DejaVu", size=int(font_size))
-            pdf.ln(2) 
+            if title != "NA":
+                pdf.ln(5)
+                pdf.add_font("DejaVu", "B", BOLD_FONT_PATH, uni=True)
+                pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
+                pdf.multi_cell(w=150, h=5, text=title, align="C")
+                pdf.ln(3)
+                pdf.add_font("DejaVu", "", FONT_PATH, uni=True)
+                pdf.set_font("DejaVu", size=int(font_size))
+
         blocks = format_summary_content(raw)
         for block in blocks:
-            cell_height = 2
             if isinstance(block, str):
-                  text = unidecode(block)
-                  current_pos = 0
-                  formatedText = re.sub(r'\*\*(.+?)\*\*', r'\1', text)               
-                  if text.startswith("**") and text.endswith("**"):
-                      pdf.add_font("DejaVu", "B", "DejaVuSans-Bold.ttf", uni=True)
-                      pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
-                      pdf.multi_cell(w=150, h=5, text=formatedText)
-                  elif formatedText.startswith("**") and not formatedText.endswith("**"):
-                       formatedText = remove_asterisks(formatedText)
-                       pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
-                       pdf.set_font("DejaVu", size=int(font_size))
-                       pdf.multi_cell(w=150, h=5, text=formatedText)
-                  elif not formatedText.startswith("**") and formatedText.endswith("**"):
-                       formatedText = remove_asterisks(formatedText)
-                       pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
-                       pdf.set_font("DejaVu", size=int(font_size))
-                       pdf.multi_cell(w=150, h=5, text=formatedText)
-                  elif formatedText.startswith("*"):
-                      formatedText = remove_asterisks(formatedText)
-                      pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True)
-                      pdf.set_font("DejaVu", size=int(font_size))
-                      pdf.multi_cell(w=150, h=5, text=formatedText)
-                  else:
-                    if not formatedText.startswith("Note:"):
-                      pdf.add_font("DejaVu", "",  "DejaVuSans.ttf", uni=True)
-                      pdf.set_font("DejaVu", size=int(font_size))
-                      pdf.multi_cell(w=150, h=5, text=formatedText)
+                _write_paragraph(pdf, block, int(font_size), int(font_size_bold))
             else:
-                  render_table(pdf, block, x=20, y=pdf.get_y(), total_width=170)
-            pdf.ln(cell_height) 
-    
-    pdf.add_font("DejaVu", "B", "DejaVuSans-Bold.ttf", uni=True)
+                _render_table(pdf, block)
+
+    pdf.add_font("DejaVu", "B", BOLD_FONT_PATH, uni=True)
     pdf.set_font("DejaVu", style="B", size=int(font_size_bold))
-    pdf.ln(1) 
+    pdf.ln(1)
     pdf.multi_cell(w=150, h=5, text="====End of APS Summary====", align="C")
 
     pdf.output(buf)
     buf.seek(0)
     return buf
-
 
 def upload_buffer_to_s3(buffer: BytesIO, bucket: str, bucket_key: str) -> None:
     """
