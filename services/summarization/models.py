@@ -10,13 +10,21 @@ class FileProcessingEvent:
     retrieve_params: Optional[Dict[str, Any]] = None
     router_params: Optional[Dict[str, Any]] = None
     llm_params: Optional[Dict[str, Any]] = None
+    collection_name: Optional[str] = None
     extra: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "FileProcessingEvent":
         if "file" not in data:
             raise ValueError("file missing from event")
-        keys = {"file", "ingest_params", "retrieve_params", "router_params", "llm_params"}
+        keys = {
+            "file",
+            "ingest_params",
+            "retrieve_params",
+            "router_params",
+            "llm_params",
+            "collection_name",
+        }
         extra = {k: v for k, v in data.items() if k not in keys}
         params = {k: data.get(k) for k in keys}
         params["extra"] = extra
@@ -34,6 +42,7 @@ class ProcessingStatusEvent:
     document_id: str
     fileupload_status: Optional[str] = None
     text_doc_key: Optional[str] = None
+    collection_name: Optional[str] = None
     extra: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -41,7 +50,7 @@ class ProcessingStatusEvent:
         body = data.get("body", data)
         if "document_id" not in body:
             raise ValueError("document_id missing from event")
-        keys = {"document_id", "fileupload_status", "text_doc_key"}
+        keys = {"document_id", "fileupload_status", "text_doc_key", "collection_name"}
         extra = {k: v for k, v in body.items() if k not in keys}
         params = {k: body.get(k) for k in keys}
         params["extra"] = extra
@@ -56,10 +65,10 @@ class ProcessingStatusEvent:
 @dataclass
 class SummaryEvent:
     """Payload consumed by :mod:`file-summary-lambda`."""
-    collection_name: str
     statusCode: int
     organic_bucket: str
     organic_bucket_key: str
+    collection_name: Optional[str] = None
     summaries: Optional[List[Dict[str, Any]]] = None
     statusMessage: Optional[str] = None
     extra: Dict[str, Any] = field(default_factory=dict)
@@ -67,7 +76,7 @@ class SummaryEvent:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SummaryEvent":
         body = data.get("body", data)
-        required = {"collection_name", "statusCode", "organic_bucket", "organic_bucket_key"}
+        required = {"statusCode", "organic_bucket", "organic_bucket_key"}
         missing = [k for k in required if k not in body]
         if missing:
             raise ValueError(f"Missing required event keys: {', '.join(missing)}")

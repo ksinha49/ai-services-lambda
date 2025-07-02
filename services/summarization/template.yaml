@@ -380,7 +380,7 @@ Resources:
             Resource: arn:aws:states:::states:startExecution.sync
             Parameters:
               StateMachineArn: !Ref IngestionStateMachineArn
-              Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params} %}'
+              Input: '{% {"documentId": $states.input.body.document_id, "ingest_params": $states.input.body.ingest_params, "collection_name": $states.input.body.collection_name} %}'
             Next: run_prompts
             run_prompts:
               Type: Map
@@ -402,6 +402,7 @@ Resources:
                       retrieve_params.$: $states.input.body.retrieve_params
                       router_params.$: $states.input.body.router_params
                       llm_params.$: $states.input.body.llm_params
+                      collection_name.$: $states.input.body.collection_name
                   Next: add_title
                 add_title:
                   Type: Pass
@@ -416,7 +417,7 @@ Resources:
             Output: '{% $states.result.Payload %}'
             Arguments:
               FunctionName: !GetAtt FileSummaryLambdaFunction.Arn
-              Payload: '{% $merge([$states.input, {"summaries": $.run_prompts}]) %}'
+              Payload: '{% $merge([$states.input, {"summaries": $.run_prompts, "collection_name": $states.input.body.collection_name}]) %}'
             Retry:
               - ErrorEquals:
                   - States.TaskFailed

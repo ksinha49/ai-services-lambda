@@ -49,3 +49,12 @@ Queued messages are processed by `summarize-worker-lambda`. To increase
 throughput raise the Lambda's reserved concurrency or adjust the queue event
 batch size in `template.yaml`. Lowering these values reduces concurrency and
 costs.
+
+## `collection_name`
+
+Execution inputs must include a ``collection_name`` value when invoking the
+summarization service. The state machine propagates this value through each
+step so the retrieval service can search the specified Milvus collection.
+If a collection name is not supplied the default collection configured for the
+environment will be used, but the summarization workflow expects it to be
+provided.

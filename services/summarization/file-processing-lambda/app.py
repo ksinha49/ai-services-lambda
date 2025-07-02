@@ -88,6 +88,8 @@ def process_files(event: FileProcessingEvent, context) -> dict:
             value = getattr(event, key)
             if value is not None:
                 result[key] = value
+        if event.collection_name is not None:
+            result["collection_name"] = event.collection_name
         result.update(event.extra)
         return result
     except (KeyError, ClientError) as exc:
