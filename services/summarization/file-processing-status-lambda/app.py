@@ -18,6 +18,7 @@ import boto3
 import logging
 from common_utils import configure_logger
 import os
+from services.summarization.models import ProcessingStatusEvent
 from common_utils.get_ssm import (
     get_values_from_ssm,
     get_environment_prefix,
@@ -41,7 +42,7 @@ def _get_param(name: str) -> str | None:
     """Return ``name`` from environment or SSM."""
     return os.getenv(name) or get_values_from_ssm(f"{get_environment_prefix()}/{name}")
 
-def check_file_processing_status(event: dict, context) -> dict:
+def check_file_processing_status(event: ProcessingStatusEvent, context) -> dict:
     """Return updated *event* with processing status.
 
     The function looks for ``TEXT_DOC_PREFIX/{document_id}.json`` in the IDP
@@ -49,10 +50,8 @@ def check_file_processing_status(event: dict, context) -> dict:
     ``"COMPLETE"``.
     """
 
-    event_body = event.get("body", event)
-    document_id = event_body.get("document_id")
-    if not document_id:
-        raise ValueError("document_id missing from event")
+    document_id = event.document_id
+    event_body = event.to_dict()
 
     bucket = _get_param("IDP_BUCKET")
     prefix = _get_param("TEXT_DOC_PREFIX") or "text-docs/"
@@ -78,7 +77,7 @@ def _response(status: int, body: dict) -> dict:
     return {"statusCode": status, "body": body}
 
 
-def lambda_handler(event: dict, context) -> dict:
+def lambda_handler(event: ProcessingStatusEvent | dict, context) -> dict:
     """Triggered periodically to poll processing status.
 
     1. Checks S3 for the text output produced by the IDP pipeline.
@@ -90,6 +89,12 @@ def lambda_handler(event: dict, context) -> dict:
     logger.info("Starting Lambda function...")
 
     try:
+        if isinstance(event, dict):
+            try:
+                event = ProcessingStatusEvent.from_dict(event)
+            except ValueError as exc:
+                logger.exception("Invalid request to lambda_handler")
+                return _response(400, {"statusMessage": str(exc)})
         body = check_file_processing_status(event, context)
         logger.info(f"Returning final response: {body}")
         return _response(200, body)

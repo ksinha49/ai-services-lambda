@@ -29,6 +29,7 @@ from common_utils.get_ssm import (
     get_environment_prefix,
     parse_s3_uri,
 )
+from services.summarization.models import FileProcessingEvent
 
 # Module Metadata
 __author__ = "Koushik Sinha"
@@ -64,11 +65,11 @@ def copy_file_to_idp(bucket_name: str, bucket_key: str) -> str:
     return f"s3://{idp_bucket}/{dest_key}"
 
 
-def process_files(event: dict, context) -> dict:
+def process_files(event: FileProcessingEvent, context) -> dict:
     """Copy the uploaded file to the IDP bucket and return its location."""
 
     try:
-        bucket_name, bucket_key = parse_s3_uri(event["file"])
+        bucket_name, bucket_key = parse_s3_uri(event.file)
         logger.info("Copying %s/%s to IDP bucket", bucket_name, bucket_key)
         dest_uri = copy_file_to_idp(bucket_name, bucket_key)
 
@@ -84,8 +85,10 @@ def process_files(event: dict, context) -> dict:
             "router_params",
             "llm_params",
         ):
-            if key in event:
-                result[key] = event[key]
+            value = getattr(event, key)
+            if value is not None:
+                result[key] = value
+        result.update(event.extra)
         return result
     except (KeyError, ClientError) as exc:
         logger.error("Failed to process file: %s", exc)
@@ -96,7 +99,7 @@ def _response(status: int, body: dict) -> dict:
     return {"statusCode": status, "body": body}
 
 
-def lambda_handler(event: dict, context) -> dict:
+def lambda_handler(event: FileProcessingEvent | dict, context) -> dict:
     """Triggered after a file upload to start processing.
 
     1. Copies the file to the IDP bucket so subsequent steps can operate on it.
@@ -107,6 +110,12 @@ def lambda_handler(event: dict, context) -> dict:
 
     logger.info("Starting Lambda function...")
     try:
+        if isinstance(event, dict):
+            try:
+                event = FileProcessingEvent.from_dict(event)
+            except ValueError as exc:
+                logger.error("Invalid event: %s", exc)
+                return _response(400, {"error": str(exc)})
         final_response = process_files(event, context)
         return _response(200, final_response)
     except KeyError as exc:
