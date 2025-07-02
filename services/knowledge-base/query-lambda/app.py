@@ -1,4 +1,8 @@
-"""Query the knowledge base and enqueue a summarization request."""
+"""Query the knowledge base and enqueue a summarization request.
+
+The request payload is forwarded to the SQS queue defined by the
+``SUMMARY_QUEUE_URL`` environment variable.
+"""
 
 from __future__ import annotations
 
