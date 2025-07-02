@@ -32,6 +32,10 @@ from datetime import datetime
 import boto3
 import httpx
 from httpx import Timeout, HTTPStatusError
+try:  # optional for minimal test env
+    from httpx import TimeoutException, RequestError
+except Exception:  # pragma: no cover - fallback when httpx isn't fully available
+    TimeoutException = RequestError = Exception
 try:
     from botocore.exceptions import ClientError, BotoCoreError
 except ModuleNotFoundError:  # pragma: no cover - fallback for minimal env
@@ -105,25 +109,35 @@ def chat_with_collection(
         "files": [{"type": "collection", "id": collection_id}],
     }
     try:
-        with httpx.Client(verify="AMERITASISSUING1-CA.crt",timeout=None) as client:
-            response = client.post(url,
+        with httpx.Client(verify="AMERITASISSUING1-CA.crt", timeout=None) as client:
+            response = client.post(
+                url,
                 json=payload,
                 headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-               }
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
             )
 
             response.raise_for_status()
             return response.json()
-       
-    except HTTPStatusError as e:
-        logger.error("Summarization call failed [%d]: %s",
-                     e.response.status_code, e.response.text)
-        raise
-    except Exception:
+
+    except HTTPStatusError as exc:
+        logger.error(
+            "Summarization call failed [%d]: %s",
+            exc.response.status_code,
+            exc.response.text,
+        )
+        raise RuntimeError("Summarization service returned an error") from exc
+    except TimeoutException as exc:
+        logger.exception("Summarization service timed out")
+        raise RuntimeError("Summarization service timed out") from exc
+    except RequestError as exc:
+        logger.exception("HTTP request to summarization service failed")
+        raise RuntimeError("Unable to reach summarization service") from exc
+    except Exception as exc:
         logger.exception("Unexpected error in chat_with_collection")
-        raise
+        raise RuntimeError("Unexpected error during summarization request") from exc
 
 
 def read_prompts_from_json(file_path: str) -> Optional[List[Dict[str, Any]]]:
@@ -432,9 +446,9 @@ def process_for_summary(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except ValueError as exc:
         logger.exception("Invalid input for summary processing")
         return {"statusCode": 400, "statusMessage": str(exc)}
-    except Exception as e:
-        logger.exception("process_for_summary failed")
-        return {"statusCode": 500, "statusMessage": str(e)}
+    except Exception as exc:
+        logger.exception("Unexpected error during summary processing")
+        return {"statusCode": 500, "statusMessage": "Internal server error"}
 
 
 def _response(status: int, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -461,6 +475,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     except ValueError as exc:
         logger.exception("Invalid request to lambda_handler")
         return _response(400, {"statusMessage": str(exc)})
-    except Exception as e:
+    except Exception as exc:
         logger.exception("lambda_handler failed")
-        return _response(500, {"statusMessage": str(e)})
+        return _response(500, {"statusMessage": "Internal server error"})
