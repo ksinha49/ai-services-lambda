@@ -10,6 +10,7 @@ The repository includes the following directories under `services/`:
 - `idp` – Intelligent Document Processing pipeline (classification, OCR and text extraction)
 - `zip-processing` – extracts PDFs from uploaded archives and assembles new ZIPs
 - `rag-ingestion` – chunks text and generates embeddings stored in Milvus
+- `rag-ingestion-worker` – SQS-driven trigger for the ingestion Step Function
 - `vector-db` – manages Milvus collections and search Lambdas
 - `rag-retrieval` – retrieval functions and API endpoints for summarization or entity extraction
 - `summarization` – Step Function workflow orchestrating file processing and summary generation
@@ -37,6 +38,10 @@ workflow and assembles a new archive with the merged outputs.
 #### rag-ingestion
 Splits text documents into overlapping chunks, generates embeddings using
 `embed-lambda` and stores them in Milvus via the `vector-db` functions.
+
+#### rag-ingestion-worker
+Dequeues requests from an SQS queue and starts the ingestion Step Function with
+each message payload.
 
 #### vector-db
 Provides Lambda functions for creating collections, inserting, updating and
