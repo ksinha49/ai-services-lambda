@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Worker processing the RAG ingestion queue.
+
+Parameters:
+  StateMachineArn:
+    Type: String
+
+Globals:
+  Function:
+    Handler: app.lambda_handler
+    Runtime: python3.13
+    Timeout: 60
+    MemorySize: 512
+
+Resources:
+  IngestionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./worker-lambda/
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN: !Ref StateMachineArn
+      Events:
+        Queue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt IngestionQueue.Arn
+            BatchSize: 1
+
+Outputs:
+  QueueUrl:
+    Description: URL of the ingestion queue
+    Value: !Ref IngestionQueue
+  WorkerFunctionArn:
+    Description: ARN of the ingestion worker Lambda
+    Value: !GetAtt WorkerFunction.Arn

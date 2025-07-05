@@ -86,6 +86,13 @@ Resources:
         BucketName: !GetAtt IDPService.Outputs.BucketName
         TextDocPrefix: !GetAtt IDPService.Outputs.TextDocPrefix
 
+  RagIngestionWorkerService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: services/rag-ingestion-worker/template.yaml
+      Parameters:
+        StateMachineArn: !GetAtt RagIngestionService.Outputs.IngestionStateMachineArn
+
   RagRetrievalService:
     Type: AWS::Serverless::Application
     Properties:
